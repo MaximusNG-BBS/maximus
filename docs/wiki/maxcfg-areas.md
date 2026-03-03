@@ -44,23 +44,9 @@ The tree view is the best way to see the big picture. It shows every division
 and every area in a collapsible hierarchy — similar to a file manager's folder
 tree.
 
-```
-┌─ Message Areas ─────────────────────────────────────────────┐
-│  ▼ General Discussion                                        │
-│      Local Chat                                              │
-│      Announcements                                           │
-│      Buy/Sell/Trade                                          │
-│  ▼ FidoNet Echo                                              │
-│      BBS_CARNIVAL                                            │
-│      LINUX                                                   │
-│      RETRO_COMPUTING                                         │
-│  ► Netmail (collapsed)                                       │
-│                                                              │
-│  [Enter] Edit  [Ins] Add  [Del] Toggle  [←→] Expand/Collapse│
-└──────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Message Area Tree]({{ site.baseurl }}/assets/images/screenshots/maxcfg-msg-area-tree.png)
 
-Divisions are shown with ▼ (expanded) or ► (collapsed). Areas are indented
+Divisions are shown with their child areas nested beneath them. Areas are indented
 under their parent division.
 
 ### Navigation
@@ -138,22 +124,9 @@ every area.
 This is the flat list of every area on your board, across all divisions. It's
 the fastest way to find and edit a specific area.
 
-```
-┌─ Message Areas ──────────────────────────────────────────────┐
-│  Local Chat              General Discussion     [Squish/Local]│
-│  Announcements           General Discussion     [Squish/Local]│
-│  Buy/Sell/Trade          General Discussion     [Squish/Local]│
-│  BBS_CARNIVAL            FidoNet Echo           [Squish/Echo] │
-│  LINUX                   FidoNet Echo           [Squish/Echo] │
-│  RETRO_COMPUTING         FidoNet Echo           [Squish/Echo] │
-│  Netmail                 Netmail                [MSG/Net]      │
-│                                                               │
-│  [Enter] Edit  [Ins] Add  [Del] Toggle  [Esc] Save & Exit    │
-└───────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Message Area Flat List]({{ site.baseurl }}/assets/images/screenshots/maxcfg-areas-flatpicker.png)
 
-Each entry shows the area name, the division it belongs to, and the message
-base format and type in brackets.
+Each entry shows the area name, type, and description.
 
 | Key | Action |
 |-----|--------|
@@ -165,6 +138,8 @@ base format and type in brackets.
 ### Message Area Form
 
 When you edit a message area, here's what you're working with:
+
+![MaxCFG Message Area Edit Form]({{ site.baseurl }}/assets/images/screenshots/maxcfg-msg-area-edit.png)
 
 | Field | Type | What it does |
 |-------|------|-------------|

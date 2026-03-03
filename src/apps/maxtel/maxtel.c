@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <sys/un.h>
+#include <sys/ioctl.h>
 #include <sys/select.h>
 #include <termios.h>
 #include <netinet/in.h>
@@ -642,6 +643,49 @@ static void restart_node(int node_num)
     kill_node(node_num);
 }
 
+/**
+ * @brief Draw (or redraw) the snoop header bar on terminal row 1.
+ *
+ * Uses DEC save/restore cursor so it can be called mid-stream without
+ * disrupting the BBS output position.  Shows node number, username,
+ * elapsed snoop time, and hotkey hints in reverse video, padded to
+ * the full terminal width.
+ *
+ * @param node_num   0-based node index
+ * @param node       Pointer to node info (for username)
+ * @param start      Time snoop mode was entered (for elapsed display)
+ */
+static void snoop_draw_header(int node_num, node_info_t *node, time_t start)
+{
+    /* Query current terminal width */
+    struct winsize ws = {0};
+    int cols = 80;
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0)
+        cols = ws.ws_col;
+
+    int elapsed = (int)(time(NULL) - start);
+    int mins = elapsed / 60;
+    int secs = elapsed % 60;
+
+    char hdr[256];
+    snprintf(hdr, sizeof(hdr),
+             "[SNOOP: Node %d%s%s - %02d:%02d - F1=Exit F2=Alt-C]",
+             node_num + 1,
+             node->username[0] ? " - " : "",
+             node->username[0] ? node->username : "",
+             mins, secs);
+
+    /* DEC save cursor → row 1 → reverse-video header → restore cursor */
+    printf("\0337"          /* DEC save cursor + attrs         */
+           "\033[1;1H"      /* Move to row 1, col 1            */
+           "\033[7m"        /* Reverse video                   */
+           "%-*.*s"         /* Left-justify, pad/clamp to cols */
+           "\033[0m"        /* Reset attributes                */
+           "\0338",         /* DEC restore cursor + attrs      */
+           cols, cols, hdr);
+    fflush(stdout);
+}
+
 /* Enter snoop mode - view and interact with a node's session */
 static void enter_snoop_mode(int node_num)
 {
@@ -660,13 +704,12 @@ static void enter_snoop_mode(int node_num)
     /* Exit ncurses temporarily */
     endwin();
     
-    /* Clear screen and show snoop header */
-    printf("\033[2J\033[H");  /* Clear screen, home cursor */
-    printf("\033[7m[SNOOP: Node %d", node_num + 1);
-    if (node->username[0]) {
-        printf(" - %s", node->username);
-    }
-    printf(" - F1=Exit F2=Alt-C]\033[0m\n");
+    /* Clear screen, draw initial snoop header, position cursor below it */
+    time_t snoop_start = time(NULL);
+    time_t last_header_draw = snoop_start;
+    printf("\033[2J\033[H");             /* Clear screen, home cursor */
+    snoop_draw_header(node_num, node, snoop_start);
+    printf("\033[2;1H");                 /* Position cursor on row 2  */
     
     /* Set terminal to raw mode */
     struct termios raw, saved;
@@ -692,7 +735,9 @@ static void enter_snoop_mode(int node_num)
         int maxfd = (node->pty_master > STDIN_FILENO) ? node->pty_master : STDIN_FILENO;
         struct timeval tv = {0, 50000};  /* 50ms timeout */
         
-        if (select(maxfd + 1, &rfds, NULL, NULL, &tv) > 0) {
+        int sel_ret = select(maxfd + 1, &rfds, NULL, NULL, &tv);
+
+        if (sel_ret > 0) {
             char buf[4096];
             ssize_t n;
             
@@ -744,6 +789,15 @@ static void enter_snoop_mode(int node_num)
                     }
                 }
             }
+        }
+
+        /* Periodically redraw header (~5s) so it doesn't get lost in
+         * BBS output.  Also picks up username changes if someone logs
+         * in while we're snooping. */
+        time_t now = time(NULL);
+        if (now - last_header_draw >= 5) {
+            last_header_draw = now;
+            snoop_draw_header(node_num, node, snoop_start);
         }
     }
     
@@ -2489,21 +2543,23 @@ static void handle_input(int ch)
                 char maxcfg_path[512];
                 snprintf(maxcfg_path, sizeof(maxcfg_path), "%s/bin/maxcfg", base_path);
                 
-                /* Show pause message before releasing terminal */
-                werase(status_win);
-                wattron(status_win, COLOR_PAIR(8));
-                mvwprintw(status_win, LINES/2 - 2, (COLS - 50)/2, 
-                    "╔════════════════════════════════════════════════╗");
-                mvwprintw(status_win, LINES/2 - 1, (COLS - 50)/2,
-                    "║  Launching Configuration Editor...            ║");
-                mvwprintw(status_win, LINES/2, (COLS - 50)/2,
-                    "║                                                ║");
-                mvwprintw(status_win, LINES/2 + 1, (COLS - 50)/2,
-                    "║  Monitoring continues in background           ║");
-                mvwprintw(status_win, LINES/2 + 2, (COLS - 50)/2,
-                    "╚════════════════════════════════════════════════╝");
-                wattroff(status_win, COLOR_PAIR(8));
-                wrefresh(status_win);
+                /* Show pause message before releasing terminal.
+                 * Use a temporary ncurses WINDOW with box() for the
+                 * border — avoids UTF-8 box-drawing chars that don't
+                 * render through standard (non-wide) ncurses. */
+                {
+                    int bw = 50, bh = 5;
+                    int bx = (COLS - bw) / 2;
+                    int by = (LINES - bh) / 2;
+                    WINDOW *dlg = newwin(bh, bw, by, bx);
+
+                    wbkgd(dlg, COLOR_PAIR(8));
+                    box(dlg, 0, 0);
+                    mvwprintw(dlg, 1, 2, "Launching Configuration Editor...");
+                    mvwprintw(dlg, 3, 2, "Monitoring continues in background");
+                    wrefresh(dlg);
+                    delwin(dlg);
+                }
                 napms(1500);  /* Let user see message */
                 
                 /* Release terminal for maxcfg */

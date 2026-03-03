@@ -406,7 +406,7 @@ static void menu_preview_stub(void *ctx)
             }
         }
 
-        menu_preview_render(menu_for_preview, &vs, &layout, interactive ? selected : -1);
+        menu_preview_render(menu_for_preview, (p && p->sys_path) ? p->sys_path : "", &vs, &layout, interactive ? selected : -1);
 
         if (interactive && selected < 0 && layout.count > 0) {
             selected = 0;

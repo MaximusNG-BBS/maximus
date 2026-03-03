@@ -30,21 +30,7 @@ The browser shows every string in the language file as a scrollable list. Each
 entry displays the dotted key name (like `global.press_enter`) and a truncated
 preview of the string value.
 
-```
-┌─ Language Editor: english.toml  (1334/1334) ────────────────────┐
-│ Filter: [________]   Heap: [All       ]   Flags: [All   ]       │
-│ Heap           Symbol                 Text                       │
-│ ──────────────────────────────────────────────────────────────── │
-│ global         located                |15\nLocated |!1d match... │
-│ global         wrong_pwd              \aWrong! (Try #|!1d)\n     │
-│ global         end_prompt             ]:                          │
-│ max_init       logo1                  |15|12Maximus BBS\n        │
-│ m_area         no_msg                 No messages in this area.. │
-│ ...                                                              │
-│                                                                  │
-│ [Enter] Edit  [/] Filter  [H] Heap  [G] Flags  [Esc] Quit       │
-└──────────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Language Browser]({{ site.baseurl }}/assets/images/screenshots/maxcfg-language-browse.png)
 
 The title bar shows the filename and a count of visible vs. total entries. The
 `[meta]` and `[_legacy_map]` sections are automatically hidden — you only
@@ -80,24 +66,7 @@ message area strings) and **G** to filter by flags.
 
 Press **Enter** on any string to open the edit dialog:
 
-```
-┌─ Edit: global.located ──────────────────────────────────────────┐
-│                                                                  │
-│  Heap:    global                                                 │
-│  Symbol:  located                                                │
-│  Flags:   (none)                                                 │
-│  Params:  |!1="42", |!2="es"                                    │
-│                                                                  │
-│  Text:                                                           │
-│  ┌────────────────────────────────────────────────────────────┐  │
-│  │|15                                                         │  │
-│  │Located |!1d match|!2.                                      │  │
-│  │                                                            │  │
-│  └────────────────────────────────────────────────────────────┘  │
-│                                                                  │
-│  [F2] Save  [P] Preview  [Esc] Cancel                Modified   │
-└──────────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Language Edit Dialog]({{ site.baseurl }}/assets/images/screenshots/maxcfg-language-edit.png)
 
 The top section shows read-only metadata: **Heap**, **Symbol**, **Flags**, and
 **Params** (positional parameter mock values derived from the `params`
@@ -122,7 +91,14 @@ You are editing the raw TOML string content, so `|14` is a yellow color code
 and `|!1d` is a positional parameter with an int type suffix. The status bar
 shows **Modified** when you have unsaved changes.
 
+Press **F3** to open the MCI Code Reference — a tabbed overlay listing all
+available color codes, background codes, and info codes with live samples:
+
+![MaxCFG Language Edit MCI Reference]({{ site.baseurl }}/assets/images/screenshots/maxcfg-language-edit-mci.png)
+
 ### Preview
+
+![MaxCFG Language Edit Preview]({{ site.baseurl }}/assets/images/screenshots/maxcfg-language-edit-preview.png)
 
 Press **P** to open a preview popup that renders the string exactly as a caller
 would see it — MCI color codes are expanded to real colors, cursor codes are

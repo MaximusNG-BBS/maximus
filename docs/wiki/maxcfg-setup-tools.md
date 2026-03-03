@@ -28,6 +28,8 @@ logs in.
 This is the identity of your board — the name callers see and the sysop name
 that appears in system messages.
 
+![MaxCFG BBS Information Form]({{ site.baseurl }}/assets/images/screenshots/maxcfg-setup-bbs-info.png)
+
 | Field | Type | TOML Key |
 |-------|------|----------|
 | BBS Name | Text | `maximus.system_name` |
@@ -141,6 +143,8 @@ someone connects, a welcome screen after login, a goodbye screen when they log
 off, and so on. This form lists all ~40 display file mappings, one for each
 event.
 
+![MaxCFG Display Files Form]({{ site.baseurl }}/assets/images/screenshots/maxcfg-display-files-form.png)
+
 Each field supports:
 
 - **Enter / F2** — open the file picker to browse for `.bbs` or `.vm` files
@@ -156,6 +160,8 @@ Opens a category picker with four groups of color settings. These control the
 default colors your callers see for menus, file listings, message displays, and
 the full-screen reader. For more on how Maximus handles colors, see
 [Theme Colors]({% link theme-colors.md %}).
+
+![MaxCFG Default Colors Picker]({{ site.baseurl }}/assets/images/screenshots/maxcfg-default-color-picker.png)
 
 | Category | What you're coloring |
 |----------|---------------------|
@@ -186,7 +192,7 @@ this section entirely.
 | Matrix Entry | Select | `matrix.matrix_entry` |
 
 These control who can use the matrix (network mail) features. The access level
-names come from your `access.ctl` definitions.
+names come from your `access_levels.toml` definitions.
 
 ### Message Attribute Privileges
 
@@ -205,6 +211,8 @@ netmail delivery) to Privileged users and above.
 
 A list editor for your FidoNet network addresses in Zone:Net/Node.Point
 format. Most boards have one address; multi-net boards may have several.
+
+![MaxCFG Network Addresses Editor]({{ site.baseurl }}/assets/images/screenshots/maxcfg-ftn-editor.png)
 
 - **Enter** — edit the selected address
 - **Insert** — add a new address

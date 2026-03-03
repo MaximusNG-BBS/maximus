@@ -82,9 +82,7 @@ maxtel -H -p 2323 -n 4
 
 MaxTel prints a one-line confirmation to stderr and then runs silently:
 
-```
-maxtel running in headless mode on port 2323 with 4 nodes
-```
+![MaxTel Headless Output]({{ site.baseurl }}/assets/images/screenshots/maxtel-headless-output.png)
 
 It still accepts connections, manages nodes, and writes to `maxtel.log` — you
 just don't get the live UI. To stop it, send `SIGTERM` or `SIGINT`:

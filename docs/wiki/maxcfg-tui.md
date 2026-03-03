@@ -36,27 +36,12 @@ the TOML configuration files.
 
 ## Screen Layout
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ MAXCFG v1.0              Maximus Configuration Editor              F1=Help  │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Setup   Content   Messages   Files   Users   Tools                         │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                              │
-│                          [ Work Area ]                                       │
-│                                                                              │
-│              Forms, list pickers, tree views, and dialogs                    │
-│              appear here when you select a menu item.                        │
-│                                                                              │
-├──────────────────────────────────────────────────────────────────────────────┤
-│  Status bar / key hints                                                      │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Screen Layout]({{ site.baseurl }}/assets/images/screenshots/maxcfg-setup-bbs-info.png)
 
-- **Title bar** — application name, version, and help hint
+- **Title bar** (top) — application name, version, and help hint
 - **Menu bar** — six top-level menus with dropdown and cascading submenus
 - **Work area** — where forms, pickers, and editors appear
-- **Status bar** — context-sensitive key hints
+- **Status bar** (bottom) — context-sensitive key hints
 
 ---
 
@@ -239,15 +224,7 @@ written to disk until you explicitly save:
 
 If you **Esc** out of a form with unsaved changes, you are prompted:
 
-```
-┌───────────────────────────────┐
-│  Save and Exit                │  ← highlighted
-│  Abort without saving         │
-│  Return to edit screen        │
-├───────────────────────────────┤
-│       ENTER = Select          │
-└───────────────────────────────┘
-```
+![MaxCFG Abort Changes Dialog]({{ site.baseurl }}/assets/images/screenshots/maxcfg-tui-abort.png)
 
 ---
 

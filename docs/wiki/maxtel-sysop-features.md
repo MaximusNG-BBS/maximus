@@ -47,9 +47,7 @@ on things.
 MaxTel exits the dashboard temporarily and drops you into a raw terminal view
 of that node's PTY. You'll see a header bar at the top:
 
-```
-[SNOOP: Node 3 - Kevin Morgan - F1=Exit F2=Alt-C]
-```
+![MaxTel Snoop Mode]({{ site.baseurl }}/assets/images/screenshots/maxtel-snoop-mode.png)
 
 Everything the caller sees now appears on your screen. Everything you type
 goes to the session — the caller sees your keystrokes too.
@@ -75,6 +73,8 @@ detects the closed PTY and returns you to the dashboard automatically.
 Pressing `C` from the dashboard launches MaxCFG — the Maximus configuration
 editor — right in your terminal. MaxTel suspends its own display, hands the
 terminal over to MaxCFG, and waits.
+
+![MaxTel Inline Config Launch]({{ site.baseurl }}/assets/images/screenshots/maxtel-inline-config.png)
 
 When you exit MaxCFG, MaxTel reclaims the terminal and redraws the dashboard.
 No restart needed — any configuration changes you made take effect the next

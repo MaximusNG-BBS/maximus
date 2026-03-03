@@ -44,6 +44,8 @@ and the login screen, exactly as a caller would see it.
 4. **Log off cleanly.** Press **G** (Goodbye) from the main menu. This
    ensures your account is fully written to the database.
 
+![Main Menu after first login]({{ site.baseurl }}/assets/images/screenshots/mainmenu-basic.png)
+
 The BBS automatically grants your account the highest privilege level because
 the name matches the configured sysop name. You're now the sysop.
 

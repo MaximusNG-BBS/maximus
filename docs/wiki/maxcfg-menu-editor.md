@@ -13,8 +13,9 @@ with full ANSI art rendering, lightbar colors, and layout — all updated in
 real-time as you make changes. Hit **F3** from any menu form and there it is.
 ([Jump to Live Preview details.](#live-preview))
 
-The editor works directly with `menus.ctl` — no compilation step, no separate
-tools. Open a menu, change a title, add an option, save, done.
+Each menu lives in its own TOML file under `config/menus/` (e.g., `main.toml`,
+`message.toml`, `file.toml`). No compilation step, no separate tools. Open a
+menu, change a title, add an option, save, done.
 
 ---
 
@@ -24,7 +25,7 @@ From the maxcfg main screen, navigate to:
 
 **Content → Menus**
 
-MaxCFG reads your `menus.ctl` file and presents every defined menu in a list.
+MaxCFG reads the menu TOML files from `config/menus/` and presents every defined menu in a list.
 If you're coming from another BBS package or setting up Maximus for the first
 time, you'll find a set of default menus already in place — MAIN, MESSAGE,
 FILE, CHANGE, EDIT, CHAT, and so on. These are a good starting point; you can
@@ -34,19 +35,7 @@ rename, rearrange, or replace them as you see fit.
 
 ## Menu List
 
-```
-┌─ Menus ─────────────────────────────────────────────────────┐
-│  MAIN            MAIN (%t mins)               12 options     │
-│  MESSAGE         Message Areas                 8 options     │
-│  FILE            File Areas                    9 options     │
-│  CHANGE          Change Settings               7 options     │
-│  EDIT            Message Editor                 6 options     │
-│  CHAT            Chat System                    5 options     │
-│  READER          Offline Reader                 4 options     │
-│                                                              │
-│  [Enter] Edit  [Ins] Add  [Del] Remove  [Esc] Save & Exit   │
-└──────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Menu List]({{ site.baseurl }}/assets/images/screenshots/maxcfg-menu-list.png)
 
 Each entry shows the menu name, the title your callers see, and how many
 options it contains.
@@ -56,7 +45,7 @@ options it contains.
 | **Enter** | Edit the selected menu |
 | **Insert** | Create a new menu |
 | **Delete** | Remove the selected menu (asks for confirmation first) |
-| **Esc** | Save all menus back to `menus.ctl` and exit |
+| **Esc** | Save all menus back to their TOML files and exit |
 
 ---
 
@@ -99,6 +88,8 @@ them by hand every time you add an option — this is it.
 For the full deep-dive on how hybrid menus work, see
 [Lightbar Menus]({% link config-lightbar-menus.md %}) and
 [Canned & Bounded Menus]({% link config-canned-bounded-menus.md %}).
+
+![MaxCFG Menu Customization Form]({{ site.baseurl }}/assets/images/screenshots/maxcfg-menu-customize.png)
 
 ### Toggles
 
@@ -149,38 +140,58 @@ and you'll see the result immediately in the [live preview](#live-preview).
 | **High Color** | The hotkey character in unselected options (so it stands out) |
 | **High+Selected Color** | The hotkey character when the option is highlighted |
 
-Colors are stored as named pairs (e.g., "White on Blue") and written as
-`Customize_Lb*Fg` / `Customize_Lb*Bg` directives in `menus.ctl`.
+Colors are stored as named pairs (e.g., "White on Blue") in the
+`[custom_menu.lightbar_color]` section of the menu's TOML file.
 
-### What It Looks Like in menus.ctl
+### What It Looks Like in TOML
 
-If you're curious what all this produces, here's a typical customized menu:
+If you're curious what all this produces, here's an excerpt from a real
+`main.toml` with customization enabled:
 
-```
-Menu MAIN
-    Title           MAIN (%t mins)
-    MenuFile        ansi/menu_main Novice Regular Expert
+```toml
+name = "MAIN"
+title = "Main menu (%t mins)"
+menu_file = "display/screens/menu_main.ans"
+menu_types = ["Novice"]
+option_width = 14
 
-    Customize_Enabled        Yes
-    Customize_Lightbar       Yes
-    Customize_LightbarMargin 1
-    Customize_Boundary       8,8,20,61
-    Customize_TitleLocation  6,10
-    Customize_PromptLocation 22,2
-    Customize_LbNormalFg     Gray
-    Customize_LbNormalBg     Black
-    Customize_LbSelectedFg   White
-    Customize_LbSelectedBg   Blue
-    Customize_BoundaryLayout Spread
-    Customize_BoundaryJustify Center Top
+[[option]]
+command = "Display_Menu"
+arguments = "MESSAGE"
+priv_level = "Demoted"
+description = "Message areas"
+modifiers = []
 
-    Display_Menu  MESSAGE  Demoted "Message areas"
-    ...
-End Menu
+[[option]]
+command = "Goodbye"
+arguments = ""
+priv_level = "Transient"
+description = "Goodbye (log off)"
+modifiers = []
+
+# ... more [[option]] entries ...
+
+[custom_menu]
+skip_canned_menu = false
+show_title = true
+lightbar_menu = true
+lightbar_margin = 1
+top_boundary = [8, 8]
+bottom_boundary = [20, 61]
+title_location = [22, 32]
+prompt_location = [23, 1]
+boundary_layout = "spread"
+boundary_justify = "center center"
+
+[custom_menu.lightbar_color]
+normal = ["Light Gray", "Black"]
+high = ["Yellow", "Black"]
+selected = ["White", "Blue"]
+high_selected = ["Yellow", "Blue"]
 ```
 
 You never have to write this by hand — the menu editor builds it for you. But
-it's nice to know it's all plain text if you ever want to bulk-edit or
+it's nice to know it's all plain-text TOML if you ever want to bulk-edit or
 version-control your menus.
 
 ---
@@ -190,18 +201,7 @@ version-control your menus.
 Every menu is made up of options — the commands your callers can choose from.
 The option list shows them all at a glance:
 
-```
-┌─ MAIN: Options ─────────────────────────────────────────────┐
-│  Message areas     → Display_Menu  MESSAGE     [Demoted]     │
-│  File areas        → Display_Menu  FILE        [Demoted]     │
-│  Goodbye (log off) → Goodbye                   [Transient]   │
-│  Statistics        → MEX           m/stats     [Demoted]     │
-│  UserList          → Userlist                  [Demoted]     │
-│  ?help             → Display_File  etc/help/main [Demoted]   │
-│                                                              │
-│  [Enter] Edit  [Ins] Add  [Del] Remove  [Esc] Done          │
-└──────────────────────────────────────────────────────────────┘
-```
+![MaxCFG Menu Options List]({{ site.baseurl }}/assets/images/screenshots/maxcfg-menu-options.png)
 
 Each line shows the description callers see, the command it runs, and the
 minimum privilege level needed to use it. Options appear in the order callers
@@ -230,6 +230,8 @@ Select an option and you get a form with everything that defines it:
 ### Command Picker
 
 You don't have to memorize command names — the picker groups them by category:
+
+![MaxCFG Command Picker]({{ site.baseurl }}/assets/images/screenshots/maxcfg-menu-select-cmd.png)
 
 | Category | Examples |
 |----------|---------|
@@ -279,6 +281,8 @@ This gives you fine-grained control over who sees what.
 This is one of the best features of the menu editor. Press **F3** from the
 properties form or the customization form, and MaxCFG renders your menu
 *exactly* as a caller would see it — right there in a popup window.
+
+![MaxCFG Live Menu Preview]({{ site.baseurl }}/assets/images/screenshots/maxcfg-live-preview.png)
 
 Here's what happens under the hood:
 
@@ -331,6 +335,6 @@ full story on what's possible.
 
 - [TUI Editor]({% link maxcfg-tui.md %}) — navigation keys and field types
 - [Menu System]({% link config-menu-system.md %}) — how the Maximus menu system works
-- [Menu Definitions]({% link config-menu-definitions.md %}) — `menus.ctl` format reference
+- [Menu Definitions]({% link config-menu-definitions.md %}) — menu TOML format reference
 - [Lightbar Menus]({% link config-lightbar-menus.md %}) — arrow-key navigation setup
 - [Canned & Bounded Menus]({% link config-canned-bounded-menus.md %}) — hybrid ANSI + auto-generated menus

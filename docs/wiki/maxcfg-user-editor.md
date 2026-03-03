@@ -33,20 +33,9 @@ that's normal.
 
 ## User List
 
-```
-┌─ User Editor ── Filter: [none] ─────────────────────────────┐
-│  #    Name                    City              Last On       │
-│  1    John Smith              Portland, OR      2025-01-10    │
-│  2    Jane Doe                Austin, TX        2025-01-09    │
-│  3    SysOp                   Local             2025-01-11    │
-│  4    Guest User              Unknown           2024-12-15    │
-│                                                              │
-│  [Enter] Edit  [/] Filter  [C] Clear  [Esc] Exit            │
-└──────────────────────────────────────────────────────────────┘
-```
+![MaxCFG User List]({{ site.baseurl }}/assets/images/screenshots/maxcfg-user-editor-list.png)
 
-The list shows every user in the database with their record number, name, city,
-and last login date. If your board has been running for a while, this list could
+The list shows every user in the database with their name and alias. If your board has been running for a while, this list could
 be hundreds of entries long — that's where filtering comes in.
 
 ### Navigation
@@ -86,18 +75,7 @@ When you press **Enter** on a user, a picker appears with six editing
 categories. Each one opens a focused form for that part of the user record —
 you don't have to scroll through a massive single form.
 
-```
-┌─ Edit User: John Smith ──────┐
-│  Personal Information         │
-│  Security                     │
-│  Settings                     │
-│  Statistics                   │
-│  Dates                        │
-│  Keys/Flags                   │
-│                               │
-│  [Enter] Select  [Esc] Back  │
-└───────────────────────────────┘
-```
+![MaxCFG User Edit Category Picker]({{ site.baseurl }}/assets/images/screenshots/maxcfg-user-edit-cat.png)
 
 Changes are written to the database when you save each sub-form (F10).
 
@@ -143,7 +121,7 @@ the password is hashed before it's stored. You can't see the current password
 in that case — only replace it. If encryption is off, passwords are stored in
 plain text (not recommended for production boards).
 
-The privilege picker shows all the access levels defined in your `access.ctl`.
+The privilege picker shows all the access levels defined in your `access_levels.toml`.
 You can also press Space to manually type a custom privilege string — useful
 for key-based restrictions like `Normal/1C`.
 
@@ -218,6 +196,8 @@ user's terminal capabilities, but you can override them here if needed.
 | **BadLogon** | Flagged for bad logon attempts (security alert) |
 | **Bored** | Use the BORED (built-in) message editor instead of an external one |
 | **CLS** | Terminal supports clear screen |
+
+![MaxCFG User Keys/Flags Editor]({{ site.baseurl }}/assets/images/screenshots/maxcfg-user-editor-keysflags.png)
 
 ---
 

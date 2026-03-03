@@ -120,6 +120,8 @@ If you resize the terminal window, it redraws on the fly — no restart needed.
 
 For standard-width terminals:
 
+![MaxTel Dashboard — Compact 80×25 Layout]({{ site.baseurl }}/assets/images/screenshots/maxtel-80x25.png)
+
 - System panel uses **tabbed view** — `Tab` switches between Info and Stats
 - Node list omits the Activity column
 - Caller names truncated to 14 characters
@@ -137,6 +139,8 @@ For wider terminals:
 ### Full (132×40+)
 
 For large terminals:
+
+![MaxTel Dashboard — Full 132-Wide Layout]({{ site.baseurl }}/assets/images/screenshots/maxtel-132-wide.png)
 
 - Nodes panel includes the **Activity** column
 - Callers show **city** information

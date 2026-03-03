@@ -2,6 +2,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <wchar.h>
 
 #include "maxcfg.h"
@@ -184,6 +185,54 @@ static uint8_t make_dos_attr(const char *fg_name, const char *bg_name)
     if (bg < 0) bg = 0;
     if (bg > 7) bg = 0;
     return (uint8_t)((bg << 4) | (fg & 0x0f));
+}
+
+/**
+ * @brief Resolve a menu display file path for ANSI preview.
+ *
+ * Menu TOML paths are relative to sys_path (e.g. "display/screens/menu_main.ans").
+ * Some include the .ans extension, some don't.  This helper:
+ *   1. Joins sys_path + relative_path
+ *   2. If the result exists, returns it
+ *   3. Otherwise appends ".ans" and tries again
+ *
+ * @param sys_path  BBS system directory (base for relative paths)
+ * @param rel_path  Relative display file path from the menu TOML
+ * @param out       Output buffer for resolved absolute path
+ * @param out_sz    Size of output buffer
+ * @return true if a readable file was found
+ */
+static bool resolve_ansi_path(const char *sys_path, const char *rel_path,
+                              char *out, size_t out_sz)
+{
+    if (!rel_path || !*rel_path || !out || out_sz == 0)
+        return false;
+
+    const char *base = (sys_path && *sys_path) ? sys_path : ".";
+
+    /* Join base + relative path */
+    size_t blen = strlen(base);
+    bool need_sep = (blen > 0 && base[blen - 1] != '/');
+    int n = snprintf(out, out_sz, "%s%s%s", base, need_sep ? "/" : "", rel_path);
+    if (n < 0 || (size_t)n >= out_sz)
+        return false;
+
+    /* Try as-is first (path may already include extension) */
+    struct stat st;
+    if (stat(out, &st) == 0 && S_ISREG(st.st_mode))
+        return true;
+
+    /* If it doesn't already end with .ans, try appending it */
+    size_t plen = strlen(out);
+    if (plen < 4 || strcmp(out + plen - 4, ".ans") != 0) {
+        int n2 = snprintf(out + plen, out_sz - plen, ".ans");
+        if (n2 >= 0 && (size_t)(plen + n2) < out_sz) {
+            if (stat(out, &st) == 0 && S_ISREG(st.st_mode))
+                return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -473,24 +522,24 @@ static void render_option_cell(const MenuDefinition *menu,
     }
 }
 
-void menu_preview_render(const MenuDefinition *menu, MenuPreviewVScreen *vs, MenuPreviewLayout *layout, int selected_index)
+void menu_preview_render(const MenuDefinition *menu, const char *sys_path, MenuPreviewVScreen *vs, MenuPreviewLayout *layout, int selected_index)
 {
     if (!menu || !vs) return;
 
     vs_clear(vs, ' ');
 
-    /* Render header_file if present */
-    if (menu->header_file && menu->header_file[0]) {
+    /* Render header_file if present (skip MEX scripts prefixed with ':') */
+    if (menu->header_file && menu->header_file[0] && menu->header_file[0] != ':') {
         char header_path[512];
-        snprintf(header_path, sizeof(header_path), "%s.ans", menu->header_file);
-        ansi_load_file(vs, header_path);
+        if (resolve_ansi_path(sys_path, menu->header_file, header_path, sizeof(header_path)))
+            ansi_load_file(vs, header_path);
     }
 
-    /* Render menu_file if present */
-    if (menu->menu_file && menu->menu_file[0]) {
+    /* Render menu_file if present (skip MEX scripts prefixed with ':') */
+    if (menu->menu_file && menu->menu_file[0] && menu->menu_file[0] != ':') {
         char menu_path[512];
-        snprintf(menu_path, sizeof(menu_path), "%s.ans", menu->menu_file);
-        ansi_load_file(vs, menu_path);
+        if (resolve_ansi_path(sys_path, menu->menu_file, menu_path, sizeof(menu_path)))
+            ansi_load_file(vs, menu_path);
     }
 
     (void)selected_index;

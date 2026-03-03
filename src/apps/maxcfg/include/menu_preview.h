@@ -30,6 +30,7 @@ typedef struct {
 void menu_preview_layout_free(MenuPreviewLayout *layout);
 
 void menu_preview_render(const MenuDefinition *menu,
+                         const char *sys_path,
                          MenuPreviewVScreen *vs,
                          MenuPreviewLayout *layout,
                          int selected_index);
