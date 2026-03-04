@@ -25,6 +25,8 @@ LDFLAGS += -lmaxcfg
 LDFLAGS += -L$(SRC)/src/libs/libmaxdb -lmaxdb -L$(SRC)/src/libs/sqlite -lsqlite3
 LDFLAGS += -lmax
 LDFLAGS += -lcompat
+# Add -lm for math functions used by sqlite3
+LDFLAGS += -lm
 
 SRCDIR = src
 OBJDIR = obj

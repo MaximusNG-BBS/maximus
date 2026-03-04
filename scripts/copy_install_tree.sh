@@ -29,6 +29,11 @@ export PREFIX
 
 [ -d "${PREFIX}/docs" ] || mkdir -p "${PREFIX}/docs"
 
+# Create runtime directories required by max at startup
+for dir in data/msgbase data/filebase data/nodelist data/mail/outbound data/mail/inbound run/tmp run/node run/stage log; do
+  [ -d "${PREFIX}/${dir}" ] || mkdir -p "${PREFIX}/${dir}"
+done
+
 if [ -f "${PREFIX}/config/maximus.toml" ] && [ "$FORCE" = "0" ]; then
   echo "This is not a fresh install -- not copying install tree.."
   echo "Use --force to overwrite (creates backups of existing files)"

@@ -71,7 +71,7 @@ libmax.so: $(OBJS) Makefile
 ifeq ($(PLATFORM),darwin)
 	$(CC) -shared -install_name @rpath/$@ -undefined dynamic_lookup $(OBJS) $(LDFLAGS) -L$(SRC)/src/libs/libmaxdb -L$(SRC)/src/libs/sqlite -L/opt/homebrew/opt/ncurses/lib -lmaxdb -lsqlite3 -lcompat -lncurses -o $@
 else
-	$(CC) -shared -Wl,--allow-shlib-undefined $(OBJS) $(LDFLAGS) -lcompat -lncurses -o $@
+	$(CC) -shared -Wl,--warn-unresolved-symbols $(OBJS) $(LDFLAGS) -L$(SRC)/src/libs/libmaxdb -L$(SRC)/src/libs/sqlite -lmaxdb -lsqlite3 -lcompat -lncurses -o $@
 endif
 
 # Install only what was built for this platform

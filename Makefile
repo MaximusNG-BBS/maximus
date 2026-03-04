@@ -170,6 +170,12 @@ config_install:
 
 	@[ -d ${PREFIX}/data/db ] || mkdir -p ${PREFIX}/data/db
 	@[ -d ${PREFIX}/data/users ] || mkdir -p ${PREFIX}/data/users
+	@[ -d ${PREFIX}/data/msgbase ] || mkdir -p ${PREFIX}/data/msgbase
+	@[ -d ${PREFIX}/data/filebase ] || mkdir -p ${PREFIX}/data/filebase
+	@[ -d ${PREFIX}/run/tmp ] || mkdir -p ${PREFIX}/run/tmp
+	@[ -d ${PREFIX}/run/node ] || mkdir -p ${PREFIX}/run/node
+	@[ -d ${PREFIX}/run/stage ] || mkdir -p ${PREFIX}/run/stage
+	@[ -d ${PREFIX}/log ] || mkdir -p ${PREFIX}/log
 	@cp -f scripts/db/userdb_schema.sql ${PREFIX}/data/db/userdb_schema.sql
 	@cp -f scripts/db/init-userdb.sh ${PREFIX}/bin/init-userdb.sh
 	@chmod +x ${PREFIX}/bin/init-userdb.sh

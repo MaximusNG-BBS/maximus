@@ -22,6 +22,7 @@ mecca.o init.o accem.o: mecca.h
 maxcomm fixlr setlr fb mr editcall mecca cvtusr ansi2mec ansi2bbs oracle: EXTRA_LOADLIBES += -lmsgapi
 fb mr: EXTRA_LOADLIBES += -lmaxcfg
 
+init_userdb: EXTRA_INCLUDES += -I$(SRC)/src/libs/sqlite
 init_userdb: init_userdb.o $(SRC)/src/libs/sqlite/libsqlite3.a
 	$(CC) $(CFLAGS) $(LDFLAGS) $^ $(LOADLIBES) -o $@
 
