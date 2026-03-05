@@ -105,8 +105,7 @@ void Login(char *key_info)
 
   Mdm_Flow_On();
 
-  if (!local)
-    Logo(key_info);
+  Logo(key_info);
 
   /* Check overall lowest baud rate */
 
@@ -123,6 +122,11 @@ void Login(char *key_info)
       Display_File(0, NULL, ngcfg_get_path("general.display_files.too_slow"));
       mdm_hangup();
     }
+  }
+
+  if (local)
+  {
+    Puts("\n");
   }
 
   Banner();
@@ -241,7 +245,7 @@ static void near Logo(char *key_info)
 
 static void near Banner(void)
 {
-  if ((! *linebuf && !local) || eqstri(linebuf,"-"))
+  if (! *linebuf || eqstri(linebuf,"-"))
   {
     *linebuf='\0';
     logit("+BANNER: before logo current=%d,%d display=%d,%d usr=%dx%d term=%dx%d", (int)current_line, (int)current_col, (int)display_line, (int)display_col, (int)usr.width, (int)usr.len, TermWidth(), TermLength());

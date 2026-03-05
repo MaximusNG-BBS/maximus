@@ -231,6 +231,10 @@ void Mdm_putc(int ch)
 
   static word x, y, z, a;
 
+  /* CSI parameter buffer for ANSI passthrough cursor tracking */
+  static char ansi_csi_buf[24];
+  static int  ansi_csi_len=0;
+
   if (state==-1)
   {
 
@@ -240,13 +244,140 @@ void Mdm_putc(int ch)
       if (ansi_state)
       {
         if (ch==10 || ch==13 || ch==12)
+        {
           ansi_state=0;
+          ansi_csi_len=0;
+        }
         else
         {
           if (ansi_state==1)
-            ansi_state=(ch=='[') ? 2 : 0;
-          else if (ansi_state==2 && ch >= 0x40 && ch <= 0x7e)
-            ansi_state=0;
+          {
+            if (ch=='[')
+            {
+              ansi_state=2;
+              ansi_csi_len=0;
+            }
+            else
+              ansi_state=0;
+          }
+          else if (ansi_state==2)
+          {
+            if (ch >= 0x40 && ch <= 0x7e)
+            {
+              /* CSI final byte — update cursor tracking */
+              int p1=0, p2=0, pi=0, have_semi=0;
+
+              /* Parse up to two semicolon-separated decimal params */
+              {
+                int i;
+                for (i=0; i < ansi_csi_len; i++)
+                {
+                  unsigned char cc=(unsigned char)ansi_csi_buf[i];
+                  if (cc==';')
+                  {
+                    if (!have_semi) { p1=pi; pi=0; have_semi=1; }
+                  }
+                  else if (cc >= '0' && cc <= '9')
+                    pi=pi*10+(cc-'0');
+                }
+                if (have_semi) p2=pi; else p1=pi;
+              }
+
+              switch (ch)
+              {
+                case 'H': case 'f':  /* Cursor Position */
+                {
+                  int row = (p1 > 0) ? p1 : 1;
+                  int col = (have_semi && p2 > 0) ? p2 : (have_semi ? 1 : 1);
+                  int tl = TermLength();
+                  int tw = TermWidth();
+                  if (row < 1) row = 1;
+                  if (row > tl) row = tl;
+                  if (col < 1) col = 1;
+                  if (col > tw) col = tw;
+                  current_line = (unsigned char)row;
+                  current_col  = (unsigned char)col;
+                  display_line = (unsigned char)row;
+                  display_col  = (unsigned char)col;
+                  break;
+                }
+                case 'A':  /* Cursor Up */
+                {
+                  int n = (p1 > 0) ? p1 : 1;
+                  int nl = (int)current_line - n;
+                  if (nl < 1) nl = 1;
+                  current_line = (unsigned char)nl;
+                  display_line = (unsigned char)nl;
+                  break;
+                }
+                case 'B':  /* Cursor Down */
+                {
+                  int n = (p1 > 0) ? p1 : 1;
+                  int tl = TermLength();
+                  int nl = (int)current_line + n;
+                  if (nl > tl) nl = tl;
+                  current_line = (unsigned char)nl;
+                  display_line = (unsigned char)nl;
+                  break;
+                }
+                case 'C':  /* Cursor Forward */
+                {
+                  int n = (p1 > 0) ? p1 : 1;
+                  int tw = TermWidth();
+                  int nc = (int)current_col + n;
+                  if (nc > tw) nc = tw;
+                  current_col = (unsigned char)nc;
+                  display_col = (unsigned char)nc;
+                  break;
+                }
+                case 'D':  /* Cursor Back */
+                {
+                  int n = (p1 > 0) ? p1 : 1;
+                  int nc = (int)current_col - n;
+                  if (nc < 1) nc = 1;
+                  current_col = (unsigned char)nc;
+                  display_col = (unsigned char)nc;
+                  break;
+                }
+                case 'G':  /* Cursor Horizontal Absolute */
+                {
+                  int col = (p1 > 0) ? p1 : 1;
+                  int tw = TermWidth();
+                  if (col < 1) col = 1;
+                  if (col > tw) col = tw;
+                  current_col = (unsigned char)col;
+                  display_col = (unsigned char)col;
+                  break;
+                }
+                case 'd':  /* Cursor Vertical Absolute */
+                {
+                  int row = (p1 > 0) ? p1 : 1;
+                  int tl = TermLength();
+                  if (row < 1) row = 1;
+                  if (row > tl) row = tl;
+                  current_line = (unsigned char)row;
+                  display_line = (unsigned char)row;
+                  break;
+                }
+                case 'J':  /* Erase Display */
+                  if (p1 == 2)
+                  {
+                    current_line = current_col = 1;
+                    display_line = display_col = 1;
+                  }
+                  break;
+                /* 'm', 'K', etc. — no cursor change needed */
+              }
+
+              ansi_state=0;
+              ansi_csi_len=0;
+            }
+            else if (ansi_csi_len < (int)sizeof(ansi_csi_buf) - 1)
+            {
+              /* Buffer parameter/intermediate bytes */
+              ansi_csi_buf[ansi_csi_len++] = (char)ch;
+            }
+          }
 
           CMDM_PPUTcw((int)((usr.bits2 & BITS2_IBMCHARS) ? ch
                                               : nohibit[(unsigned char)ch]));
@@ -256,6 +387,7 @@ void Mdm_putc(int ch)
       else if (ch==27)
       {
         ansi_state=1;
+        ansi_csi_len=0;
         CMDM_PPUTcw((int)((usr.bits2 & BITS2_IBMCHARS) ? ch
                                             : nohibit[(unsigned char)ch]));
         return;

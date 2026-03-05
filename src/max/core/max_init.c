@@ -1314,6 +1314,11 @@ char * Startup(void)
       port=0xff;
     }
 
+    if (local && !force_tty)
+    {
+      usr.video = GRAPH_ANSI;
+    }
+
     Fossil_Install(TRUE);
   }
 

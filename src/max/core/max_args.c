@@ -475,6 +475,13 @@ static void near Parse_Single_Arg(char *arg)
         break;
 #endif
 
+      case '-':             /* Long-form options (--xxx) */
+        if (eqstri(arg, "--tty"))
+          force_tty=TRUE;
+        else
+          Unknown_CmdParam(arg);
+        break;
+
       default:
         Unknown_CmdParam(arg);
         break;

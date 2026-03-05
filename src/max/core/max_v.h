@@ -374,6 +374,7 @@ extrn char in_mcheck;                   /* If we're in the mailchecker     */
 extrn char in_echeck;                   /* If we're in the email checker   */
 extrn char g_email_area[MAX_ALEN];      /* Area tag of singleton EMAIL area*/
 extrn char create_userbbs;              /* Create USER.BBS?                */
+extrn char force_tty IS(FALSE);         /* --tty: keep TTY mode in local   */
 extrn char this_logon_bad;              /* If user failed current logon    */
 extrn char inchat;                      /* If we're in sysop chat mode     */
 extrn char locked;                      /* If priv level is locked         */

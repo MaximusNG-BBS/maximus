@@ -53,7 +53,7 @@ else
 
   if [ "${PREFIX}" != "/var/max" ]; then
     echo "Modifying configuration files to reflect PREFIX=${PREFIX}.."
-    for file in config/legacy/max.ctl config/legacy/areas.bbs config/compress.cfg config/squish.cfg config/sqafix.cfg
+    for file in config/maximus.toml config/legacy/max.ctl config/legacy/areas.bbs config/compress.cfg config/squish.cfg config/sqafix.cfg
     do
       if [ -f "${PREFIX}/${file}" ]; then
         echo " - ${file}"
