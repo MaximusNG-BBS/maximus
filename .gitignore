@@ -85,5 +85,6 @@ trk*
 __pycache__/
 .env
 
-# Windsurf
+# Extensions
 .windsurf/
+.roo/
