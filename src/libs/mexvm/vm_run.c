@@ -215,9 +215,13 @@ static int near VmInit(void)
   /* Initialize all of our <shudder> global variables */
 
   pinCs=NULL;
+  pbDs=NULL;
   pbSp=pbBp=NULL;
   pdshDheap=NULL;
+  rtsym=NULL;
+  fdlist=NULL;
   vaIp=high_cs=0;
+  n_rtsym=256;
   n_entry=0;
 
   memset(regs_1, '\0', sizeof regs_1);
@@ -774,9 +778,120 @@ int EXPENTRY MexExecute(char *pszFile, char *pszArgs, dword fFlag,
       }
     }
   }
+vm_cleanup();
+return ret;
+}
 
-  vm_cleanup();
-  return ret;
+
+/*
+* MexSaveVmState / MexRestoreVmState
+*
+* Save and restore the entire VM interpreter state so that a parent MEX
+* execution can be suspended while a child MEX runs via MexExecute(),
+* then cleanly resumed afterward.
+*
+* The save function copies all VM globals (including statics local to
+* vm_run.c and vm_symt.c) into the caller-provided struct.
+* The restore function puts them all back.
+*
+* The caller is responsible for ensuring that no VM operation occurs
+* between save and the child MexExecute(), or between the child's return
+* and restore.
+*/
+
+void EXPENTRY MexSaveVmState(struct _mex_vm_state *s)
+{
+/* Code segment */
+s->pinCs   = pinCs;
+s->high_cs = high_cs;
+
+/* Data segment */
+s->pbDs      = pbDs;
+s->pbSp      = pbSp;
+s->pbBp      = pbBp;
+s->pdshDheap = pdshDheap;
+
+/* Symbol table */
+s->rtsym   = rtsym;
+s->n_rtsym = n_rtsym;
+s->n_entry = n_entry;
+s->vaLastAssigned = MexGetLastAssigned();
+
+/* VM header */
+s->vmh = vmh;
+
+/* Instruction pointer */
+s->vaIp = vaIp;
+
+/* Function list and intrinsic table pointer */
+s->fdlist = fdlist;
+s->usrfn  = usrfn;
+
+/* Registers */
+memcpy(s->regs_1, regs_1, sizeof(regs_1));
+memcpy(s->regs_2, regs_2, sizeof(regs_2));
+memcpy(s->regs_4, regs_4, sizeof(regs_4));
+memcpy(s->regs_6, regs_6, sizeof(regs_6));
+
+/* Debug flags */
+s->deb     = deb;
+s->debheap = debheap;
+
+/* Logger and hooks (static in this file) */
+s->pfnLogger     = pfnLogger;
+s->pfnHookBefore = pfnHookBefore;
+s->pfnHookAfter  = pfnHookAfter;
+
+/* Error recovery jump buffer (static in this file) */
+memcpy(s->jbError, jbError, sizeof(jmp_buf));
+}
+
+
+void EXPENTRY MexRestoreVmState(struct _mex_vm_state *s)
+{
+/* Code segment */
+pinCs   = s->pinCs;
+high_cs = s->high_cs;
+
+/* Data segment */
+pbDs      = s->pbDs;
+pbSp      = s->pbSp;
+pbBp      = s->pbBp;
+pdshDheap = s->pdshDheap;
+
+/* Symbol table */
+rtsym   = s->rtsym;
+n_rtsym = s->n_rtsym;
+n_entry = s->n_entry;
+MexSetLastAssigned(s->vaLastAssigned);
+
+/* VM header */
+vmh = s->vmh;
+
+/* Instruction pointer */
+vaIp = s->vaIp;
+
+/* Function list and intrinsic table pointer */
+fdlist = s->fdlist;
+usrfn  = s->usrfn;
+
+/* Registers */
+memcpy(regs_1, s->regs_1, sizeof(regs_1));
+memcpy(regs_2, s->regs_2, sizeof(regs_2));
+memcpy(regs_4, s->regs_4, sizeof(regs_4));
+memcpy(regs_6, s->regs_6, sizeof(regs_6));
+
+/* Debug flags */
+deb     = s->deb;
+debheap = s->debheap;
+
+/* Logger and hooks */
+pfnLogger     = s->pfnLogger;
+pfnHookBefore = s->pfnHookBefore;
+pfnHookAfter  = s->pfnHookAfter;
+
+/* Error recovery jump buffer */
+memcpy(jbError, s->jbError, sizeof(jmp_buf));
 }
 
 

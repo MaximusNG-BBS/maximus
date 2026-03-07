@@ -22,7 +22,7 @@
 #define MNU_RESERVED14          109
 #define MNU_MENUPATH            110
 #define MNU_CLS                 111
-#define MNU_MEX                 112     // not supported
+#define MNU_MEX                 112     // run a MEX script (supported via nested execution)
 #define MNU_LINK_MENU           113     // not supported
 #define MNU_RETURN              114     // not supported
 

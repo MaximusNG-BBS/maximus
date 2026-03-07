@@ -155,6 +155,7 @@ static struct _usrfunc _intrinfunc[]=
   {"mdm_command",             intrin_mdm_command,             0},
   {"mdm_flow",                intrin_mdm_flow,                0},
   {"menu_cmd",                intrin_menu_cmd,                0},
+  {"mex_spawn",               intrin_mex_spawn,               0},
   {"msg_area",                intrin_msg_area,                0},
   {"msgareafindclose",        intrin_msgareafindclose,        0},
   {"msgareafindfirst",        intrin_msgareafindfirst,        0},
@@ -866,11 +867,32 @@ void _stdc MexLog(char *szStr, ...)
 }
 
 
-/* Intrinsic MEX startup function -- just call the DLL MexExecute function */
+/* Maximum nesting depth for MEX-from-MEX execution.
+ * Each nesting level allocates a full VM state (code, data, heap, stack)
+ * plus a C stack frame through MexExecute/VmRun, so keep this bounded.
+ */
+
+#define MEX_MAX_NEST_DEPTH 8
+
+
+/* Intrinsic MEX startup function -- just call the DLL MexExecute function.
+ *
+ * When called from inside an already-running MEX (cMexInvoked > 0), this
+ * function saves and restores the parent VM state around the child's
+ * MexExecute() call.  This is necessary because MexExecute() calls
+ * VmInit() which zeroes all VM globals and vm_cleanup() which frees
+ * all allocated memory — destroying the parent's state.
+ *
+ * The save/restore lives here (not in the individual intrinsics) so that
+ * EVERY path into nested MEX execution is protected:
+ *   - menu_cmd(MNU_MEX, ...) → intrin_menu_cmd → BbsRunOpt → Mex → here
+ *   - mex_spawn(...)         → intrin_mex_spawn → here
+ */
 
 int MexStartupIntrin(char *pszFile, char *pszArgs, dword fFlag)
 {
-  static int cMexInvoked=0;   /* Recursion count for this function */
+  static int cMexInvoked=0;   /* Recursion depth counter */
+  struct _mex_vm_state *pSaved = NULL;
   int save_inchat;
   int rc=-1;
 
@@ -880,12 +902,34 @@ int MexStartupIntrin(char *pszFile, char *pszArgs, dword fFlag)
 
   vbuf_flush();
 
-  /* Make sure that MEX is not invoked recursively */
+  /* Enforce nesting depth limit */
 
-  if (cMexInvoked)
-    logit(log_mex_no_reentrancy);
+  if (cMexInvoked >= MEX_MAX_NEST_DEPTH)
+  {
+    logit("!MEX: maximum nesting depth (%d) exceeded", MEX_MAX_NEST_DEPTH);
+  }
   else
   {
+    /* If already inside a MEX, save the parent VM state before
+     * MexExecute() destroys it with VmInit()/vm_cleanup().
+     * Heap-allocated because the struct is ~1.5KB and nesting
+     * would stack multiple copies.
+     */
+
+    if (cMexInvoked > 0)
+    {
+      pSaved = malloc(sizeof(struct _mex_vm_state));
+
+      if (!pSaved)
+      {
+        logit("!MEX: failed to allocate VM state for nesting");
+        inchat = save_inchat;
+        return -1;
+      }
+
+      MexSaveVmState(pSaved);
+    }
+
     cMexInvoked++;
 
     rc=MexExecute(pszFile, pszArgs, fFlag, N_INTRINFUNC, _intrinfunc,
@@ -893,11 +937,65 @@ int MexStartupIntrin(char *pszFile, char *pszArgs, dword fFlag)
                   intrin_hook_before, intrin_hook_after);
 
     cMexInvoked--;
+
+    /* Restore the parent VM state if we saved it */
+
+    if (pSaved)
+    {
+      MexRestoreVmState(pSaved);
+      free(pSaved);
+    }
   }
 
   inchat = save_inchat;
 
   return rc;
+}
+
+
+/*
+ * intrin_mex_spawn
+ *
+ * MEX intrinsic: int mex_spawn(string: filename, string: args)
+ *
+ * Runs a child MEX as a separate interpreter instance and returns
+ * the child's exit code.  VM state save/restore is handled by
+ * MexStartupIntrin() itself.
+ */
+
+word EXPENTRY intrin_mex_spawn(void)
+{
+  MA ma;
+  char *pszFile;
+  char *pszArgs;
+  int rc;
+
+  MexArgBegin(&ma);
+  pszFile = MexArgGetString(&ma, FALSE);
+  pszArgs = MexArgGetString(&ma, FALSE);
+
+  if (!pszFile)
+  {
+    regs_2[0] = (word)-1;
+    if (pszArgs) free(pszArgs);
+    return MexArgEnd(&ma);
+  }
+
+  /* Sync BBS state from parent VM before child runs */
+  MexImportData(pmisThis);
+
+  /* Execute child MEX — save/restore is in MexStartupIntrin() */
+  rc = MexStartupIntrin(pszFile, pszArgs ? pszArgs : "", 0);
+
+  /* Re-export BBS state into parent VM (child may have changed usr, areas) */
+  MexExportData(pmisThis);
+
+  regs_2[0] = (word)rc;
+
+  free(pszFile);
+  if (pszArgs) free(pszArgs);
+
+  return MexArgEnd(&ma);
 }
 
 

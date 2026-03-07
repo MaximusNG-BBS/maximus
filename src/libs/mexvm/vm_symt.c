@@ -33,6 +33,19 @@ static char rcs_id[]="$Id: vm_symt.c,v 1.3 2004/01/27 20:57:25 paltas Exp $";
 static VMADDR vaLastAssigned=0;
 
 
+/* Get/set vaLastAssigned for VM state save/restore */
+
+VMADDR MexGetLastAssigned(void)
+{
+  return vaLastAssigned;
+}
+
+void MexSetLastAssigned(VMADDR val)
+{
+  vaLastAssigned = val;
+}
+
+
 /* Initialize the symbol table */
 
 int init_symtab(int cRtSym)

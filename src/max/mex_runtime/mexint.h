@@ -81,6 +81,7 @@
   word EXPENTRY intrin_strridx(void);
   word EXPENTRY intrin_substr(void);
   word EXPENTRY intrin_shell(void);
+  word EXPENTRY intrin_mex_spawn(void);
 
   word EXPENTRY intrin_ProtocolNumberToName(void);
   word EXPENTRY intrin_CompressorNumberToName(void);

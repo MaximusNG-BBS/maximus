@@ -590,6 +590,10 @@ string prm_string(int: stringnum);
 void menu_cmd(int: cmdnum, string: args);
 int display_file(string: filename, ref char: nonstop);
 
+// Nested MEX execution: spawn a child MEX and return its exit code.
+
+int mex_spawn(string: filename, string: args);
+
 // File areas:  download-related functions
 
 int tag_queue_file(string: filename, int: flags);

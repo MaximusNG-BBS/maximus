@@ -348,6 +348,8 @@ struct _fcall
   void _stdc vm_err(char *format,...);
   int VmRead(char *name);
   void kill_str(IADDR *strptr, IADDR *ptrptr);
+  VMADDR MexGetLastAssigned(void);
+  void MexSetLastAssigned(VMADDR val);
 #endif
 
 /*****************************************************************************

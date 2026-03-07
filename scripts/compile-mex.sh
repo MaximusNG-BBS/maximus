@@ -105,7 +105,7 @@ fi
 (
   cd "$MEX_SRC_DIR/${SCRIPT_SUBDIR:-.}"
   if [ -n "$SCRIPT_SUBDIR" ]; then
-    export MEX_INCLUDE="$PROJECT_ROOT/resources/m/include"
+    export MEX_INCLUDE="$MEX_SRC_DIR"
   fi
   "$MEX_COMPILER" "$SCRIPT_FILE"
 )
