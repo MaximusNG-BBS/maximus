@@ -1317,3 +1317,14 @@ trk_remalias_which = "|prRemove which alias (?=list): |in"
 
 # --- Batch 3: Prompts (|14 ? |pr) ---
 type_keys_to_toggle = "|pr\nSysOp: Type letters/numbers of keys to toggle.  <enter> to save changes, or\n<esc> to restore old keys.\n\n|cd"
+
+[maximusng-editor]
+# Quote popup window chrome
+# |!1 = padding repeat count (calculated by C code)
+# $D|!1\xC4 = repeat ─ character |!1 times
+quote_window_top = { text = "|br\xDA\xC4\xC4 |hi Quote Window |br$D|!1\xC4\xBF", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "60"}] }
+quote_window_left = "|br\xB3"
+quote_window_bottom = { text = "|br\xC3 |hk^Q|ac/|hkESC|hi=End |br\xC4 |hkCR|hi=Accept |br\xC4 |hkUp|ac/|hkDn|ac/|hkPgUp|ac/|hkPgDn|hi=Scroll |br$D|!1\xC4\xD9", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "30"}] }
+# Quote attribution preamble — inserted once before first quoted line
+# |!1 = original sender name, |!2 = original recipient name, |!3 = original date
+quote_attribution = { text = "In a message to |!2, |!1 wrote:", params = [{name = "sender", type = "string", desc = "Original message sender name", default = "Sysop"}, {name = "recipient", type = "string", desc = "Original message recipient name", default = "All"}, {name = "date", type = "string", desc = "Original message date string", default = "01 Jan 26"}] }

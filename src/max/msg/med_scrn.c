@@ -75,22 +75,7 @@ void Redraw_StatusLine(void)
 
 void Redraw_Quote(void)
 {
-  word temp;
-
-  if (quoting)
-  {
-    Goto(usrlen+1,usrwidth-12);
-
-    for (temp=0;temp < QUOTELINES;temp++)
-    { char _ib[16]; snprintf(_ib, sizeof(_ib), "%02d", usrlen+1+temp);
-      LangPrintfForce(quote_format, _ib, msg_quote_col, 
-                 initials, quotebuf+(temp*MAX_LINELEN)); }
-
-    Puts(CLEOL);
-  }
-
-  EMIT_MSG_TEXT_COL();
-  Goto(cursor_x,cursor_y);
+  /* Stub — popup quote window (med_qpop.c) handles its own rendering. */
 }
 
 

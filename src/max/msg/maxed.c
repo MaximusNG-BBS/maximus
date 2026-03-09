@@ -39,7 +39,6 @@ static char rcs_id[]="$Id: maxed.c,v 1.4 2004/01/28 06:38:10 paltas Exp $";
 
 static word near Process_Scan_Code(struct _replyp *pr);
 static word near Process_Cursor_Key(void);
-static void near Process_Control_Q(void);
 static word near Process_Control_K(struct _replyp *pr);
 static void near Init_Vars(void);
 
@@ -98,26 +97,11 @@ int MagnEt(XMSG *msg,HMSG msgh,struct _replyp *pr)
 
   char break_loop;
 
-  quoting=FALSE;
-  qmh=NULL;
   mmsg=msg;
   state=0;
 
   if ((update_table=malloc(UPDATEBUF_LEN))==NULL)
     return ABORT;
-
-  if ((quotebuf=malloc(QUOTELINES*MAX_LINELEN))==NULL)
-  {
-    free(update_table);
-    return ABORT;
-  }
-
-  if ((quote_pos=malloc(MAX_QUOTEBUF*sizeof(long)))==NULL)
-  {
-    free(update_table);
-    free(quotebuf);
-    return ABORT;
-  }
 
   MciPushParseFlags(MCI_PARSE_ALL, 0);
 
@@ -338,7 +322,8 @@ int MagnEt(XMSG *msg,HMSG msgh,struct _replyp *pr)
               break;
 
             case K_CTRLQ:
-              Process_Control_Q();
+              Quote_Popup(pr);
+              Fix_MagnEt();
               break;
 
             case K_CTRLR:
@@ -360,7 +345,6 @@ int MagnEt(XMSG *msg,HMSG msgh,struct _replyp *pr)
             case K_CTRLW:
               Redraw_Text();
               Redraw_StatusLine();
-              Redraw_Quote();
               break;
 
             case K_CTRLX:
@@ -453,7 +437,6 @@ int MagnEt(XMSG *msg,HMSG msgh,struct _replyp *pr)
 
           Redraw_Text();
           Redraw_StatusLine();
-          Redraw_Quote();
 
           break_loop=FALSE; /* Keep on truckin' */
         }
@@ -479,12 +462,7 @@ BackToCaller:
 
   Mdm_Flow_On();
 
-  if (quoting)
-    MsgCloseMsg(qmh);
-
   free(update_table);
-  free(quotebuf);
-  free(quote_pos);
 
   MciPopParseFlags();
   return ret;
@@ -505,8 +483,9 @@ static word near Process_Scan_Code(struct _replyp *pr)
       MagnEt_Help();
       break;
 
-    case 16:      /* Quote */
-      Quote_OnOff(pr);
+    case 16:      /* Alt-Q: Quote popup */
+      Quote_Popup(pr);
+      Fix_MagnEt();
       break;
 
     case 31:      /* Exit/Save */
@@ -515,9 +494,7 @@ static word near Process_Scan_Code(struct _replyp *pr)
     case 45:      /* Exit/NoSave */
       return ABORT;
 
-    case 46:      /* Quote copy */
-      if (quoting)
-        Quote_Copy();
+    case 46:      /* Alt-C: was Quote copy, now no-op */
       break;
 
      case 68:
@@ -652,53 +629,6 @@ static word near Process_Cursor_Key(void)
 }
 
 
-static void near Process_Control_Q(void)
-{
-  int ch;
-
-  Goto(usrlen,usrwidth-3);
-  Puts(YELONBLUE "^Q");
-  Goto(cursor_x,cursor_y);
-  EMIT_MSG_TEXT_COL();
-  vbuf_flush();
-
-  ch=Mdm_getcwcc();
-
-  switch(toupper(ch))
-  {
-    case 0:         /* Scan code... */
-      Mdm_getcwcc();  /* Throw it away */
-      break;
-
-    case 19:
-    case 'S':       /* Beginning of line */
-      Cursor_BeginLine();
-      break;
-
-    case 4:
-    case 'D':       /* End of line */
-      Cursor_EndLine();
-      break;
-
-    case 25:
-    case 'Y':       /* End of line */
-      Puts(CLEOL);
-      screen[offset+cursor_x][cursor_y]='\0';
-      break;
-
-    default:
-      MagnEt_Bad_Keystroke();
-      break;
-  }
-
-  Goto(usrlen,usrwidth-3);
-  Puts(YELONBLUE "  ");
-  Goto(cursor_x,cursor_y);
-  EMIT_MSG_TEXT_COL();
-  vbuf_flush();
-}
-
-
 static word near Process_Control_K(struct _replyp *pr)
 {
   int ret,
@@ -745,13 +675,12 @@ static word near Process_Control_K(struct _replyp *pr)
 
     case 18:
     case 'R':
-      Quote_OnOff(pr);
+      Quote_Popup(pr);
+      Fix_MagnEt();
       break;
 
     case 3:
-    case 'C':
-      if (quoting)
-        Quote_Copy();
+    case 'C':       /* Was Quote_Copy — now no-op */
       break;
 
 
@@ -785,7 +714,7 @@ static void near Init_Vars(void)
   offset=0;
   num_lines=offset;
   cursor_x=cursor_y=1;
-  quoting=pos_to_be_updated=skip_update=FALSE;
+  pos_to_be_updated=skip_update=FALSE;
   insert=update_table[max_lines]=TRUE;
 
   usrwidth=min((byte)LINELEN, TermWidth());

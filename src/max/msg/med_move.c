@@ -268,18 +268,13 @@ void Scroll_Down(int n,int location)
 
 void Page_Up(void)
 {
-  if (quoting)
-    Quote_Up();
-  else
+  if (offset==0)
   {
-    if (offset==0)
-    {
-      Goto(cursor_x=1,cursor_y);
-    }
-    else Scroll_Up(usrlen-1,cursor_x);
-
-    Update_Position();
+    Goto(cursor_x=1,cursor_y);
   }
+  else Scroll_Up(usrlen-1,cursor_x);
+
+  Update_Position();
 }
 
 
@@ -287,27 +282,22 @@ void Page_Up(void)
 
 void Page_Down(void)
 {
-  if (quoting)
-    Quote_Down();
+  if (offset+usrlen > num_lines)
+    Goto(cursor_x=num_lines-offset,cursor_y);
   else
   {
-    if (offset+usrlen > num_lines)
-      Goto(cursor_x=num_lines-offset,cursor_y);
-    else
-    {
-      offset += usrlen-1;
+    offset += usrlen-1;
 
-      if (offset > num_lines)
-        offset=num_lines-1;
+    if (offset > num_lines)
+      offset=num_lines-1;
 
-      if (offset+cursor_x > num_lines)
-        cursor_x=num_lines-offset;
+    if (offset+cursor_x > num_lines)
+      cursor_x=num_lines-offset;
 
-      Redraw_Text();
-    }
-
-    Update_Position();
+    Redraw_Text();
   }
+
+  Update_Position();
 }
 
 

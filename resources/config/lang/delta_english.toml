@@ -1196,15 +1196,15 @@ tossing_rep_packet = { text = "|pr\nTossing .REP packet |!1...\n\n|cd", params =
 wait_compr_attach = "\r|prCompressing file(s).  Please wait...\n|cd"
 wait_decompr_attach = "\r|prDecompressing file(s).  Please wait...\n|cd"
 qwk_max_area = { text = "|prMaxArea: |!1\n|cd", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}] }
-qwk_pack_start = "|pr\nArea Name  Description                  Total Msgs  Msgs to you  Msgs Packed\n|hi$D09Ä  $D27Ä  $D10Ä  $D11Ä  $D11Ä\n"
+qwk_pack_start = "|pr\nArea Name  Description                  Total Msgs  Msgs to you  Msgs Packed\n|hi$D09ï¿½  $D27ï¿½  $D10ï¿½  $D11ï¿½  $D11ï¿½\n"
 
 # --- Batch 4: Highlighted text (|15 â†’ |hi) ---
 rep_to_send = { text = "|hi\nPlease begin uploading |!1 now.\n|cd", params = [{name = "packet_name", type = "string", desc = "QWK .REP packet filename", default = "MYBBS.REP"}] }
 really_abort_attach = "|hiDo you want to abort the file attach"
 
 # --- Batch 6: Section headers (|11|17 â†’ |br|tb) ---
-browse_rbox_top = { text = "|CL|[Y01|[X01|CD|br|tb|[KÄ |pr|tb|!1: |!2 |br|tb$D|!3Ä", rip = "\r!|1K|S0100|B008GHR9P|w0007271110|Y00000100\n!|c08|R0101HR0C|c0F|R0000HQ0B\n!|S0107|B0101HQ0B|m0403|c02|TMsg Area \n!|c05|T|!1|c00|T: |c01|T|!2\n!|c08|R010EHR1J|c0F|R000DHQ1I\n!|S0107|B010EHQ1I|c08|L041EHL1E\n!|c0F|L051FHM1F|#|#\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "75"}] }
-reader_box_bottom = { text = "|[Y06|[X01|CD|br|tb|[K$D|!1Ä", rip = "", params = [{name = "fill_width", type = "string", desc = "Box-drawing bottom border repeat count (zero-padded)", default = "75"}] }
+browse_rbox_top = { text = "|CL|[Y01|[X01|CD|br|tb|[Kï¿½ |pr|tb|!1: |!2 |br|tb$D|!3ï¿½", rip = "\r!|1K|S0100|B008GHR9P|w0007271110|Y00000100\n!|c08|R0101HR0C|c0F|R0000HQ0B\n!|S0107|B0101HQ0B|m0403|c02|TMsg Area \n!|c05|T|!1|c00|T: |c01|T|!2\n!|c08|R010EHR1J|c0F|R000DHQ1I\n!|S0107|B010EHQ1I|c08|L041EHL1E\n!|c0F|L051FHM1F|#|#\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "75"}] }
+reader_box_bottom = { text = "|[Y06|[X01|CD|br|tb|[K$D|!1ï¿½", rip = "", params = [{name = "fill_width", type = "string", desc = "Box-drawing bottom border repeat count (zero-padded)", default = "75"}] }
 
 # --- Batch 13: Browse/search prompts (add |pr prefix, |in suffix) ---
 browse_select_s = "|prSelect: |in"
@@ -1257,8 +1257,8 @@ chat_needremote = { text = "|er\nMEXChat can only be used with a remote user.\n|
 [maximusng-track]
 
 # --- Batch 11: Tracking headers (|15 â†’ |hi, |14 â†’ |pr) ---
-trk_rep_hdr_graph = "|CL|hiID               Date     Owner Priority     Status  Message\nÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄÄ ÄÄÄÄÄ ÄÄÄÄÄÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄ ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ\n|pr"
-trk_list_hdr = "|hi\nID   Owner\nÄÄÄÄ ÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄÄ\n|pr"
+trk_rep_hdr_graph = "|CL|hiID               Date     Owner Priority     Status  Message\nï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½\n|pr"
+trk_list_hdr = "|hi\nID   Owner\nï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½\n|pr"
 
 # --- Batch 12: Error messages (|12 â†’ |er) ---
 trk_admin_noaccess = "|erYou do not have access to this command.\n|cd"
@@ -1273,3 +1273,14 @@ trk_remalias_which = "|prRemove which alias (?=list): |in"
 
 # --- Batch 3: Prompts (|14 â†’ |pr) ---
 type_keys_to_toggle = "|pr\nSysOp: Type letters/numbers of keys to toggle.  <enter> to save changes, or\n<esc> to restore old keys.\n\n|cd"
+
+[maximusng-editor]
+# Quote popup window chrome
+# |!1 = padding repeat count (calculated by C code)
+# $D|!1\xC4 = repeat â”€ character |!1 times
+quote_window_top = { text = "|br\xDA\xC4\xC4 |hi Quote Window |br$D|!1\xC4\xBF", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "60"}] }
+quote_window_left = "|br\xB3"
+quote_window_bottom = { text = "|br\xC3 |hk^Q|ac/|hkESC|hi=End |br\xC4 |hkCR|hi=Accept |br\xC4 |hkUp|ac/|hkDn|ac/|hkPgUp|ac/|hkPgDn|hi=Scroll |br$D|!1\xC4\xD9", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "30"}] }
+# Quote attribution preamble â€” inserted once before first quoted line
+# |!1 = original sender name, |!2 = original recipient name, |!3 = original date
+quote_attribution = { text = "In a message to |!2, |!1 wrote:", params = [{name = "sender", type = "string", desc = "Original message sender name", default = "Sysop"}, {name = "recipient", type = "string", desc = "Original message recipient name", default = "All"}, {name = "date", type = "string", desc = "Original message date string", default = "01 Jan 26"}] }

@@ -35,7 +35,7 @@ MAXOBJ := max.o
 MOBJS :=        uedit.obj       ued_cmds.obj    ued_disp.obj    \
 display.obj     disp_dat.obj    disp_qu.obj     max_rip.obj     \
 disp_max.obj    disp_mis.obj    mci.obj         ui_field.obj    ui_lightbar.obj ui_form.obj     ui_shadowbuf.obj ui_scroll.obj   med_add.obj     maxed.obj       \
-med_scrn.obj    med_move.obj    med_del.obj     med_quot.obj    \
+med_scrn.obj    med_move.obj    med_del.obj     med_quot.obj    med_qpop.obj    \
 med_read.obj    med_misc.obj    f_area.obj      f_con.obj       \
 f_intrin.obj    f_isval.obj     f_kill.obj      f_locate.obj    \
 f_misc.obj      f_over.obj      f_raw.obj       f_tag.obj       \

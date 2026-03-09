@@ -60,6 +60,7 @@ void Quote_OnOff(struct _replyp *pr);
 void Quote_Up(void);
 void Quote_Down(void);
 void Quote_Copy(void);
+int  Quote_Popup(struct _replyp *pr);
 void Read_DiskFile(void);
 void Load_Message(HMSG msgh);
 void Update_Line(word cx, word cy, word inc, word update_cursor);

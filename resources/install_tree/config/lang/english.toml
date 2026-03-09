@@ -1438,6 +1438,11 @@ chat_whoami = { text = ", this is your sysop\n", flags = ["mex"] }
 chat_status = { text = " MEXChat V1.0", flags = ["mex"] }
 chat_needremote = { text = "|er\nMEXChat can only be used with a remote user.\n|cd", flags = ["mex"] }
 
+[editor]
+quote_window_top = { text = "|br\xDA\xC4\xC4 |hi Quote Window |br$D|!1\xC4\xBF", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "60"}] }
+quote_window_left = "|br\xB3"
+quote_window_bottom = { text = "|br\xC3 |hk^Q|ac/|hkESC|hi=End |br\xC4 |hkCR|hi=Accept |br\xC4 |hkUp|ac/|hkDn|ac/|hkPgUp|ac/|hkPgDn|hi=Scroll |br$D|!1\xC4\xD9", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "30"}] }
+quote_attribution = { text = "In a message to |!2, |!1 wrote:", params = [{name = "sender", type = "string", desc = "Original message sender name", default = "Sysop"}, {name = "recipient", type = "string", desc = "Original message recipient name", default = "All"}, {name = "date", type = "string", desc = "Original message date string", default = "01 Jan 26"}] }
 [_legacy_map]
 # Maps old s_ret() numeric IDs to heap.symbol keys
 "0x0000" = "global.left_x"

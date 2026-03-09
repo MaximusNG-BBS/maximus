@@ -56,21 +56,12 @@ med_extern word cursor_x;
 med_extern word cursor_y;
 med_extern word offset;
 med_extern byte usrlen;
-med_extern sword cur_quotebuf;      /* Current pointer to quotebuf_pos[] */
-med_extern sword last_quote;        /* Pointer to endofmsg in quotebuf_pos */
-
 med_extern byte *update_table;
-med_extern char *quotebuf;
 med_extern char last_msg_attr;
 med_extern char insert;
 med_extern char initials[MLEN(10)];
 med_extern char pos_to_be_updated;
 med_extern char skip_update;
-med_extern char quoting;
-
-med_extern HMSG qmh MIS(NULL);
-
-med_extern long *quote_pos;
 
 #include "maxedp.h"
 
