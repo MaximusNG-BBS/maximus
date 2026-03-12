@@ -32,6 +32,35 @@
 #include "ui_field.h"
 #include "mci.h"
 
+static int prompt_input_fallback(
+    const char *prompt,
+    char *buf,
+    int max_len,
+    const ui_prompt_field_style_t *style)
+{
+  char fill_ch='.';
+  int flags=0;
+
+  if (!prompt)
+    prompt="";
+
+  if (!buf)
+    return UI_EDIT_ERROR;
+
+  if (style)
+  {
+    fill_ch=style->fill_ch ? style->fill_ch : '.';
+    flags=style->flags;
+  }
+
+  if (flags & UI_EDIT_FLAG_MASK)
+    InputGetsLe(buf, max_len, fill_ch, (char *)prompt);
+  else
+    InputGetsL(buf, max_len, (char *)prompt);
+
+  return UI_EDIT_ACCEPT;
+}
+
 /**
  * @brief Check whether a field of given width fits at a specific column.
  *
@@ -384,8 +413,8 @@ void ui_edit_field_style_default(ui_edit_field_style_t *style)
 {
   if (!style)
     return;
-  style->normal_attr = 0x07;  /* gray on black */
-  style->focus_attr = 0x1e;   /* yellow on blue */
+  style->normal_attr = Mci2Attr("|tx", 0x07);
+  style->focus_attr = Mci2Attr("|tf|tb", 0x07);
   style->fill_ch = ' ';
   style->flags = 0;
   style->format_mask = NULL;
@@ -400,8 +429,8 @@ void ui_prompt_field_style_default(ui_prompt_field_style_t *style)
 {
   if (!style)
     return;
-  style->prompt_attr = 0x0e;  /* yellow */
-  style->field_attr = 0x1e;   /* yellow on blue */
+  style->prompt_attr = Mci2Attr("|pr", 0x07);
+  style->field_attr = Mci2Attr("|tf|tb", 0x07);
   style->fill_ch = ' ';
   style->flags = 0;
   style->start_mode = UI_PROMPT_START_HERE;
@@ -949,13 +978,7 @@ int ui_prompt_field(
   start_mode = style->start_mode;
 
   if (usr.video != GRAPH_ANSI && usr.video != GRAPH_AVATAR)
-  {
-    if (flags & UI_EDIT_FLAG_MASK)
-      InputGetseNH(buf, (char)fill_ch, (char *)prompt);
-    else
-      InputGetsWNH(buf, (char *)prompt);
-    return UI_EDIT_ACCEPT;
-  }
+    return prompt_input_fallback(prompt, buf, max_len, style);
 
   switch (start_mode)
   {
@@ -975,13 +998,7 @@ int ui_prompt_field(
   field_col = start_col + prompt_len;
 
   if (!ui_field_can_fit_at(field_col, width))
-  {
-    if (flags & UI_EDIT_FLAG_MASK)
-      InputGetseNH(buf, (char)fill_ch, (char *)prompt);
-    else
-      InputGetsWNH(buf, (char *)prompt);
-    return UI_EDIT_ACCEPT;
-  }
+    return prompt_input_fallback(prompt, buf, max_len, style);
 
   if (prompt_attr != (byte)-1)
     ui_set_attr(prompt_attr);
@@ -1008,4 +1025,18 @@ int ui_prompt_field(
   Putc('\n');
 
   return rc;
+}
+
+int PromptInput(
+    const char *config_key,
+    const char *prompt,
+    char *buffer,
+    int field_len,
+    int max_len,
+    const ui_prompt_field_style_t *pf_style)
+{
+  if (config_key && ngcfg_get_bool(config_key) && pf_style)
+    return ui_prompt_field(prompt, field_len, max_len, buffer, max_len, pf_style);
+
+  return prompt_input_fallback(prompt, buffer, max_len, pf_style);
 }

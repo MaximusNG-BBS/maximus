@@ -219,6 +219,15 @@ int ui_prompt_field(
     const ui_prompt_field_style_t *style
 );
 
+int PromptInput(
+    const char *config_key,
+    const char *prompt,
+    char *buffer,
+    int field_len,
+    int max_len,
+    const ui_prompt_field_style_t *pf_style
+);
+
 /**
  * @brief Initialize a ui_edit_field_style_t with sensible defaults.
  *

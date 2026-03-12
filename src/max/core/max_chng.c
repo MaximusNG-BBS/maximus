@@ -40,10 +40,19 @@ static char rcs_id[]="$Id: max_chng.c,v 1.4 2004/01/28 06:38:10 paltas Exp $";
 #include "mm.h"
 #include "arc_def.h"
 #include "md5.h"
+#include "ui_field.h"
 
 static int near Invalid_City(char *usr_city);
 static int near Invalid_Name(char *usr_name);
 static int near Invalid_Phone(char *usr_phone);
+
+static const ui_prompt_field_style_t newuser_prompt_style = {
+  .prompt_attr = (byte)-1,
+  .field_attr  = 0x1f,
+  .fill_ch     = ' ',
+  .flags       = 0,
+  .start_mode  = UI_PROMPT_START_HERE
+};
 
 static void near Chg_RIP(void)
 {
@@ -400,9 +409,11 @@ void Chg_City(void)
     }
 
     *linebuf='\0';
+    temp[0]='\0';
     WhiteN();
 
-    InputGetsL(temp, 35, enter_city);
+    PromptInput("general.display.general.bounded_input_newuser",
+                enter_city, temp, 35, 35, &newuser_prompt_style);
   }
   while (Invalid_City(temp));
 
@@ -427,9 +438,12 @@ void Chg_Alias(void)
     }
 
     *linebuf='\0';
+    temp[0]='\0';
     WhiteN();
 
-    InputGetsL(temp, sizeof(usr.alias)-1, enter_name);
+    PromptInput("general.display.general.bounded_input_newuser",
+                enter_name, temp, sizeof(usr.alias)-1, sizeof(usr.alias)-1,
+                &newuser_prompt_style);
 
     /* Strip trailing blanks from the alias entered by the user */
 
@@ -471,9 +485,11 @@ void Chg_Phone(void)
     }
 
     *linebuf='\0';
+    temp[0]='\0';
     WhiteN();
 
-    InputGetsL(temp, 50, enter_phone);
+    PromptInput("general.display.general.bounded_input_newuser",
+                enter_phone, temp, 14, 50, &newuser_prompt_style);
   }
   while (Invalid_Phone(temp));
 

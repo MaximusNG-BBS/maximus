@@ -4,6 +4,15 @@
 [general]
 lightbar_prompts = false
 
+# Login name + password entry
+bounded_input_login = true
+# New user registration flow
+bounded_input_newuser = true
+# MECCA questionnaire token fields
+bounded_input_quest = true
+# MEX ui_prompt_field / ui_edit_field intrinsics
+bounded_input_mex = true
+
 [file_areas]
 lightbar_area = true
 reduce_area = 5
