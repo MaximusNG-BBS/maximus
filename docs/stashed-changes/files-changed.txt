@@ -1,0 +1,24 @@
+ resources/config/general/display.toml              |  16 ++
+ resources/config/general/display_files.toml        |   3 +
+ resources/config/menus/change.toml                 |   8 +
+ resources/install_tree/config/general/display.toml |  16 ++
+ .../install_tree/config/general/display_files.toml |   3 +
+ resources/install_tree/config/menus/change.toml    |   8 +
+ src/max/Makefile                                   |   6 +-
+ src/max/core/language.c                            |  12 +
+ src/max/core/max_chng.c                            | 187 ++++++++++++++-
+ src/max/core/max_in.c                              |  30 ++-
+ src/max/core/max_init.c                            | 196 +++++++++++++++-
+ src/max/core/max_log.c                             |  87 ++++++-
+ src/max/core/max_rmen.c                            |   4 +
+ src/max/core/max_u.h                               |   3 +-
+ src/max/core/option.h                              |   3 +-
+ src/max/core/protod.h                              |  12 +
+ src/max/display/disp_qu.c                          |  16 +-
+ src/max/display/display.c                          | 257 +++++++++++++++------
+ src/max/display/mci.c                              |   7 +
+ src/max/display/ui_field.c                         |   8 +-
+ src/max/display/ui_lightbar.c                      | 131 ++++++++---
+ src/max/display/ui_lightbar.h                      |   4 +
+ src/max/mex_runtime/mexui.c                        |  48 +++-
+ 23 files changed, 943 insertions(+), 122 deletions(-)
