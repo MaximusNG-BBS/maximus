@@ -197,9 +197,9 @@ reconfig:
 	@(cd $(PREFIX)/display/screens && for f in *.mec; do ../../bin/mecca "$$f" 2>&1 || true; done)
 
 	@echo " - Syncing MEX sources and includes"
-	@cp -f resources/m/*.mex $(PREFIX)/scripts/ 2>/dev/null || true
-	@cp -f resources/m/*.mh resources/m/*.lh $(PREFIX)/scripts/include/ 2>/dev/null || true
-	@for dir in resources/m/*/; do \
+	@cp -f resources/scripts/*.mex $(PREFIX)/scripts/ 2>/dev/null || true
+	@cp -f resources/scripts/*.mh resources/scripts/*.lh $(PREFIX)/scripts/include/ 2>/dev/null || true
+	@for dir in resources/scripts/*/; do \
 		[ -d "$$dir" ] || continue; \
 		subdir=$$(basename "$$dir"); \
 		mkdir -p $(PREFIX)/scripts/$$subdir; \

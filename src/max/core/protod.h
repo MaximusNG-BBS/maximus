@@ -458,6 +458,8 @@ int PushFileArea(char *name, BARINFO *pbi);
 int PopPushFileArea(char *name, BARINFO *pbi);
 int ValidFileArea(char *name, FAH *pfah, unsigned flags, BARINFO *pbi);
 int Mex(char *arg);
+void MexSetNewUserAnsweredMask(dword mask);
+dword MexGetNewUserAnsweredMask(void);
 void AddToEchoToss(char *tag);
 dword SZKeysToMask(char *pszKeys);
 int GetBarPriv(char *barfile, int is_msg, PMAH pmah, PFAH pfah, BARINFO *pbi, int ext_only);

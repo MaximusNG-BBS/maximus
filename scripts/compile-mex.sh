@@ -10,7 +10,7 @@
 #   ./scripts/compile-mex.sh <script-name|script-name.mex> [--deploy]
 #
 # Behavior:
-#   - Compiles the target .mex in resources/m using build/bin/mex
+#   - Compiles the target .mex in resources/scripts using build/bin/mex
 #   - Copies the compiled .vm to build/scripts
 #   - With --deploy: also copies .mex and .vm to resources/install_tree/scripts
 #
@@ -18,7 +18,7 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-MEX_SRC_DIR="$PROJECT_ROOT/resources/m"
+MEX_SRC_DIR="$PROJECT_ROOT/resources/scripts"
 BUILD_SCRIPTS_DIR="$PROJECT_ROOT/build/scripts"
 INSTALL_SCRIPTS_DIR="$PROJECT_ROOT/resources/install_tree/scripts"
 MEX_COMPILER="$PROJECT_ROOT/build/bin/mex"
