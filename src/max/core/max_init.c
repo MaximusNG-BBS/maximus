@@ -212,6 +212,66 @@ const char *ngcfg_get_string_raw(const char *toml_path)
 }
 
 /**
+ * @brief Resolve the color_support mode for a named message area.
+ *
+ * Walks the TOML areas.msg.area table array, matching the area by
+ * @p area_name (case-insensitive).  Returns one of the NGCFG_COLOR_*
+ * enum values.  Defaults to NGCFG_COLOR_MCI when the key is absent,
+ * empty, or contains an unrecognised value.
+ *
+ * @param area_name  Short area name to look up.
+ * @return           One of the NGCFG_COLOR_* enum values.
+ */
+int ngcfg_get_area_color_support(const char *area_name)
+{
+  MaxCfgVar areas;
+  size_t count, i;
+
+  if (!area_name || !ng_cfg)
+    return NGCFG_COLOR_MCI;
+
+  if (maxcfg_toml_get(ng_cfg, "areas.msg.area", &areas) != MAXCFG_OK ||
+      areas.type != MAXCFG_VAR_TABLE_ARRAY ||
+      maxcfg_var_count(&areas, &count) != MAXCFG_OK)
+    return NGCFG_COLOR_MCI;
+
+  for (i = 0; i < count; i++)
+  {
+    MaxCfgVar item, value;
+    const char *name = "";
+    const char *mode = "";
+
+    if (maxcfg_toml_array_get(&areas, i, &item) != MAXCFG_OK ||
+        item.type != MAXCFG_VAR_TABLE)
+      continue;
+
+    if (maxcfg_toml_table_get(&item, "name", &value) == MAXCFG_OK &&
+        value.type == MAXCFG_VAR_STRING && value.v.s)
+      name = value.v.s;
+
+    if (!eqstri(name, area_name))
+      continue;
+
+    if (maxcfg_toml_table_get(&item, "color_support", &value) == MAXCFG_OK &&
+        value.type == MAXCFG_VAR_STRING && value.v.s)
+      mode = value.v.s;
+
+    if (*mode == '\0' || eqstri(mode, "mci"))
+      return NGCFG_COLOR_MCI;
+    if (eqstri(mode, "strip"))
+      return NGCFG_COLOR_STRIP;
+    if (eqstri(mode, "ansi"))
+      return NGCFG_COLOR_ANSI;
+    if (eqstri(mode, "avatar"))
+      return NGCFG_COLOR_AVATAR;
+
+    return NGCFG_COLOR_MCI;
+  }
+
+  return NGCFG_COLOR_MCI;
+}
+
+/**
  * @brief Append a string to the access-level heap, growing as needed.
  *
  * @param heap      Pointer to heap buffer pointer (may be reallocated)

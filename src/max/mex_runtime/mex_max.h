@@ -339,6 +339,8 @@ struct mex_ui_form_field
   word normal_attr;
   word focus_attr;
   IADDR format_mask;    /* string pointer */
+  IADDR options[8];     /* string pointers */
+  word option_count;
   IADDR value;          /* string pointer */
 } __attribute__((packed));
 
