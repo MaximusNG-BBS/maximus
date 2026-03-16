@@ -417,10 +417,10 @@ static int ng_empty_area_index_view(msg_index_t *idx)
     {
       int k = ui_read_key();
 
-      if (k == K_LEFT)
+      if (k == UI_KEY_LEFT)
         return FSR_PREV_BASE;
 
-      if (k == K_RIGHT || k == 'g' || k == 'G')
+      if (k == UI_KEY_RIGHT || k == 'g' || k == 'G')
         return FSR_NEXT_BASE;
 
       if (k == K_ESC || k == 'q' || k == 'Q')
@@ -699,13 +699,13 @@ static int ng_msg_index_view(msg_index_t *idx, int start_index)
     }
     else if (result == LB_LIST_KEY_PASSTHROUGH)
     {
-      if (out_key == 'G' || out_key == 'g' || out_key == K_RIGHT)
+      if (out_key == 'G' || out_key == 'g' || out_key == UI_KEY_RIGHT)
       {
         ng_flush_lastread(idx);
         return FSR_NEXT_BASE;
       }
 
-      if (out_key == K_LEFT)
+      if (out_key == UI_KEY_LEFT)
       {
         ng_flush_lastread(idx);
         return FSR_PREV_BASE;
@@ -1011,7 +1011,7 @@ int ng_msg_reader_loop(msg_index_t *idx, int entry_index, int *out_index)
         continue;  /* Key was consumed by viewer (scroll) */
 
       /* Navigation: Left = previous message */
-      if (k == K_LEFT || k == 'p' || k == 'P')
+      if (k == UI_KEY_LEFT || k == 'p' || k == 'P')
       {
         if (current > 0)
           current--;
@@ -1019,7 +1019,7 @@ int ng_msg_reader_loop(msg_index_t *idx, int entry_index, int *out_index)
       }
 
       /* Navigation: Right = next message */
-      if (k == K_RIGHT || k == 'n' || k == 'N')
+      if (k == UI_KEY_RIGHT || k == 'n' || k == 'N')
       {
         if (current < idx->count - 1)
           current++;

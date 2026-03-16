@@ -944,6 +944,8 @@ static login_step_t handle_new_register(login_ctx_t *ctx)
  */
 static login_step_t handle_term_setup(login_ctx_t *ctx)
 {
+  int should_persist_newuser_term = FALSE;
+
   NW(ctx);
 
   if (!(usr.bits2 & BITS2_CONFIGURED))
@@ -1070,6 +1072,7 @@ static login_step_t handle_term_setup(login_ctx_t *ctx)
       Set_Lang_Alternate(hasRIP());
 
       usr.bits2 |= BITS2_CONFIGURED;
+      should_persist_newuser_term = TRUE;
     }
     else
     {
@@ -1084,6 +1087,28 @@ static login_step_t handle_term_setup(login_ctx_t *ctx)
     /* Already configured — just doublecheck autodetection */
     doublecheck_ansi();
     doublecheck_rip();
+  }
+
+  /* Persist terminal choices immediately for brand-new users so a
+   * disconnect before normal logout doesn't force repeated prompts.
+   */
+  if (ctx->is_newuser && should_persist_newuser_term)
+  {
+    HUF huf;
+
+    huf = UserFileOpen((char *)ngcfg_get_path("maximus.file_password"), 0);
+    if (huf == NULL)
+    {
+      cant_open((char *)ngcfg_get_path("maximus.file_password"));
+      quit(ERROR_FILE);
+    }
+
+    if (!UserFileUpdate(huf, origusr.name, origusr.alias, &usr))
+      logit(cantwrite, (char *)ngcfg_get_path("maximus.file_password"));
+    else
+      origusr = usr;
+
+    UserFileClose(huf);
   }
 
   return (login_step_t){ LOGIN_NEXT, LOGIN_STATE_VALIDATE };

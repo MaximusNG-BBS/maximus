@@ -547,30 +547,30 @@ int ui_scrolling_region_handle_key(ui_scrolling_region_t *r, int key)
 
   switch (key)
   {
-    case K_UP:
+    case UI_KEY_UP:
       r->view_top -= 1;
       break;
 
-    case K_DOWN:
+    case UI_KEY_DOWN:
       r->view_top += 1;
       break;
 
-    case K_PGUP:
+    case UI_KEY_PGUP:
     case 0x15: /* Ctrl+U */
       r->view_top -= r->height;
       break;
 
-    case K_PGDN:
+    case UI_KEY_PGDN:
     case 0x04: /* Ctrl+D */
       r->view_top += r->height;
       break;
 
-    case K_HOME:
+    case UI_KEY_HOME:
     case 0x08: /* Ctrl+H */
       r->view_top = 0;
       break;
 
-    case K_END:
+    case UI_KEY_END:
     case 0x05: /* Ctrl+E */
       r->view_top = (r->line_count > r->height) ? (r->line_count - r->height) : 0;
       break;
@@ -1003,30 +1003,30 @@ int ui_text_viewer_handle_key(ui_text_viewer_t *v, int key)
 
   switch (key)
   {
-    case K_UP:
+    case UI_KEY_UP:
       v->view_top -= 1;
       break;
 
-    case K_DOWN:
+    case UI_KEY_DOWN:
       v->view_top += 1;
       break;
 
-    case K_PGUP:
+    case UI_KEY_PGUP:
     case 0x15: /* Ctrl+U */
       v->view_top -= th;
       break;
 
-    case K_PGDN:
+    case UI_KEY_PGDN:
     case 0x04: /* Ctrl+D */
       v->view_top += th;
       break;
 
-    case K_HOME:
+    case UI_KEY_HOME:
     case 0x08: /* Ctrl+H */
       v->view_top = 0;
       break;
 
-    case K_END:
+    case UI_KEY_END:
     case 0x05: /* Ctrl+E */
       v->view_top = (v->line_count > th) ? (v->line_count - th) : 0;
       break;

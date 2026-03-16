@@ -159,7 +159,7 @@ typedef struct {
   byte normal_attr;         /* Attribute for normal rows */
   byte selected_attr;       /* Attribute for selected row */
   int wrap;                 /* Enable wrapping at edges (0=no wrap) */
-  int passthrough_lr_keys;  /* 1 => return K_LEFT/K_RIGHT via out_key */
+  int passthrough_lr_keys;  /* 1 => return UI_KEY_LEFT/UI_KEY_RIGHT via out_key */
   ui_lightbar_list_get_item_fn get_item; /* Callback to format items */
   void *ctx;                /* User context passed to get_item */
   int *out_key;             /* Optional: receives unhandled key on passthrough */

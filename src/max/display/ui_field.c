@@ -301,14 +301,14 @@ int ui_read_key(void)
        */
       switch (sc)
       {
-        case 71: return K_HOME;
-        case 72: return K_UP;
-        case 73: return K_PGUP;
-        case 75: return K_LEFT;
-        case 77: return K_RIGHT;
-        case 79: return K_END;
-        case 80: return K_DOWN;
-        case 81: return K_PGDN;
+        case 71: return UI_KEY_HOME;
+        case 72: return UI_KEY_UP;
+        case 73: return UI_KEY_PGUP;
+        case 75: return UI_KEY_LEFT;
+        case 77: return UI_KEY_RIGHT;
+        case 79: return UI_KEY_END;
+        case 80: return UI_KEY_DOWN;
+        case 81: return UI_KEY_PGDN;
         case 83: return UI_KEY_DELETE;
         default: return sc;
       }
@@ -333,12 +333,12 @@ int ui_read_key(void)
 
       switch (ch)
       {
-        case 'A': return K_UP;
-        case 'B': return K_DOWN;
-        case 'C': return K_RIGHT;
-        case 'D': return K_LEFT;
-        case 'H': return K_HOME;
-        case 'F': return K_END;
+        case 'A': return UI_KEY_UP;
+        case 'B': return UI_KEY_DOWN;
+        case 'C': return UI_KEY_RIGHT;
+        case 'D': return UI_KEY_LEFT;
+        case 'H': return UI_KEY_HOME;
+        case 'F': return UI_KEY_END;
       }
 
       if (ch >= '0' && ch <= '9')
@@ -375,17 +375,17 @@ int ui_read_key(void)
           {
             case 1:
             case 7:
-              return K_HOME;
+              return UI_KEY_HOME;
 
             case 4:
             case 8:
-              return K_END;
+              return UI_KEY_END;
 
             case 5:
-              return K_PGUP;
+              return UI_KEY_PGUP;
 
             case 6:
-              return K_PGDN;
+              return UI_KEY_PGDN;
 
             case 3:
               return UI_KEY_DELETE;
@@ -393,10 +393,10 @@ int ui_read_key(void)
         }
 
         if (ch == 'H')
-          return K_HOME;
+          return UI_KEY_HOME;
 
         if (ch == 'F')
-          return K_END;
+          return UI_KEY_END;
       }
     }
   }
@@ -516,7 +516,10 @@ int ui_edit_field(
     buf[max_len] = '\0';
     len = max_len;
   }
-  cur_pos = len;
+  if (use_format_mask)
+    cur_pos = 0;
+  else
+    cur_pos = len;
   
   /* Pre-paint the field background with normal_attr */
   ui_set_attr(normal_attr);
@@ -660,7 +663,7 @@ int ui_edit_field(
         }
         break;
       
-      case K_UP:
+      case UI_KEY_UP:
       case K_STAB:
         if (flags & UI_EDIT_FLAG_FIELD_MODE)
         {
@@ -669,7 +672,7 @@ int ui_edit_field(
         }
         break;
       
-      case K_DOWN:
+      case UI_KEY_DOWN:
       case K_TAB:
         if (flags & UI_EDIT_FLAG_FIELD_MODE)
         {
@@ -678,7 +681,7 @@ int ui_edit_field(
         }
         break;
       
-      case K_LEFT:
+      case UI_KEY_LEFT:
         if (cur_pos > 0)
         {
           cur_pos--;
@@ -704,7 +707,7 @@ int ui_edit_field(
         }
         break;
       
-      case K_RIGHT:
+      case UI_KEY_RIGHT:
         if (cur_pos < len)
         {
           cur_pos++;
@@ -736,7 +739,7 @@ int ui_edit_field(
         }
         break;
       
-      case K_HOME:
+      case UI_KEY_HOME:
         cur_pos = 0;
         if (use_format_mask)
         {
@@ -757,7 +760,7 @@ int ui_edit_field(
         vbuf_flush();
         break;
       
-      case K_END:
+      case UI_KEY_END:
         cur_pos = len;
         if (use_format_mask)
         {
@@ -838,7 +841,7 @@ int ui_edit_field(
       
       default:
         /* Printable character */
-        if (ch >= 32 && ch < 127 && len < max_len)
+        if (ch >= 32 && ch < 127 && (len < max_len || (use_format_mask && cur_pos < len)))
         {
           if (use_format_mask)
           {
@@ -861,10 +864,19 @@ int ui_edit_field(
             /* Validate character against placeholder type */
             if (placeholder && ui_mask_placeholder_ok(placeholder, (char)ch))
             {
-              /* Insert character at cursor */
-              memmove(buf + cur_pos + 1, buf + cur_pos, len - cur_pos + 1);
-              buf[cur_pos] = (char)ch;
-              len++;
+              /* In format-mask mode, overwrite existing character slots first,
+               * then append only when typing past current length.
+               */
+              if (cur_pos < len)
+              {
+                buf[cur_pos] = (char)ch;
+              }
+              else
+              {
+                memmove(buf + cur_pos + 1, buf + cur_pos, len - cur_pos + 1);
+                buf[cur_pos] = (char)ch;
+                len++;
+              }
               cur_pos++;
               
               ui_set_attr(focus_attr);

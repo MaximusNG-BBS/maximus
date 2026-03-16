@@ -457,7 +457,7 @@ static void near ui_sp_draw_option_margined(int row, int col, const ui_lb_item_t
  * @param items     Array of positioned items.
  * @param count     Number of items.
  * @param cur       Current selected index.
- * @param direction Key code (K_UP, K_DOWN, K_LEFT, K_RIGHT).
+ * @param direction Key code (UI_KEY_UP, UI_KEY_DOWN, UI_KEY_LEFT, UI_KEY_RIGHT).
  * @param wrap      Non-zero to wrap around edges.
  * @return          Index of best neighbor, or -1 if none.
  */
@@ -496,25 +496,25 @@ static int near ui_lb_find_neighbor_pos(ui_lb_pos_item_t *items, int count, int 
 
     switch (direction)
     {
-      case K_DOWN:
+      case UI_KEY_DOWN:
         if (dy <= 0)
           continue;
         p = dy;
         s = adx2;
         break;
-      case K_UP:
+      case UI_KEY_UP:
         if (dy >= 0)
           continue;
         p = -dy;
         s = adx2;
         break;
-      case K_RIGHT:
+      case UI_KEY_RIGHT:
         if (dx2 <= 0)
           continue;
         p = ady;
         s = dx2;
         break;
-      case K_LEFT:
+      case UI_KEY_LEFT:
         if (dx2 >= 0)
           continue;
         p = ady;
@@ -539,7 +539,7 @@ static int near ui_lb_find_neighbor_pos(ui_lb_pos_item_t *items, int count, int 
   if (!wrap)
     return -1;
 
-  if (direction == K_DOWN || direction == K_UP)
+  if (direction == UI_KEY_DOWN || direction == UI_KEY_UP)
   {
     int extreme_y;
     long best_dx = 0;
@@ -547,7 +547,7 @@ static int near ui_lb_find_neighbor_pos(ui_lb_pos_item_t *items, int count, int 
     int have = 0;
 
     extreme_y = items[cur].y;
-    if (direction == K_DOWN)
+    if (direction == UI_KEY_DOWN)
     {
       for (i = 0; i < count; i++)
         if (i != cur && items[i].y < extreme_y)
@@ -589,7 +589,7 @@ static int near ui_lb_find_neighbor_pos(ui_lb_pos_item_t *items, int count, int 
     int have = 0;
 
     extreme = items[cur].cx2;
-    if (direction == K_RIGHT)
+    if (direction == UI_KEY_RIGHT)
     {
       for (i = 0; i < count; i++)
         if (i != cur && items[i].cx2 < extreme)
@@ -714,10 +714,10 @@ int ui_lightbar_run_pos_hotkey(ui_lightbar_pos_menu_t *m, int *out_key)
         ui_lb_show_cursor(did_hide_cursor);
         return -1;
 
-      case K_UP:
-      case K_DOWN:
-      case K_LEFT:
-      case K_RIGHT:
+      case UI_KEY_UP:
+      case UI_KEY_DOWN:
+      case UI_KEY_LEFT:
+      case UI_KEY_RIGHT:
       {
         int next = ui_lb_find_neighbor_pos(items, m->count, selected, ch, m->wrap);
         if (next >= 0 && next != selected)
@@ -983,7 +983,7 @@ int ui_lightbar_run(ui_lightbar_menu_t *m)
         ui_lb_show_cursor(did_hide_cursor);
         return -1;
 
-      case K_UP:
+      case UI_KEY_UP:
         if (selected > 0)
         {
           ui_lb_draw_item(m, items, selected, 0, width);
@@ -1002,7 +1002,7 @@ int ui_lightbar_run(ui_lightbar_menu_t *m)
         }
         break;
 
-      case K_DOWN:
+      case UI_KEY_DOWN:
         if (selected < m->count - 1)
         {
           ui_lb_draw_item(m, items, selected, 0, width);
@@ -1148,7 +1148,7 @@ int ui_lightbar_run_hotkey(ui_lightbar_menu_t *m, int *out_key)
         ui_lb_show_cursor(did_hide_cursor);
         return -1;
 
-      case K_UP:
+      case UI_KEY_UP:
         if (selected > 0)
         {
           ui_lb_draw_item(m, items, selected, 0, width);
@@ -1167,7 +1167,7 @@ int ui_lightbar_run_hotkey(ui_lightbar_menu_t *m, int *out_key)
         }
         break;
 
-      case K_DOWN:
+      case UI_KEY_DOWN:
         if (selected < m->count - 1)
         {
           ui_lb_draw_item(m, items, selected, 0, width);
@@ -1484,8 +1484,8 @@ int ui_select_prompt(
         ui_lb_show_cursor(did_hide_cursor);
         return -1;
 
-      case K_LEFT:
-      case K_UP:
+      case UI_KEY_LEFT:
+      case UI_KEY_UP:
         if (selected > 0)
         {
           ui_sp_draw_option_margined(row, start_col[selected], &opts[selected], 0, normal_attr, selected_attr, hk_attr, strip_brackets, safe_margin, bracket_open, bracket_close);
@@ -1507,8 +1507,8 @@ int ui_select_prompt(
         }
         break;
 
-      case K_RIGHT:
-      case K_DOWN:
+      case UI_KEY_RIGHT:
+      case UI_KEY_DOWN:
         if (selected < option_count - 1)
         {
           ui_sp_draw_option_margined(row, start_col[selected], &opts[selected], 0, normal_attr, selected_attr, hk_attr, strip_brackets, safe_margin, bracket_open, bracket_close);
@@ -1692,8 +1692,8 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         ui_lb_show_cursor(did_hide_cursor);
         return -1;
 
-      case K_LEFT:
-      case K_RIGHT:
+      case UI_KEY_LEFT:
+      case UI_KEY_RIGHT:
         if (list->passthrough_lr_keys && list->out_key)
         {
           *list->out_key = ch;
@@ -1704,7 +1704,7 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         }
         break;
 
-      case K_DOWN:
+      case UI_KEY_DOWN:
         if (selected_index < list->count - 1)
         {
           int old_selected = selected_index;
@@ -1769,7 +1769,7 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         }
         break;
 
-      case K_UP:
+      case UI_KEY_UP:
         if (selected_index > 0)
         {
           int old_selected = selected_index;
@@ -1834,7 +1834,7 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         }
         break;
 
-      case K_PGDN:
+      case UI_KEY_PGDN:
         if (selected_index < list->count - 1)
         {
           selected_index += list->height;
@@ -1851,7 +1851,7 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         }
         break;
 
-      case K_PGUP:
+      case UI_KEY_PGUP:
         if (selected_index > 0)
         {
           selected_index -= list->height;
@@ -1866,7 +1866,7 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         }
         break;
 
-      case K_HOME:
+      case UI_KEY_HOME:
         if (selected_index != 0)
         {
           selected_index = 0;
@@ -1875,7 +1875,7 @@ int ui_lightbar_list_run(ui_lightbar_list_t *list)
         }
         break;
 
-      case K_END:
+      case UI_KEY_END:
         if (selected_index != list->count - 1)
         {
           selected_index = list->count - 1;

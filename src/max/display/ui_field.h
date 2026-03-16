@@ -36,6 +36,14 @@
 
 /* Internal UI key codes (returned by ui_read_key) */
 #define UI_KEY_DELETE              0x0100
+#define UI_KEY_UP                  0x0101
+#define UI_KEY_DOWN                0x0102
+#define UI_KEY_LEFT                0x0103
+#define UI_KEY_RIGHT               0x0104
+#define UI_KEY_HOME                0x0105
+#define UI_KEY_END                 0x0106
+#define UI_KEY_PGUP                0x0107
+#define UI_KEY_PGDN                0x0108
 
 /* Style struct for ui_edit_field */
 typedef struct ui_edit_field_style

@@ -609,25 +609,25 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
     ch = ui_read_key();
     
     /* Handle navigation */
-    if (ch == K_UP)
+    if (ch == UI_KEY_UP)
     {
       int next = ui_form_find_neighbor(fields, field_count, selected, "up", style->wrap);
       if (next >= 0)
         selected = next;
     }
-    else if (ch == K_DOWN)
+    else if (ch == UI_KEY_DOWN)
     {
       int next = ui_form_find_neighbor(fields, field_count, selected, "down", style->wrap);
       if (next >= 0)
         selected = next;
     }
-    else if (ch == K_LEFT)
+    else if (ch == UI_KEY_LEFT)
     {
       int next = ui_form_find_neighbor(fields, field_count, selected, "left", style->wrap);
       if (next >= 0)
         selected = next;
     }
-    else if (ch == K_RIGHT)
+    else if (ch == UI_KEY_RIGHT)
     {
       int next = ui_form_find_neighbor(fields, field_count, selected, "right", style->wrap);
       if (next >= 0)
