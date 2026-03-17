@@ -44,6 +44,7 @@
 #define UI_KEY_END                 0x0106
 #define UI_KEY_PGUP                0x0107
 #define UI_KEY_PGDN                0x0108
+#define UI_KEY_STAB                0x0109
 
 /* Style struct for ui_edit_field */
 typedef struct ui_edit_field_style

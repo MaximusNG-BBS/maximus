@@ -637,7 +637,7 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
     {
       selected = ui_form_find_sequential(selected, field_count, 1);
     }
-    else if (ch == K_STAB)
+    else if (ch == UI_KEY_STAB)
     {
       selected = ui_form_find_sequential(selected, field_count, 0);
     }

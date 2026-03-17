@@ -299,8 +299,8 @@ int ui_read_key(void)
        * This allows both doorway-style scan codes and terminal escape
        * sequences to work across platforms.
        */
-      switch (sc)
-      {
+       switch (sc)
+        {
         case 71: return UI_KEY_HOME;
         case 72: return UI_KEY_UP;
         case 73: return UI_KEY_PGUP;
@@ -310,8 +310,9 @@ int ui_read_key(void)
         case 80: return UI_KEY_DOWN;
         case 81: return UI_KEY_PGDN;
         case 83: return UI_KEY_DELETE;
+        case 15: return UI_KEY_STAB; /* Shift-Tab scan code (DOS) */
         default: return sc;
-      }
+        }
     }
   }
 
@@ -339,6 +340,7 @@ int ui_read_key(void)
         case 'D': return UI_KEY_LEFT;
         case 'H': return UI_KEY_HOME;
         case 'F': return UI_KEY_END;
+        case 'Z': return UI_KEY_STAB;
       }
 
       if (ch >= '0' && ch <= '9')
@@ -664,7 +666,7 @@ int ui_edit_field(
         break;
       
       case UI_KEY_UP:
-      case K_STAB:
+      case UI_KEY_STAB:
         if (flags & UI_EDIT_FLAG_FIELD_MODE)
         {
           result = UI_EDIT_PREVIOUS;
