@@ -31,10 +31,10 @@ const char *SQL_INSERT_USER =
     "date_pwd_chg_date, date_pwd_chg_time, date_newfile_date, date_newfile_time, "
     "time, time_added, timeremaining, video, lang, width, len, help, nulls, def_proto, "
     "compress, lastread_ptr, msg, files, credit, debit, point_credit, point_debit, "
-    "bits, bits2, delflag, grp, extra) "
+    "bits, bits2, delflag, grp, extra, theme) "
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
     "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-    "?, ?, ?, ?, ?)";
+    "?, ?, ?, ?, ?, ?)";
 
 const char *SQL_INSERT_USER_WITH_ID = 
     "INSERT INTO users (id, name, city, alias, phone, dataphone, pwd, pwd_encrypted, "
@@ -44,10 +44,10 @@ const char *SQL_INSERT_USER_WITH_ID =
     "date_pwd_chg_date, date_pwd_chg_time, date_newfile_date, date_newfile_time, "
     "time, time_added, timeremaining, video, lang, width, len, help, nulls, def_proto, "
     "compress, lastread_ptr, msg, files, credit, debit, point_credit, point_debit, "
-    "bits, bits2, delflag, grp, extra) "
+    "bits, bits2, delflag, grp, extra, theme) "
     "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
     "?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "
-    "?, ?, ?, ?, ?)";
+    "?, ?, ?, ?, ?, ?)";
 
 const char *SQL_UPDATE_USER = 
     "UPDATE users SET name=?, city=?, alias=?, phone=?, dataphone=?, pwd=?, pwd_encrypted=?, "
@@ -58,7 +58,7 @@ const char *SQL_UPDATE_USER =
     "date_newfile_date=?, date_newfile_time=?, time=?, time_added=?, timeremaining=?, "
     "video=?, lang=?, width=?, len=?, help=?, nulls=?, def_proto=?, compress=?, "
     "lastread_ptr=?, msg=?, files=?, credit=?, debit=?, point_credit=?, point_debit=?, "
-    "bits=?, bits2=?, delflag=?, grp=?, extra=?, updated_at_unix=unixepoch() "
+    "bits=?, bits2=?, delflag=?, grp=?, extra=?, theme=?, updated_at_unix=unixepoch() "
     "WHERE id=?";
 
 const char *SQL_DELETE_USER = "DELETE FROM users WHERE id=?";
@@ -170,7 +170,8 @@ int bind_user_to_stmt(sqlite3_stmt *stmt, const MaxDBUser *user) {
     sqlite3_bind_int(stmt, idx++, user->delflag);
     sqlite3_bind_int(stmt, idx++, user->group);
     sqlite3_bind_int(stmt, idx++, user->extra);
-    
+    sqlite3_bind_int(stmt, idx++, user->theme);
+
     if (is_update) {
         sqlite3_bind_int(stmt, idx++, user->id);
     }
@@ -286,9 +287,10 @@ MaxDBUser* extract_user_from_stmt(sqlite3_stmt *stmt) {
     user->delflag = sqlite3_column_int(stmt, 57);
     user->group = sqlite3_column_int(stmt, 58);
     user->extra = sqlite3_column_int(stmt, 59);
-    
-    user->created_at = sqlite3_column_int64(stmt, 60);
-    user->updated_at = sqlite3_column_int64(stmt, 61);
+    user->theme = sqlite3_column_int(stmt, 60);
+
+    user->created_at = sqlite3_column_int64(stmt, 61);
+    user->updated_at = sqlite3_column_int64(stmt, 62);
     
     return user;
 }

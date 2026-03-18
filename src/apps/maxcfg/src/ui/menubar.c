@@ -3305,12 +3305,13 @@ static void user_editor_edit_settings(HUF huf, long rec, const char *sys_path)
     else if (usr.sex == SEX_FEMALE) strcpy(sex_val, "Female");
     else strcpy(sex_val, "Unknown");
 
-    char width_buf[8], len_buf[8], nulls_buf[8];
+    char width_buf[8], len_buf[8], nulls_buf[8], theme_buf[4];
     snprintf(width_buf, sizeof(width_buf), "%u", (unsigned)usr.width);
     snprintf(len_buf, sizeof(len_buf), "%u", (unsigned)usr.len);
     snprintf(nulls_buf, sizeof(nulls_buf), "%u", (unsigned)usr.nulls);
+    snprintf(theme_buf, sizeof(theme_buf), "%u", (unsigned)usr.theme);
 
-    char *values[10] = {
+    char *values[11] = {
         strdup(video_val),
         strdup(help_val),
         strdup(sex_val),
@@ -3321,10 +3322,11 @@ static void user_editor_edit_settings(HUF huf, long rec, const char *sys_path)
         strdup((usr.bits2 & BITS2_MORE) ? "Yes" : "No"),
         strdup((usr.bits & BITS_FSR) ? "Yes" : "No"),
         strdup((usr.bits2 & BITS2_IBMCHARS) ? "Yes" : "No"),
+        strdup(theme_buf),
     };
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 11; i++) {
         if (values[i] == NULL) {
-            for (int j = 0; j < 10; j++) free(values[j]);
+            for (int j = 0; j < 11; j++) free(values[j]);
             dialog_message("Out of Memory", "Unable to allocate form values.");
             return;
         }
@@ -3341,9 +3343,10 @@ static void user_editor_edit_settings(HUF huf, long rec, const char *sys_path)
         { "More", "More Prompt", "Show MORE? prompt?", FIELD_SELECT, 0, "Yes", yesno_opts, NULL, NULL, false, false, false, NULL, NULL },
         { "FSR", "Full Screen Reader", "Use full-screen message reader?", FIELD_SELECT, 0, "No", yesno_opts, NULL, NULL, false, false, false, NULL, NULL },
         { "IBMChars", "IBM Characters", "Can receive high-bit chars?", FIELD_SELECT, 0, "Yes", yesno_opts, NULL, NULL, false, false, false, NULL, NULL },
+        { "Theme", "Theme Slot", "Theme slot (0=BBS default, 1-15=specific theme from theme.toml).", FIELD_TEXT, 3, "0", NULL, NULL, NULL, false, false, false, NULL, NULL },
     };
 
-    bool saved = form_edit("User Editor: Settings", fields, 10, values, NULL, NULL);
+    bool saved = form_edit("User Editor: Settings", fields, 11, values, NULL, NULL);
     if (saved) {
         if (strcasecmp(values[0], "ANSI") == 0) usr.video = GRAPH_ANSI;
         else if (strcasecmp(values[0], "Avatar") == 0) usr.video = GRAPH_AVATAR;
@@ -3374,12 +3377,14 @@ static void user_editor_edit_settings(HUF huf, long rec, const char *sys_path)
         if (strcasecmp(values[9], "Yes") == 0) usr.bits2 |= BITS2_IBMCHARS;
         else usr.bits2 &= ~BITS2_IBMCHARS;
 
+        { int t = atoi(values[10]); usr.theme = (byte)(t >= 0 && t < 16 ? t : 0); }
+
         if (!UserFileUpdate(huf, old_name[0] ? old_name : NULL, old_alias[0] ? old_alias : NULL, &usr)) {
             dialog_message("User Editor", "Failed to update user record.");
         }
     }
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 11; i++) {
         free(values[i]);
     }
 }

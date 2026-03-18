@@ -86,6 +86,7 @@ const char *SQL_CREATE_USERS_TABLE =
     "  delflag INTEGER DEFAULT 0,"
     "  grp INTEGER DEFAULT 0,"
     "  extra INTEGER DEFAULT 0,"
+    "  theme INTEGER DEFAULT 0,"
     "  created_at_unix INTEGER NOT NULL DEFAULT (unixepoch()),"
     "  updated_at_unix INTEGER NOT NULL DEFAULT (unixepoch())"
     ")";

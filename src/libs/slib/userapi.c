@@ -129,6 +129,7 @@ static void _convert_usr_to_maxdbuser(const struct _usr *usr, MaxDBUser *dbuser,
   /* Misc */
   dbuser->group = usr->group;
   dbuser->extra = usr->extra;
+  dbuser->theme = usr->theme;
 }
 
 static void _convert_maxdbuser_to_usr(const MaxDBUser *dbuser, struct _usr *usr)
@@ -213,7 +214,8 @@ static void _convert_maxdbuser_to_usr(const MaxDBUser *dbuser, struct _usr *usr)
   /* Misc */
   usr->group = dbuser->group;
   usr->extra = dbuser->extra;
-  
+  usr->theme = (byte)dbuser->theme;
+
   /* Set struct_len field */
   usr->struct_len = sizeof(struct _usr) / 20;
 }

@@ -180,7 +180,8 @@ typedef struct {
     /* Misc */
     word group;                /* Group number (not implemented) */
     dword extra;               /* Extra field */
-    
+    int theme;                 /* Theme slot index (0 = BBS default) */
+
     /* Bookkeeping */
     time_t created_at;
     time_t updated_at;

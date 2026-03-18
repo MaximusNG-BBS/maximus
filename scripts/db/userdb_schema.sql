@@ -94,7 +94,8 @@ CREATE TABLE IF NOT EXISTS users (
     -- Misc
     grp INTEGER DEFAULT 0,
     extra INTEGER DEFAULT 0,
-    
+    theme INTEGER DEFAULT 0,
+
     -- Bookkeeping
     created_at_unix INTEGER NOT NULL DEFAULT (unixepoch()),
     updated_at_unix INTEGER NOT NULL DEFAULT (unixepoch())

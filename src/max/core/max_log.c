@@ -604,6 +604,7 @@ static login_step_t handle_existing_auth(login_ctx_t *ctx)
   }
 
   Switch_To_Language();
+  Reload_Theme_Colors();   /* apply stored usr.theme colors at login */
   Set_Lang_Alternate(hasRIP());
 
   /* Password verification loop */
