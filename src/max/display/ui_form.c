@@ -251,7 +251,11 @@ static void near ui_form_redraw(ui_form_field_t *fields, int field_count, int se
   int i;
   
   for (i = 0; i < field_count; i++)
+  {
+    if (fields[i].width <= 0)
+      continue;
     ui_form_draw_field(&fields[i], i == selected, style);
+  }
 }
 
 /**
@@ -284,7 +288,7 @@ static int near ui_form_find_neighbor(ui_form_field_t *fields, int field_count, 
   {
     float primary, secondary;
     
-    if (i == current)
+    if (i == current || fields[i].width <= 0)
       continue;
     
     cx = ui_form_field_center_x(&fields[i]);
@@ -337,7 +341,7 @@ static int near ui_form_find_neighbor(ui_form_field_t *fields, int field_count, 
     
     for (i = 0; i < field_count; i++)
     {
-      if (i == current)
+      if (i == current || fields[i].width <= 0)
         continue;
       if (strcmp(direction, "down") == 0 && fields[i].y < extreme_y)
         extreme_y = fields[i].y;
@@ -350,7 +354,7 @@ static int near ui_form_find_neighbor(ui_form_field_t *fields, int field_count, 
     {
       float dist;
       
-      if (i == current || fields[i].y != extreme_y)
+      if (i == current || fields[i].width <= 0 || fields[i].y != extreme_y)
         continue;
       
       cx = ui_form_field_center_x(&fields[i]);
@@ -369,7 +373,7 @@ static int near ui_form_find_neighbor(ui_form_field_t *fields, int field_count, 
     
     for (i = 0; i < field_count; i++)
     {
-      if (i == current)
+      if (i == current || fields[i].width <= 0)
         continue;
       cx = ui_form_field_center_x(&fields[i]);
       if (strcmp(direction, "right") == 0 && cx < extreme_cx)
@@ -383,7 +387,7 @@ static int near ui_form_find_neighbor(ui_form_field_t *fields, int field_count, 
     {
       float dist;
       
-      if (i == current)
+      if (i == current || fields[i].width <= 0)
         continue;
       
       cx = ui_form_field_center_x(&fields[i]);
@@ -404,19 +408,32 @@ static int near ui_form_find_neighbor(ui_form_field_t *fields, int field_count, 
 }
 
 /**
- * @brief Find the next or previous field in sequential (tab) order.
+ * @brief Find the next or previous visible field in sequential (tab) order.
  *
  * @param current     Current field index.
  * @param field_count Total number of fields.
  * @param forward     Non-zero for next, zero for previous.
- * @return            New field index (wraps around).
+ * @param fields      Array of form fields (used for visibility checks).
+ * @return            New field index (wraps around), or current if no visible neighbor.
  */
-static int near ui_form_find_sequential(int current, int field_count, int forward)
+static int near ui_form_find_sequential(int current, int field_count, int forward, ui_form_field_t *fields)
 {
-  if (forward)
-    return (current + 1) % field_count;
-  else
-    return (current - 1 + field_count) % field_count;
+  int i;
+  int idx;
+
+  for (i = 1; i < field_count; i++)
+  {
+    if (forward)
+      idx = (current + i) % field_count;
+    else
+      idx = (current - i + field_count) % field_count;
+
+    /* Skip hidden fields */
+    if (fields[idx].width > 0)
+      return idx;
+  }
+
+  return current;  /* No visible neighbor found */
 }
 
 /**
@@ -591,7 +608,20 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
         fields[rc].options && fields[rc].option_count > 0 &&
         ui_form_option_index(&fields[rc]) < 0)
       ui_form_option_set(&fields[rc], 0);
-  
+
+  /* Start on the first visible field */
+  {
+    int i;
+    for (i = 0; i < field_count; i++)
+    {
+      if (fields[i].width > 0)
+      {
+        selected = i;
+        break;
+      }
+    }
+  }
+
   ui_form_hide_cursor(&did_hide_cursor);
 
   /* Initial draw */
@@ -635,11 +665,11 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
     }
     else if (ch == K_TAB)
     {
-      selected = ui_form_find_sequential(selected, field_count, 1);
+      selected = ui_form_find_sequential(selected, field_count, 1, fields);
     }
     else if (ch == UI_KEY_STAB)
     {
-      selected = ui_form_find_sequential(selected, field_count, 0);
+      selected = ui_form_find_sequential(selected, field_count, 0, fields);
     }
     else if (ch == K_RETURN)
     {
@@ -649,9 +679,9 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
       ui_form_hide_cursor(&did_hide_cursor);
       
       if (rc == UI_EDIT_NEXT)
-        selected = ui_form_find_sequential(selected, field_count, 1);
+        selected = ui_form_find_sequential(selected, field_count, 1, fields);
       else if (rc == UI_EDIT_PREVIOUS)
-        selected = ui_form_find_sequential(selected, field_count, 0);
+        selected = ui_form_find_sequential(selected, field_count, 0, fields);
       
       /* Redraw after edit */
       ui_form_redraw(fields, field_count, selected, style);
@@ -692,7 +722,7 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
       
       for (i = 0; i < field_count; i++)
       {
-        if (fields[i].hotkey && tolower(fields[i].hotkey) == ch_lower)
+        if (fields[i].width > 0 && fields[i].hotkey && tolower(fields[i].hotkey) == ch_lower)
         {
           selected = i;
           break;

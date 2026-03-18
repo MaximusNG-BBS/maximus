@@ -362,7 +362,10 @@ int main()
   fields[12].value := bool_value(usr.hotkeys);
 
   if (detected_rip = 0)
+  {
     fields[9].width := 0;
+    fields[9].value := "No";   /* ensure hidden RIP field cannot persist as enabled */
+  }
 
   draw_screen(detected_rip);
   rc := ui_form_run(fields, 12, fs);
