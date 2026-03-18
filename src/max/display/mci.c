@@ -494,10 +494,11 @@ static void mci_expand_code(char a, char b, char *out, size_t out_size)
   else if (a=='F' && b=='D')
     snprintf(out, out_size, "%s", fah.heap ? FAS(fah, descript) : "");
 
-  /* Theme short_name: |TN — stubbed until theme system is cherry-picked */
+  /* |TN — Current theme short_name */
   else if (a=='T' && b=='N')
   {
-    out[0] = '\0';
+    const char *tsn = theme_get_current_shortname();
+    snprintf(out, out_size, "%s", tsn ? tsn : "");
   }
 
   /* Positional parameter stub |!1..|!9, |!A..|!F (Round 1: no-op) */
