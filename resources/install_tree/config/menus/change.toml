@@ -177,6 +177,14 @@ key_poke = ""
 modifiers = []
 
 [[option]]
+command = "Chg_Theme"
+arguments = ""
+priv_level = "Demoted"
+description = "~Theme"
+key_poke = ""
+modifiers = []
+
+[[option]]
 command = "Display_Menu"
 arguments = "MAIN"
 priv_level = "Transient"

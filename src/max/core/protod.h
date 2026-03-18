@@ -336,6 +336,8 @@ void WFC_Idle(void);
 void WFC_LogMsg(char *s);
 int Get_Language(void);
 void Chg_Language(void);
+void Chg_Theme(void);
+void Reload_Theme_Colors(void);
 void Msg_Tag(void);
 int Language_Save_Heap(void);
 void Language_Restore_Heap(int h);
@@ -596,5 +598,16 @@ size_t ngcfg_get_matrix_address_count(void);
 NETADDR ngcfg_get_matrix_address(size_t idx);
 NETADDR ngcfg_get_matrix_primary_address(void);
 NETADDR ngcfg_get_matrix_seenby_address(void);
+
+/* Theme registry functions (theme.c) */
+int theme_registry_init(void);
+int theme_get_count(void);
+int theme_get_slot(int iter);
+const char *theme_get_name(int index);
+const char *theme_get_shortname(int index);
+const char *theme_get_lang(int index);
+int theme_get_index(const char *short_name);
+const char *theme_get_current_shortname(void);
+const char *theme_get_default_shortname(void);
 
 cpp_end()

@@ -36,11 +36,13 @@ static char rcs_id[]="$Id: max_chng.c,v 1.4 2004/01/28 06:38:10 paltas Exp $";
 #include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
+#include "libmaxcfg.h"
 #include "prog.h"
 #include "mm.h"
 #include "arc_def.h"
 #include "md5.h"
 #include "ui_field.h"
+#include "theme.h"
 
 static int near Invalid_City(char *usr_city);
 static int near Invalid_Name(char *usr_name);
@@ -604,6 +606,193 @@ static int near Invalid_Phone(char *usr_phone)
 }
 
 
+/**
+ * @brief Find language index by basename (e.g. "english").
+ *
+ * Iterates the lang_file array in language.toml and returns the
+ * index that matches the given basename, or -1 if not found.
+ *
+ * @param basename  Language file basename to look up
+ * @return Language index (0-based), or -1 if not found
+ */
+static int near find_lang_index(const char *basename)
+{
+  byte lng;
+
+  if (!basename || !*basename)
+    return -1;
+
+  for (lng = 0; lng < MAX_LANG; lng++)
+  {
+    MaxCfgVar v, it;
+
+    if (ng_cfg &&
+        maxcfg_toml_get((MaxCfgToml *)ng_cfg, "general.language.lang_file", &v) == MAXCFG_OK &&
+        v.type == MAXCFG_VAR_STRING_ARRAY)
+    {
+      size_t cnt = 0;
+      if (maxcfg_var_count(&v, &cnt) == MAXCFG_OK && lng < cnt)
+      {
+        if (maxcfg_toml_array_get(&v, (size_t)lng, &it) == MAXCFG_OK &&
+            it.type == MAXCFG_VAR_STRING && it.v.s && *it.v.s)
+        {
+          if (stricmp(it.v.s, basename) == 0)
+            return (int)lng;
+        }
+      }
+      else
+        break; /* past end of array */
+    }
+    else
+      break; /* no lang_file array */
+  }
+
+  return -1;
+}
+
+
+/**
+ * @brief User-facing theme selection command.
+ *
+ * Displays the theme_sel screen, lists available themes for selection
+ * (with option 1 always being "Set to BBS Default"), sets usr.theme
+ * to the chosen slot index (0 = BBS default, slot = specific theme),
+ * and optionally auto-binds language when the chosen theme specifies
+ * a non-empty lang field.
+ */
+void Chg_Theme(void)
+{
+  char temp[PATHLEN];
+  int count;
+  int sel;
+  int i;
+  const char *dfpath;
+
+  count = theme_get_count();
+  if (count <= 0)
+  {
+    Puts(unavailable);
+    Press_ENTER();
+    return;
+  }
+
+  /* Display the theme selection screen if it exists */
+  dfpath = ngcfg_get_path("general.display_files.theme_sel");
+  if (dfpath && *dfpath)
+    Display_File(0, NULL, dfpath);
+
+  /* Show numbered list of themes.  Option 1 is always "BBS Default".
+   * list_option format: "|pr  |!1|hi) |!2\n|cd"
+   * The \n is inside the format, so we embed the [*] marker inside
+   * the name parameter (|!2) to keep it on the same line.            */
+  if (!*linebuf)
+  {
+    Puts(select_lang);  /* Re-use "Select:" prompt preamble */
+
+    /* Option 1: "Default BBS Skin (Currently: <display name>)"
+     * Embed [*] marker in label so it precedes the format's \n.      */
+    {
+      const char *def_sname = theme_get_default_shortname();
+      int def_iter = theme_get_index(def_sname);
+      const char *def_display = (def_iter >= 0) ? theme_get_name(def_iter) : def_sname;
+      char def_label[160];
+
+      if (usr.theme == 0)
+        snprintf(def_label, sizeof(def_label),
+                 "Default BBS Skin (Currently: %s) |ok[*]|hi",
+                 def_display ? def_display : def_sname);
+      else
+        snprintf(def_label, sizeof(def_label),
+                 "Default BBS Skin (Currently: %s)",
+                 def_display ? def_display : def_sname);
+
+      { char _tb[16];
+        snprintf(_tb, sizeof(_tb), "1");
+        LangPrintf(list_option, _tb, def_label); }
+    }
+
+    /* Options 2..N: the loaded themes */
+    for (i = 0; i < count; i++)
+    {
+      const char *tname = theme_get_name(i);
+      char tname_buf[160];
+      char _tb[16];
+
+      /* Embed [*] marker in name to keep it before the format's \n   */
+      if (usr.theme != 0 && (int)usr.theme == theme_get_slot(i))
+        snprintf(tname_buf, sizeof(tname_buf), "%s |ok[*]|hi",
+                 tname ? tname : "");
+      else
+        snprintf(tname_buf, sizeof(tname_buf), "%s", tname ? tname : "");
+
+      snprintf(_tb, sizeof(_tb), "%d", i + 2);
+      LangPrintf(list_option, _tb, tname_buf);
+    }
+
+    /* Legend */
+    WhiteN();
+    Printf("|ok[*]|07 = Current Selected Theme\n");
+  }
+
+  WhiteN();
+
+  InputGets(temp, select_p);
+
+  sel = atoi(temp);
+
+  if (!sel)
+    return;  /* 0 or empty = abort */
+
+  if (sel == 1)
+  {
+    /* User selected "BBS Default" */
+    usr.theme = 0;
+  }
+  else
+  {
+    /* Convert 1-based display number (from option 2) to 0-based iter index */
+    int iter = sel - 2;
+
+    if (iter < 0 || iter >= count)
+      return;  /* Out of range */
+
+    usr.theme = (byte)theme_get_slot(iter);
+  }
+
+  logit("+Theme changed to slot %d ('%s')",
+        (int)usr.theme,
+        theme_get_current_shortname());
+
+  /* Auto-bind language if the selected theme specifies one */
+  if (usr.theme != 0)
+  {
+    int iter = sel - 2;
+    const char *theme_lang = theme_get_lang(iter);
+
+    if (theme_lang && *theme_lang)
+    {
+      int lang_idx = find_lang_index(theme_lang);
+
+      if (lang_idx >= 0 && lang_idx != (int)usr.lang)
+      {
+        usr.lang = (byte)lang_idx;
+        Switch_To_Language();
+        logit("+Theme auto-bound language to %d (%s)", lang_idx, theme_lang);
+      }
+    }
+  }
+
+  /* Reload theme colors for the new theme */
+  Reload_Theme_Colors();
+
+  if (*language_change)
+  {
+    Puts(language_change);
+    Press_ENTER();
+  }
+}
+
+
 static void near Chg_Archiver(void)
 {
   byte a=Get_Archiver();
@@ -681,6 +870,7 @@ int Exec_Change(int type, char **result)
     case chg_fsr:       Chg_FSR();      break;
     case chg_archiver:  Chg_Archiver(); break;
     case chg_rip:       Chg_RIP();      break;
+    case chg_theme:     Chg_Theme();    break;
     default:            { char _ib[8]; snprintf(_ib, sizeof(_ib), "%u", type);
                           logit(bad_menu_opt, _ib); }  return 0;
   }

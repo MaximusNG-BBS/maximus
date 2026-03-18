@@ -61,6 +61,7 @@ static char rcs_id[]="$Id: max_init.c,v 1.7 2004/06/06 21:48:51 paltas Exp $";
 #include "max_edit.h"
 #include "emsi.h"
 #include "debug_log.h"
+#include "theme.h"
 
 #ifdef KEY
 #include "makekey.h"
@@ -1606,12 +1607,16 @@ void Read_Cfg(void)
       (void)maxcfg_toml_load_file(ng_cfg, "config/general/protocol", "general.protocol");
       (void)maxcfg_toml_load_file(ng_cfg, "config/general/language", "general.language");
       (void)maxcfg_toml_load_file(ng_cfg, "config/general/mex", "mex");
+      (void)maxcfg_toml_load_file(ng_cfg, "config/general/theme", "general.theme");
       (void)maxcfg_toml_load_file(ng_cfg, "config/security/access_levels", "security.access_levels");
       (void)maxcfg_toml_load_file(ng_cfg, "config/areas/msg/areas", "areas.msg");
       (void)maxcfg_toml_load_file(ng_cfg, "config/areas/file/areas", "areas.file");
       (void)maxcfg_toml_load_file(ng_cfg, "config/matrix", "matrix");
 
       load_menu_tomls();
+
+      /* Initialize theme registry now that theme.toml is loaded */
+      theme_registry_init();
     }
   }
 

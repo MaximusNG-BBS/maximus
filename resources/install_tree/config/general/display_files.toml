@@ -47,3 +47,6 @@ fname_format = "display/screens/fformat"
 time_format = "%H:%M:%S"
 date_format = "%C-%D-%Y"
 tune = "display/tunes/tunes"
+
+# Theme selection screen - shown before theme chooser
+theme_sel = "display/screens/theme_sel"

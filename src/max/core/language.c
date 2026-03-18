@@ -243,6 +243,19 @@ char *s_ret(word strn)
   return "";
 }
 
+/**
+ * @brief Reload theme colors for the current session.
+ *
+ * Called by Chg_Theme() after the user switches themes to refresh the
+ * semantic color slots from the theme-aware config.  Delegates to the
+ * static load_theme_colors() helper in this file.
+ */
+void Reload_Theme_Colors(void)
+{
+  load_theme_colors();
+}
+
+
 /* Change the user's language to a new one, and reload lang heaps */
 
 void Switch_To_Language(void)

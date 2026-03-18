@@ -63,7 +63,7 @@ typedef enum
                     chg_video, chg_editor, chg_clear, chg_ibm,
                     chg_phone, chg_realname, chg_hotkeys,
                     chg_language, chg_userlist, chg_protocol,
-                    chg_fsr, chg_archiver, chg_rip,
+                    chg_fsr, chg_archiver, chg_rip, chg_theme,
 
   EDIT_BLOCK=700, edit_save, edit_abort, edit_list, edit_edit,
                   edit_insert, edit_delete, edit_continue, edit_to,
@@ -192,6 +192,7 @@ struct _st silt_table[] = {
   {chg_clear      , "chg_clear"},
   {chg_ibm        , "chg_ibm"},
   {chg_rip        , "chg_rip"},
+  {chg_theme      , "chg_theme"},
   {edit_save      , "edit_save"},
   {edit_abort     , "edit_abort"},
   {edit_list      , "edit_list"},
