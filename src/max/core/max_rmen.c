@@ -611,10 +611,44 @@ static int near Read_Menu_Toml(struct _amenu *menu, const char *mname)
 
   if (maxcfg_ng_menu_init(&ng) != MAXCFG_OK)
     return -2;
-  if (maxcfg_ng_get_menu(ng_cfg, path, &ng) != MAXCFG_OK)
+
+  /* Transparent themed menu: try menus.<name>.<theme> first, fall back to menus.<name>.
+   * If the themed variant exists and has options, use it; otherwise use base.
+   * This is invisible to all callers — they always request "menus.main", the
+   * resolution happens here at the single read site. */
   {
-    maxcfg_ng_menu_free(&ng);
-    return -2;
+    int loaded = 0;
+    const char *sname = theme_get_current_shortname();
+    if (sname && *sname)
+    {
+      char tpath[256];
+      if (snprintf(tpath, sizeof(tpath), "%s.%s", path, sname) < (int)sizeof(tpath))
+      {
+        MaxCfgNgMenu tng;
+        if (maxcfg_ng_menu_init(&tng) == MAXCFG_OK)
+        {
+          if (maxcfg_ng_get_menu(ng_cfg, tpath, &tng) == MAXCFG_OK &&
+              tng.option_count > 0)
+          {
+            ng = tng;          /* adopt the themed menu */
+            loaded = 1;
+          }
+          else
+          {
+            maxcfg_ng_menu_free(&tng);
+          }
+        }
+      }
+    }
+
+    if (!loaded)
+    {
+      if (maxcfg_ng_get_menu(ng_cfg, path, &ng) != MAXCFG_OK)
+      {
+        maxcfg_ng_menu_free(&ng);
+        return -2;
+      }
+    }
   }
 
   title = ng.title ? ng.title : "";
