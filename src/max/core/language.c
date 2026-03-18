@@ -50,6 +50,7 @@ static char rcs_id[]="$Id: language.c,v 1.5 2004/01/27 21:00:30 paltas Exp $";
 #include "prog.h"
 #include "mm.h"
 #include "language.h"
+#include "theme.h"
 #include "mci.h"
 
 static int using_alternate=0;
@@ -60,16 +61,39 @@ static MaxCfgThemeColors s_theme_colors;
 /**
  * @brief Load theme colors from colors.toml (via ng_cfg) and wire up g_mci_theme.
  *
- * Called once during Initialize_Languages().  If the [theme.colors] section
- * is missing from ng_cfg, the built-in defaults are used instead.
+ * Tries a theme-specific override first (e.g., "general.colors.maxng"), then
+ * falls back to the base "general.colors" prefix.  The themed override is only
+ * tried if a theme is active and the themed table has a non-empty name key
+ * (which indicates the file was actually loaded).
+ *
+ * Called at startup via Initialize_Languages() and again via
+ * Reload_Theme_Colors() after the user switches themes.
  */
 static void near load_theme_colors(void)
 {
+  MaxCfgStatus st;
+  const char *sname;
+  char themed_prefix[80];
+
   if (!ng_cfg)
     return;
 
-  MaxCfgStatus st = maxcfg_theme_load_from_toml(&s_theme_colors, ng_cfg,
-                                                 "general.colors");
+  /* Try themed prefix first: "general.colors.<sname>" */
+  sname = theme_get_current_shortname();
+  if (sname && *sname)
+  {
+    snprintf(themed_prefix, sizeof(themed_prefix), "general.colors.%s", sname);
+    st = maxcfg_theme_load_from_toml(&s_theme_colors, ng_cfg, themed_prefix);
+    if (st == MAXCFG_OK && s_theme_colors.name && *s_theme_colors.name)
+    {
+      g_mci_theme = &s_theme_colors;
+      logit(">Theme colors loaded (themed %s): %s", sname, s_theme_colors.name);
+      return;
+    }
+  }
+
+  /* Fall back to base "general.colors" prefix */
+  st = maxcfg_theme_load_from_toml(&s_theme_colors, ng_cfg, "general.colors");
   if (st == MAXCFG_OK)
   {
     g_mci_theme = &s_theme_colors;

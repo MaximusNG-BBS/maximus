@@ -195,12 +195,57 @@ static int near build_area_dats_from_toml(char *out_marea_base, size_t out_marea
 
 
 /**
- * @brief Retrieve a raw string value from the TOML configuration.
+ * @brief Build a theme-namespaced key by inserting the current user's
+ * theme short_name after the second dot-segment.
  *
- * @param toml_path  Dotted TOML key path (e.g. "maximus.system_name")
+ * Example: "general.colors.theme.colors.text" with theme "maxng"
+ *       -> "general.colors.maxng.theme.colors.text"
+ *
+ * Only transforms keys with 3+ dot-segments.  Returns NULL if no
+ * theme is active or the key is too short.
+ *
+ * @param key  Original dotted key
+ * @return Static buffer with themed key, or NULL
+ */
+static const char *ngcfg_make_themed_key(const char *key)
+{
+  static char buf[512];
+  const char *theme_sname;
+  const char *first_dot;
+  const char *second_dot;
+  int prefix_len;
+
+  theme_sname = theme_get_current_shortname();
+  if (!theme_sname || !*theme_sname)
+    return NULL;
+
+  /* Find the first dot */
+  first_dot = strchr(key, '.');
+  if (!first_dot)
+    return NULL;
+
+  /* Find the second dot */
+  second_dot = strchr(first_dot + 1, '.');
+  if (!second_dot)
+    return NULL;
+
+  /* Build: <prefix_up_to_second_dot>.<theme>.<remainder_after_second_dot> */
+  prefix_len = (int)(second_dot - key);
+  snprintf(buf, sizeof(buf), "%.*s.%s%s", prefix_len, key, theme_sname, second_dot);
+
+  return buf;
+}
+
+/**
+ * @brief Direct (non-themed) string lookup from TOML configuration.
+ *
+ * This is the low-level helper that performs no theme resolution.
+ * All theme-aware getters build on top of this.
+ *
+ * @param toml_path  Dotted TOML key path
  * @return Pointer to the string value, or "" if not found
  */
-const char *ngcfg_get_string_raw(const char *toml_path)
+static const char *ngcfg_get_string_direct(const char *toml_path)
 {
   MaxCfgVar v;
 
@@ -210,6 +255,32 @@ const char *ngcfg_get_string_raw(const char *toml_path)
     return v.v.s;
 
   return "";
+}
+
+/**
+ * @brief Retrieve a raw string value from the TOML configuration.
+ *
+ * Tries the theme-namespaced key first, then falls back to the base key.
+ *
+ * @param toml_path  Dotted TOML key path (e.g. "maximus.system_name")
+ * @return Pointer to the string value, or "" if not found
+ */
+const char *ngcfg_get_string_raw(const char *toml_path)
+{
+  const char *themed_key;
+  const char *s;
+
+  /* Try theme-namespaced key first */
+  themed_key = ngcfg_make_themed_key(toml_path);
+  if (themed_key)
+  {
+    s = ngcfg_get_string_direct(themed_key);
+    if (s && *s)
+      return s;
+  }
+
+  /* Fall back to base key */
+  return ngcfg_get_string_direct(toml_path);
 }
 
 /**
@@ -698,7 +769,20 @@ const char *ngcfg_get_path(const char *toml_path)
 int ngcfg_get_int(const char *toml_path)
 {
   MaxCfgVar v;
+  const char *themed_key;
 
+  /* Try theme-namespaced key first */
+  themed_key = ngcfg_make_themed_key(toml_path);
+  if (themed_key && ng_cfg &&
+      maxcfg_toml_get(ng_cfg, themed_key, &v) == MAXCFG_OK)
+  {
+    if (v.type == MAXCFG_VAR_INT)
+      return v.v.i;
+    if (v.type == MAXCFG_VAR_UINT)
+      return (int)v.v.u;
+  }
+
+  /* Fall back to base key */
   if (toml_path && ng_cfg &&
       maxcfg_toml_get(ng_cfg, toml_path, &v) == MAXCFG_OK)
   {
@@ -720,7 +804,18 @@ int ngcfg_get_int(const char *toml_path)
 int ngcfg_get_bool(const char *toml_path)
 {
   MaxCfgVar v;
+  const char *themed_key;
 
+  /* Try theme-namespaced key first — key existence means use themed value */
+  themed_key = ngcfg_make_themed_key(toml_path);
+  if (themed_key && ng_cfg &&
+      maxcfg_toml_get(ng_cfg, themed_key, &v) == MAXCFG_OK &&
+      v.type == MAXCFG_VAR_BOOL)
+  {
+    return v.v.b ? 1 : 0;
+  }
+
+  /* Fall back to base key */
   if (toml_path && ng_cfg &&
       maxcfg_toml_get(ng_cfg, toml_path, &v) == MAXCFG_OK &&
       v.type == MAXCFG_VAR_BOOL)
@@ -742,7 +837,21 @@ int ngcfg_get_bool(const char *toml_path)
 int ngcfg_get_int_array_2(const char *toml_path, int *out_a, int *out_b)
 {
   MaxCfgVar v;
+  const char *themed_key;
 
+  /* Try theme-namespaced key first */
+  themed_key = ngcfg_make_themed_key(toml_path);
+  if (themed_key && ng_cfg &&
+      maxcfg_toml_get(ng_cfg, themed_key, &v) == MAXCFG_OK &&
+      v.type == MAXCFG_VAR_INT_ARRAY &&
+      v.v.intv.count >= 2)
+  {
+    if (out_a) *out_a = v.v.intv.items[0];
+    if (out_b) *out_b = v.v.intv.items[1];
+    return 1;
+  }
+
+  /* Fall back to base key */
   if (toml_path && ng_cfg &&
       maxcfg_toml_get(ng_cfg, toml_path, &v) == MAXCFG_OK &&
       v.type == MAXCFG_VAR_INT_ARRAY &&
@@ -959,6 +1068,61 @@ NETADDR ngcfg_get_matrix_seenby_address(void)
     return alias1;
 
   return prim;
+}
+
+/**
+ * @brief Load themed config file variants for all registered themes.
+ *
+ * For each theme in the registry, checks if themed variants of key config
+ * files exist and loads them with theme-namespaced prefixes.
+ * E.g., config/general/colors.maxng.toml -> prefix "general.colors.maxng"
+ */
+static void near load_themed_config_files(void)
+{
+  int count = theme_get_count();
+
+  /* Config files that support themed namespaces */
+  static const struct {
+    const char *base_path;    /* e.g., "config/general/colors" */
+    const char *base_prefix;  /* e.g., "general.colors" */
+  } themeable_configs[] = {
+    { "config/general/colors",  "general.colors" },
+    { "config/general/display", "general.display" },
+    { NULL, NULL }
+  };
+
+  int t, c;
+
+  for (t = 0; t < count; t++)
+  {
+    const char *sname = theme_get_shortname(t);
+    if (!sname || !*sname)
+      continue;
+
+    for (c = 0; themeable_configs[c].base_path; c++)
+    {
+      char path[PATHLEN];
+      char prefix[128];
+      char full_path[PATHLEN];
+
+      /* Build path: config/general/colors.maxng */
+      snprintf(path, sizeof(path), "%s.%s",
+               themeable_configs[c].base_path, sname);
+
+      /* Build prefix: general.colors.maxng */
+      snprintf(prefix, sizeof(prefix), "%s.%s",
+               themeable_configs[c].base_prefix, sname);
+
+      /* Check if the .toml file exists before loading */
+      snprintf(full_path, sizeof(full_path), "%s.toml", path);
+
+      if (fexist(full_path))
+      {
+        (void)maxcfg_toml_load_file(ng_cfg, path, prefix);
+        logit("@Loaded themed config: %s -> %s", path, prefix);
+      }
+    }
+  }
 }
 
 static void near load_menu_tomls(void)
@@ -1617,6 +1781,7 @@ void Read_Cfg(void)
 
       /* Initialize theme registry now that theme.toml is loaded */
       theme_registry_init();
+      load_themed_config_files();
     }
   }
 
