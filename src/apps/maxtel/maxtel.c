@@ -356,7 +356,13 @@ static void sigchld_handler(int sig)
             }
             if (nodes[i].bridge_pid == pid) {
                 nodes[i].bridge_pid = 0;
-                nodes[i].state = NODE_WFC;
+                /* Only recycle to WFC if the max process is still running.
+                 * If max_pid == 0, max already exited (or is about to) and
+                 * its SIGCHLD set/will set NODE_INACTIVE.  Overwriting with
+                 * NODE_WFC here would leave the node stranded with no
+                 * running process and no spawn path — the carrier-drop bug. */
+                if (nodes[i].max_pid != 0)
+                    nodes[i].state = NODE_WFC;
                 nodes[i].username[0] = '\0';
                 nodes[i].activity[0] = '\0';
                 nodes[i].connect_time = 0;
@@ -1480,6 +1486,14 @@ static void bridge_connection(int client_fd, int node_num)
         }
     }
     
+    /*
+     * Be explicit on teardown.  A plain close() should be enough, but when
+     * callers hard-drop we want the Unix-socket side to observe a definitive
+     * EOF/HUP immediately so Maximus can drop carrier and quit the session
+     * instead of lingering until timeout.
+     */
+    shutdown(sock_fd, SHUT_RDWR);
+    shutdown(client_fd, SHUT_RDWR);
     close(sock_fd);
     close(client_fd);
 }

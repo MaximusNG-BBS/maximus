@@ -129,6 +129,8 @@ static char rcs_id[]="$Id: ipcomm.c,v 1.18 2004/06/06 21:46:58 paltas Exp $";
 #include "comprots.h"
 #include "comstruct.h"
 
+void Lost_Carrier(void);
+
 /** Syntactic sugar for UNIX only */
 #define unixfd(hc)	FileHandle_fromCommHandle(ComGetHandle(hc))
 
@@ -485,8 +487,8 @@ ssize_t timeout_read(int fd, unsigned char *buf, size_t count, time_t timeout)
  */
 USHORT COMMAPI IpComIsOnline(HCOMM hc)
 {
-  fd_set 		rfds, wfds;
-  struct timeval 	tv;
+	fd_set 		rfds;
+	struct timeval 	tv;
   DCB			dcb;
 
   if (!hc)
@@ -494,57 +496,28 @@ USHORT COMMAPI IpComIsOnline(HCOMM hc)
 
   if (hc->fDCD)
   {
-    static byte tries = 0;
-    int		rready;
+	unsigned char buf[1];
+	ssize_t i;
 
-    tries++; tries %= 15;
-    if (tries != 0)
-      goto skipCheck;	/* Only check once in a while */
-
-    /* "Carrier"? Let's make sure the socket is okay. */
-    FD_ZERO(&rfds);
-    FD_ZERO(&wfds);
-    FD_SET(unixfd(hc), &rfds);
-    FD_SET(unixfd(hc), &wfds);
-
-    tv.tv_sec = 0;
-    tv.tv_usec = 0;
-
-    if (((rready = select(unixfd(hc) + 1, &rfds, NULL, NULL, &tv)) < 0) || (select(unixfd(hc) + 1, NULL, &wfds, NULL, &tv) < 0))
-    {
-      hc->fDCD = FALSE;
-      shutdown(unixfd(hc), 2);
-      close(unixfd(hc));      
-      unlink(lockpath);
-    }
-
-    if ((rready == 1) && hc->fDCD && (hc->peekHack == -1))
-    {
-      unsigned char 	buf[1];
-      ssize_t		i;
-
-      i = read(unixfd(hc), &buf, 1);
-      switch(i)
-      {
-	case 0:
-	case -1:
+	/*
+	 * Probe the accepted socket without consuming input.
+	 *  - i > 0 : socket alive, data pending
+	 *  - i == 0: orderly shutdown by peer -> dropped carrier
+	 *  - i < 0 with EAGAIN/EWOULDBLOCK/EINTR: socket alive, no data yet
+	 *  - i < 0 otherwise: socket error -> dropped carrier
+	 */
+	i = recv(unixfd(hc), buf, 1, MSG_PEEK | MSG_DONTWAIT);
+	if (i == 0 || (i < 0 && errno != EAGAIN && errno != EWOULDBLOCK && errno != EINTR))
+	{
 	  hc->fDCD = FALSE;
-	  shutdown(unixfd(hc), 20);
+	  shutdown(unixfd(hc), 2);
 	  close(unixfd(hc));
-	  break;
-	case 1:
-	  hc->peekHack = buf[0];
-	  break;
-      }
+	  unlink(lockpath);
+	  logit("!Caller closed TCP/IP connection (Dropped Carrier)");
+	  Lost_Carrier();
+	}
 
-      if (hc->fDCD == FALSE)
-      {
-	logit("!Caller closed TCP/IP connection (Dropped Carrier)");
-      }	
-    }
-
-    skipCheck:
-    return hc->fDCD ? 1 : 0;
+	return hc->fDCD ? 1 : 0;
   }
 
   if(hc->listenfd == -1)
@@ -580,7 +553,6 @@ USHORT COMMAPI IpComIsOnline(HCOMM hc)
       
       CommHandle_setFileHandle(hc->h, fd);
       hc->fDCD = TRUE;
-      hc->listenfd = -1;
       memset(&dcb, 0, sizeof(dcb));
       dcb.isTerminal = FALSE;
 
@@ -740,6 +712,8 @@ BOOL COMMAPI IpComRead(HCOMM hc, PVOID pvBuf, DWORD dwBytesToRead, PDWORD pdwByt
 	logit("!Unable to read from socket (%s)", strerror(errno));
         shutdown(unixfd(hc), 2);
         hc->fDCD = FALSE;
+	unlink(lockpath);
+	Lost_Carrier();
       }
   
       retval = FALSE;
@@ -1112,4 +1086,3 @@ BOOL COMMAPI IpComBurstMode(HCOMM hc, BOOL fEnable)
 
   return lastState;
 }
-
