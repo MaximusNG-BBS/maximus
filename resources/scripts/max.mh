@@ -471,6 +471,7 @@ struct _instancedata
   unsigned long: speed;           // User's baud rate
   int:  alias_system;             // Is this an alias system?
   int:  ask_name;                 // Ask for user's real name?
+  int:  ask_phone;                // Ask for user's phone number?
   int:  use_umsgid;               // Uses umsgid's rather than msg numbers
   unsigned long: newuser_answered_mask;
 };

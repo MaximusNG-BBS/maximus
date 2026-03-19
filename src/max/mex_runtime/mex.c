@@ -390,6 +390,7 @@ int EXPENTRY intrin_setup(void)
   pmis->pmid->speed=baud;
   pmis->pmid->alias_system=ngcfg_get_bool("general.session.alias_system");
   pmis->pmid->ask_name=ngcfg_get_bool("general.session.ask_alias");
+  pmis->pmid->ask_phone=ngcfg_get_bool("general.session.ask_phone");
   pmis->pmid->use_umsgid=ngcfg_get_bool("general.session.use_umsgids");
   pmis->pmid->newuser_answered_mask=mex_newuser_answered_mask;
 

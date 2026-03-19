@@ -45,7 +45,7 @@ string dob_value(string: s)
   return "";
 }
 
-void draw_screen(int: show_rip)
+void draw_screen(int: show_rip, int: ask_alias, int: ask_phone)
 {
   int: shade;
   int: shadow;
@@ -59,6 +59,7 @@ void draw_screen(int: show_rip)
   int: field;
   int: ftr_key;
   int: ftr_txt;
+  int: req;
 
   shade    := ui_make_attr(UI_BLUE, UI_BLACK);
   shadow   := ui_make_attr(UI_DKGRAY, UI_BLACK);
@@ -72,6 +73,7 @@ void draw_screen(int: show_rip)
   field    := ui_make_attr(UI_WHITE, UI_BLUE);
   ftr_key  := ui_make_attr(UI_LCYAN, UI_BLACK);
   ftr_txt  := ui_make_attr(UI_DKGRAY, UI_BLACK);
+  req      := ui_make_attr(UI_LRED, UI_BLACK);
 
   print(AVATAR_CLS);
 
@@ -142,6 +144,14 @@ void draw_screen(int: show_rip)
   ui_write_padded(17, 7, 7, "IBM-PC:", label);
   ui_write_padded(17, 22, 8, "Hotkeys:", label);
 
+  // Required field markers (* in light red, col 18 = just before field at col 19)
+  ui_write_padded(8, 18, 1, "*", req);              // Real name: always required
+  ui_write_padded(9, 18, 1, "*", req);              // City: always required
+  if (ask_alias)
+    ui_write_padded(10, 18, 1, "*", req);           // Alias: required if configured
+  if (ask_phone)
+    ui_write_padded(11, 18, 1, "*", req);           // Phone: required if configured
+
   // Layer 8: Field backgrounds — 1 space after label colon
   ui_fill_rect(8, 19, 22, 1, ' ', field);
   ui_fill_rect(9, 19, 22, 1, ' ', field);
@@ -159,14 +169,14 @@ void draw_screen(int: show_rip)
   ui_fill_rect(17, 31, 3, 1, ' ', field);
 
   // Layer 9: Footer help line
-  ui_write_padded(20, 13, 10, "Tab/Arrows", ftr_key);
-  ui_write_padded(20, 24, 5, "Move", ftr_txt);
-  ui_write_padded(20, 33, 5, "Space", ftr_key);
-  ui_write_padded(20, 39, 7, "Toggle", ftr_txt);
-  ui_write_padded(20, 50, 6, "Ctrl-S", ftr_key);
-  ui_write_padded(20, 57, 5, "Save", ftr_txt);
-  ui_write_padded(20, 66, 3, "Esc", ftr_key);
-  ui_write_padded(20, 70, 4, "Exit", ftr_txt);
+  ui_write_padded(20, 7, 5, "Enter", ftr_key);
+  ui_write_padded(20, 13, 10, "Edit Field", ftr_txt);
+  ui_write_padded(20, 27, 10, "Tab/Arrows", ftr_key);
+  ui_write_padded(20, 38, 5, "Move", ftr_txt);
+  ui_write_padded(20, 47, 5, "Space", ftr_key);
+  ui_write_padded(20, 53, 7, "Toggle", ftr_txt);
+  ui_write_padded(20, 63, 10, "Esc/Ctrl-S", ftr_key);
+  ui_write_padded(20, 74, 4, "Save", ftr_txt);
 }
 
 int main()
@@ -177,6 +187,8 @@ int main()
   unsigned long: answered_mask;
   int: detected_ansi;
   int: detected_rip;
+  int: ask_alias;
+  int: ask_phone;
   char: wasvideo;
   char: wasrip;
 
@@ -199,12 +211,16 @@ int main()
   if (detected_rip)
     usr.rip := 1;
 
+  ask_alias := id.ask_name;
+  ask_phone := id.ask_phone;
+
   ui_form_style_default(fs);
   fs.label_attr := ui_make_attr(UI_CYAN, UI_BLACK);
   fs.normal_attr := ui_make_attr(UI_WHITE, UI_BLUE);
   fs.focus_attr := ui_make_attr(UI_YELLOW, UI_RED);
+  fs.save_mode := UI_FORM_SAVE_CTRL_S_AND_ESC;
   fs.wrap := 1;
-  fs.required_msg := "Real name is required";
+  fs.required_msg := "Complete all required fields";
   fs.required_x := 19;
   fs.required_y := 23;
   fs.required_attr := ui_make_attr(UI_LRED, UI_BLACK);
@@ -228,7 +244,7 @@ int main()
   fields[2].max_len := 22;
   fields[2].field_type := UI_FIELD_TEXT;
   fields[2].hotkey := 'c';
-  fields[2].required := 0;
+  fields[2].required := 1;
   fields[2].value := usr.city;
 
   fields[3].name := "alias";
@@ -239,7 +255,7 @@ int main()
   fields[3].max_len := 22;
   fields[3].field_type := UI_FIELD_TEXT;
   fields[3].hotkey := 'a';
-  fields[3].required := 0;
+  fields[3].required := ask_alias;
   fields[3].value := usr.alias;
 
   fields[4].name := "phone";
@@ -250,7 +266,7 @@ int main()
   fields[4].max_len := 14;
   fields[4].field_type := UI_FIELD_TEXT;
   fields[4].hotkey := 'h';
-  fields[4].required := 0;
+  fields[4].required := ask_phone;
   fields[4].value := usr.phone;
 
   fields[5].name := "dataphone";
@@ -364,10 +380,10 @@ int main()
   if (detected_rip = 0)
   {
     fields[9].width := 0;
-    fields[9].value := "No";   /* ensure hidden RIP field cannot persist as enabled */
+    fields[9].value := "No";   // ensure hidden RIP field cannot persist as enabled
   }
 
-  draw_screen(detected_rip);
+  draw_screen(detected_rip, ask_alias, ask_phone);
   rc := ui_form_run(fields, 12, fs);
 
   if (rc <> 1)

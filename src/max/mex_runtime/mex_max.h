@@ -40,6 +40,7 @@ struct mex_instancedata
     dword speed;
     word  alias_system;
     word  ask_name;
+    word  ask_phone;
     word  use_umsgid;
     dword newuser_answered_mask;
 } __attribute__((packed));

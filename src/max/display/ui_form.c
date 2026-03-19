@@ -704,8 +704,24 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
     }
     else if (ch == K_ESC)
     {
-      /* Cancel */
-      ret = 0;
+      if (style->save_mode == UI_FORM_SAVE_CTRL_S_AND_ESC)
+      {
+        /* ESC acts like Ctrl+S: validate required fields then save */
+        invalid_idx = ui_form_first_invalid_required(fields, field_count);
+        if (invalid_idx >= 0)
+        {
+          ui_form_show_required_splash(style);
+          selected = invalid_idx;
+          ui_form_redraw(fields, field_count, selected, style);
+          continue;
+        }
+        ret = 1;
+      }
+      else
+      {
+        /* Default: ESC cancels without saving */
+        ret = 0;
+      }
       break;
     }
     else if (ch == ' ' && fields[selected].field_type == UI_FIELD_OPTION)

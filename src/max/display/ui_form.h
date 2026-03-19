@@ -28,8 +28,9 @@
 #define UI_FIELD_OPTION   3  /* toggle/select */
 
 /* Form save modes */
-#define UI_FORM_SAVE_CTRL_S      0  /* Ctrl+S saves, ESC cancels */
-#define UI_FORM_SAVE_ESC_PROMPT  1  /* ESC prompts: Edit/Save/Exit */
+#define UI_FORM_SAVE_CTRL_S          0  /* Ctrl+S saves, ESC cancels */
+#define UI_FORM_SAVE_ESC_PROMPT      1  /* ESC prompts: Edit/Save/Exit */
+#define UI_FORM_SAVE_CTRL_S_AND_ESC  2  /* Ctrl+S or ESC both validate and save */
 
 /* Form field definition */
 typedef struct ui_form_field

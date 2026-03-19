@@ -171,8 +171,9 @@ int ui_select_prompt(string: prompt, ref array [1..] of string: options, int: co
 #define UI_FIELD_OPTION   3
 
 // Form save modes
-#define UI_FORM_SAVE_CTRL_S      0
-#define UI_FORM_SAVE_ESC_PROMPT  1
+#define UI_FORM_SAVE_CTRL_S          0
+#define UI_FORM_SAVE_ESC_PROMPT      1
+#define UI_FORM_SAVE_CTRL_S_AND_ESC  2
 
 // Form field definition
 struct ui_form_field
