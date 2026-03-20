@@ -72,6 +72,7 @@ static void near Banner(void);
 static int  near Find_User(char *username);
 static void near doublecheck_ansi(void);
 static void near doublecheck_rip(void);
+static int  near session_termcap_has_ansi(void);
 static int  near checkterm(char *prompt, char *helpfile);
 static int  near InvalidPunctuation(char *string);
 static void near Calc_Timeoff(void);
@@ -331,7 +332,11 @@ static login_step_t handle_init(login_ctx_t *ctx)
   caller_online = TRUE;
 
   if (!local)
+  {
+    /* Refresh current session terminal caps before any early login display. */
+    Apply_Term_Caps(&usr);
     mdm_baud(current_baud);
+  }
 
   Mdm_Flow_On();
 
@@ -964,7 +969,10 @@ static login_step_t handle_term_setup(login_ctx_t *ctx)
       sprintf(string, "%swhy_ansi",
               (char *)ngcfg_get_path("maximus.display_path"));
 
-      x = autodetect_ansi();
+      if (session_termcap_has_ansi())
+        x = TRUE;
+      else
+        x = autodetect_ansi();
 
       if (!*linebuf)
         Puts(get_ansi1);
@@ -1396,6 +1404,9 @@ static int near Find_User(char *username)
  */
 static void near doublecheck_ansi(void)
 {
+  if (session_termcap_has_ansi())
+    return;
+
   if (ngcfg_get_bool("general.session.check_ansi") &&
       (usr.video == GRAPH_ANSI) &&
       !autodetect_ansi() &&
@@ -1405,6 +1416,33 @@ static void near doublecheck_ansi(void)
     usr.bits &= ~BITS_RIP;
     SetTermSize(0, 0);
   }
+}
+
+static int near session_termcap_has_ansi(void)
+{
+  char path[PATHLEN];
+  FILE *fp;
+  char line[128];
+
+  if (local || task_num <= 0)
+    return FALSE;
+
+  node_file_path(task_num, "termcap.dat", path, sizeof(path));
+  fp = fopen(path, "r");
+  if (!fp)
+    return FALSE;
+
+  while (fgets(line, sizeof(line), fp))
+  {
+    if (strncmp(line, "Ansi: ", 6) == 0)
+    {
+      fclose(fp);
+      return atoi(line + 6) ? TRUE : FALSE;
+    }
+  }
+
+  fclose(fp);
+  return FALSE;
 }
 
 

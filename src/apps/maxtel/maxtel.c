@@ -1061,6 +1061,43 @@ static void parse_telnet_negotiation_bytes(telnet_neg_state_t *state, const unsi
     }
 }
 
+static int ttype_implies_ansi(const char *term)
+{
+    char upper[64];
+    size_t i;
+
+    if (!term || !*term)
+        return 0;
+
+    for (i = 0; i < sizeof(upper) - 1 && term[i]; i++)
+        upper[i] = (char)toupper((unsigned char)term[i]);
+    upper[i] = '\0';
+
+    if (strstr(upper, "ANSI") ||
+        strstr(upper, "SYNCTERM") ||
+        strstr(upper, "CTERM") ||
+        strstr(upper, "XTERM") ||
+        strstr(upper, "VT100") ||
+        strstr(upper, "VT102") ||
+        strstr(upper, "VT220"))
+        return 1;
+
+    return 0;
+}
+
+static const char *ansi_source_label(int got_iac, int raw_ansi_reply, int has_term, int final_ansi)
+{
+    if (!final_ansi)
+        return "negative";
+    if (has_term)
+        return "ttype";
+    if (raw_ansi_reply)
+        return "ansi-probe";
+    if (got_iac)
+        return "telnet-assumed";
+    return "unknown";
+}
+
 static int parse_ansi_dsr_18t(const unsigned char *buf, int len, int *out_cols, int *out_rows)
 {
     int i = 0;
@@ -1202,8 +1239,12 @@ static void detect_and_negotiate(int fd, int *telnet_mode, int *ansi_mode, int *
     int n, i;
     int got_iac = 0;
     int got_ansi = 0;
+    int raw_ansi_reply = 0;
     int cols = 80;
     int rows = 24;
+    char detected_term[64];
+
+    detected_term[0] = '\0';
     
     /* Print detection message */
     write(fd, "\r\nDetecting terminal... ", 24);
@@ -1239,6 +1280,8 @@ static void detect_and_negotiate(int fd, int *telnet_mode, int *ansi_mode, int *
             break;
         }
     }
+
+    DEBUG("Terminal probe stage1: bytes=%d got_iac=%d", buflen, got_iac);
     
     /* If telnet, assume ANSI */
     if (got_iac) {
@@ -1270,6 +1313,7 @@ static void detect_and_negotiate(int fd, int *telnet_mode, int *ansi_mode, int *
         for (i = 0; i < buflen; i++) {
             if (buf[i] == 0x1B && i + 1 < buflen && buf[i+1] == '[') {
                 got_ansi = 1;
+                raw_ansi_reply = 1;
                 break;
             }
         }
@@ -1313,7 +1357,7 @@ static void detect_and_negotiate(int fd, int *telnet_mode, int *ansi_mode, int *
         cmd[0] = cmd_IAC; cmd[1] = cmd_DO; cmd[2] = opt_NAWS;
         write(fd, cmd, 3);
 
-        n = drain_select_bytes(fd, nb, sizeof(nb), 200000);
+        n = drain_select_bytes(fd, nb, sizeof(nb), 300000);
         if (n > 0)
             parse_telnet_negotiation_bytes(&st, nb, n);
 
@@ -1325,9 +1369,15 @@ static void detect_and_negotiate(int fd, int *telnet_mode, int *ansi_mode, int *
             cmd[4] = cmd_IAC;
             cmd[5] = cmd_SE;
             write(fd, cmd, 6);
-            n = drain_select_bytes(fd, nb, sizeof(nb), 200000);
+            n = drain_select_bytes(fd, nb, sizeof(nb), 300000);
             if (n > 0)
                 parse_telnet_negotiation_bytes(&st, nb, n);
+        }
+
+        if (st.has_term) {
+            strncpy(detected_term, st.term, sizeof(detected_term) - 1);
+            detected_term[sizeof(detected_term) - 1] = '\0';
+            got_ansi = ttype_implies_ansi(st.term);
         }
 
         if (st.has_cols)
@@ -1337,10 +1387,26 @@ static void detect_and_negotiate(int fd, int *telnet_mode, int *ansi_mode, int *
 
         if (!st.has_cols || !st.has_rows)
             detect_ansi_dimensions(fd, &cols, &rows);
+
+        DEBUG("Terminal probe stage2: ttype='%s' has_term=%d cols=%d rows=%d ansi=%d",
+              st.has_term ? st.term : "",
+              st.has_term,
+              cols,
+              rows,
+              got_ansi);
     }
 
     if (!got_iac && got_ansi)
         detect_ansi_dimensions(fd, &cols, &rows);
+
+    DEBUG("Terminal detection resolved: telnet=%d ansi=%d source=%s raw_ansi_reply=%d ttype='%s' cols=%d rows=%d",
+          got_iac,
+          got_ansi,
+          ansi_source_label(got_iac, raw_ansi_reply, detected_term[0] != '\0', got_ansi),
+          raw_ansi_reply,
+          detected_term,
+          cols,
+          rows);
 
     if (term_cols) *term_cols = cols;
     if (term_rows) *term_rows = rows;
