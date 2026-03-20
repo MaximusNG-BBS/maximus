@@ -164,7 +164,7 @@ modifiers = []
 
 [[option]]
 command = "Display_Menu"
-arguments = "MSGS"
+arguments = "MESSAGE"
 priv_level = "Transient"
 description = "Jump to msg. areas"
 key_poke = ""

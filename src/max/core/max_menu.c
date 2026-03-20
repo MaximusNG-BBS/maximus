@@ -1445,6 +1445,7 @@ int Display_Options(char *first_name, XMSG *msg)
 {
   char name[PATHLEN];                   /* Name of current menu */
   char menu_name[PATHLEN];              /* Name of current menu, after P_O_C */
+  char last_good_name[PATHLEN];         /* Last successfully loaded menu */
   struct _amenu menu;                   /* Current menu */
   char title[PATHLEN];
   char *title_temp;
@@ -1458,6 +1459,7 @@ int Display_Options(char *first_name, XMSG *msg)
   Initialize_Menu(&menu);
 
   strcpy(name, first_name);
+  strcpy(last_good_name, first_name);
 
   halt();
 
@@ -1477,8 +1479,30 @@ int Display_Options(char *first_name, XMSG *msg)
     if (Read_Menu(&menu, menu_name) != 0)
     {
       cant_open(menu_name);
-      quit(2);
+
+      /*
+       * A bad menu target is a recoverable configuration error, not a
+       * reason to tear down the caller session.  Prefer to return to the
+       * last successfully loaded menu; if that is somehow the same broken
+       * target, fall back to the configured main menu.  Only abort the menu
+       * loop if even the fallback target is invalid.
+       */
+      if (*last_good_name && strcmp(menu_name, last_good_name) != 0)
+      {
+        strcpy(name, last_good_name);
+        continue;
+      }
+
+      if (*main_menu && strcmp(menu_name, main_menu) != 0)
+      {
+        strcpy(name, main_menu);
+        continue;
+      }
+
+      return ABORT;
     }
+
+    strcpy(last_good_name, name);
 
     same_menu=first_time=TRUE;
     help=usr.help;
@@ -1576,6 +1600,5 @@ int Display_Options(char *first_name, XMSG *msg)
 
   return opt_rc==-1 ? ABORT : SAVE;
 }
-
 
 
