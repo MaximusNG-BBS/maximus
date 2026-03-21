@@ -1747,10 +1747,6 @@ void Read_Cfg(void)
 {
   MaxCfgVar v;
 
-#ifndef ORACLE
-  startup_logit(": Read_Cfg: entry");
-#endif
-
   if (maxcfg_abi_version() != LIBMAXCFG_ABI_VERSION)
   {
     startup_logit("!libmaxcfg ABI mismatch: compiled=%d runtime=%d", (int)LIBMAXCFG_ABI_VERSION, (int)maxcfg_abi_version());
@@ -3553,5 +3549,4 @@ void Local_Beep(int n)
     #endif
   }
 }
-
 

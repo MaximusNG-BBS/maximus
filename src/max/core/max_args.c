@@ -38,6 +38,7 @@ static char rcs_id[]="$Id: max_args.c,v 1.10 2004/01/28 06:38:10 paltas Exp $";
 #include <sys/stat.h>
 #include "prog.h"
 #include "cfg_consts.h"
+#include "debug_log.h"
 #include "mm.h"
 #include "caller.h"
 #ifdef UNIX
@@ -247,6 +248,7 @@ static void near Parse_Single_Arg(char *arg)
         {
           case 'l':
             debuglog=TRUE;
+            debug_log_enable();
             break;
 
 #ifndef __FLAT__
@@ -587,4 +589,3 @@ static void near ReadCallerInfo(char *path)
 }
 
 #endif /* !ORACLE */
-

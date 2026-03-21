@@ -22,6 +22,11 @@
 #define __DEBUG_LOG_H_DEFINED
 
 /**
+ * @brief Enable debug logging explicitly.
+ */
+void debug_log_enable(void);
+
+/**
  * @brief Open the debug log file for appending.
  */
 void debug_log_open(void);

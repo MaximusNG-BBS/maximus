@@ -233,8 +233,43 @@ static int           requested_cols = 0; /* User-requested terminal size */
 static int           requested_rows = 0;
 static int           headless_mode = 0;   /* Run without ncurses UI */
 static int           daemonize = 0;       /* Fork to background */
+static int           node_debug_log = 0;  /* Pass -dl to spawned Maximus nodes */
 
-#define DEBUG(fmt, ...) do { if (debug_log) { fprintf(debug_log, fmt "\n", ##__VA_ARGS__); fflush(debug_log); } } while(0)
+static void maxtel_log_line(char level, const char *fmt, ...)
+{
+    static const char *months_ab[] = {
+        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+    };
+    time_t now;
+    struct tm *tmv;
+    char msg[1024];
+    va_list ap;
+
+    if (!debug_log)
+        return;
+
+    time(&now);
+    tmv = localtime(&now);
+    if (!tmv)
+        return;
+
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
+    fprintf(debug_log, "%c %02d %s %02d:%02d:%02d MAXTEL %s\n",
+            level,
+            tmv->tm_mday,
+            months_ab[tmv->tm_mon],
+            tmv->tm_hour,
+            tmv->tm_min,
+            tmv->tm_sec,
+            msg);
+    fflush(debug_log);
+}
+
+#define DEBUG(fmt, ...) maxtel_log_line('@', fmt, ##__VA_ARGS__)
 
 /* Forward declarations */
 static void setup_signals(void);
@@ -577,8 +612,16 @@ static int spawn_node(int node_num)
         /* Change to base directory */
         chdir(base_path);
         
-        /* Match working command: ./bin/max -w -pt1 -n1 -b38400 -dl */
-        execl(max_path, "max", "-w", port_str, node_arg, "-b57600", "-dl", NULL);
+        if (node_debug_log)
+        {
+            /* Propagate an explicit maxtel debug request to the node. */
+            execl(max_path, "max", "-w", port_str, node_arg, "-b57600", "-dl", NULL);
+        }
+        else
+        {
+            /* Spawn a normal node instance; debug logging remains opt-in. */
+            execl(max_path, "max", "-w", port_str, node_arg, "-b57600", NULL);
+        }
         
         perror("execl");
         _exit(1);
@@ -2849,6 +2892,7 @@ static void usage(const char *prog)
     fprintf(stderr, "  -m PATH    Max binary path (default: ./bin/max)\n");
     fprintf(stderr, "  -c PATH    Config path (default: config/maximus)\n");
     fprintf(stderr, "  -s SIZE    Request terminal size (e.g., 80x25, 132x60)\n");
+    fprintf(stderr, "  -l         Pass -dl to spawned Maximus nodes\n");
     fprintf(stderr, "  -H         Headless mode (no UI, for scripts/daemons)\n");
     fprintf(stderr, "  -D         Daemonize (implies -H, fork to background)\n");
     fprintf(stderr, "  -h         Show this help\n");
@@ -2873,7 +2917,7 @@ int main(int argc, char *argv[])
     int ch;
     
     /* Parse arguments */
-    while ((opt = getopt(argc, argv, "p:n:d:m:c:s:HDh")) != -1) {
+    while ((opt = getopt(argc, argv, "p:n:d:m:c:s:lHDh")) != -1) {
         switch (opt) {
             case 'p':
                 listen_port = atoi(optarg);
@@ -2899,6 +2943,9 @@ int main(int argc, char *argv[])
                     exit(1);
                 }
                 break;
+            case 'l':
+                node_debug_log = 1;
+                break;
             case 'H':
                 headless_mode = 1;
                 break;
@@ -2918,10 +2965,11 @@ int main(int argc, char *argv[])
         nodes[i].pty_master = -1;
     }
     
-    /* Open debug log */
-    debug_log = fopen("maxtel.log", "w");
-    DEBUG("maxtel starting, base_path=%s, max_path=%s, config_path=%s", 
-          base_path, max_path, config_path);
+    /* Open maxtel log */
+    mkdir("log");
+    debug_log = fopen("log/maxtel.log", "a");
+    maxtel_log_line('+', "maxtel starting, base_path=%s, max_path=%s, config_path=%s, node_debug_log=%d",
+          base_path, max_path, config_path, node_debug_log);
     
     /* Initialize runtime tracking */
     start_time = time(NULL);

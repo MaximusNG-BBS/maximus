@@ -23,8 +23,10 @@
 #include <time.h>
 #include <string.h>
 #include <unistd.h>
+#include "prog.h"
 
 static FILE *debug_fp = NULL;
+static int debug_log_enabled = 0;
 
 /**
  * @brief Open the debug log file for appending.
@@ -33,11 +35,23 @@ static FILE *debug_fp = NULL;
  * Safe to call multiple times; subsequent calls are no-ops if
  * the file is already open.
  */
+/**
+ * @brief Enable debug logging.  Must be called explicitly (e.g. from -dl flag).
+ */
+void debug_log_enable(void)
+{
+  debug_log_enabled = 1;
+}
+
 void debug_log_open(void)
 {
+  if (!debug_log_enabled)
+    return;
+
   if (!debug_fp)
   {
-    debug_fp = fopen("debug.log", "a");
+    mkdir("log");
+    debug_fp = fopen("log/debug.log", "a");
     if (debug_fp)
     {
       setvbuf(debug_fp, NULL, _IOLBF, 0);
@@ -61,6 +75,9 @@ void debug_log(const char *fmt, ...)
   struct tm *tm_info;
   char time_buf[64];
   
+  if (!debug_log_enabled)
+    return;
+
   if (!debug_fp)
     debug_log_open();
     
