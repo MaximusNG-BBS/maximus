@@ -234,7 +234,10 @@ int main()
   fields[1].field_type := UI_FIELD_TEXT;
   fields[1].hotkey := 'n';
   fields[1].required := 1;
-  fields[1].value := usr.name;
+  if (ask_alias)
+    fields[1].value := "";
+  else
+    fields[1].value := usr.name;
 
   fields[2].name := "city";
   fields[2].label := "";
