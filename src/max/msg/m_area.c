@@ -209,7 +209,9 @@ static int near MsgAreaMenu(PMAH pmah, BARINFO *pbi, char *group)
     Puts(WHITE);
     
     { char _k0[2]={keys[0],0}, _k1[2]={keys[1],0}, _k2[2]={keys[2],0};
-      InputGets(input, msg_prmpt, _k0, _k1, _k2); }
+      /* Use line-mode input so names like "Local Areas" are accepted as
+       * one token — consistent with FileAreaMenu(). */
+      InputGetsL(input, PATHLEN-1, msg_prmpt, _k0, _k1, _k2); }
     cstrupr(input);
 
     /* See if the user wishes to search for something */
@@ -1201,9 +1203,9 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
     }
 
     {
-      sword this_div=div_name && *div_name ? ma.ma.division : -1;
       int printed = 0;
       int iter = 0;
+      size_t div_len = (div_name && *div_name) ? strlen(div_name) : 0;
 
       /* Now find anything after the current division */
 
@@ -1211,58 +1213,77 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
 
       while (AreaFileFindNext(haff, &ma, FALSE)==0)
       {
-        int in_div = (!div_name || ma.ma.division==this_div+1);
-        int not_hidden = ((ma.ma.attribs & MA_HIDDN)==0);
-        int div_ok = ((ma.ma.attribs & MA_DIVBEGIN) && PrivOK(MAS(ma, acs), TRUE));
-        int area_ok = ValidMsgArea(NULL, &ma, VA_NOVAL, &bi);
+        const char *rec_name = MAS(ma, name);
+        int show = FALSE;
 
         iter++;
         if (debuglog && iter <= 200)
-          debug_log("ListMsgAreas: rec name='%s' attribs=0x%x division=%d this_div=%d in_div=%d hidden=%d divbegin=%d divend=%d path='%s' acs='%s' div_ok=%d area_ok=%d",
-                    MAS(ma, name),
+          debug_log("ListMsgAreas: rec name='%s' attribs=0x%x division=%d div_name='%s' divbegin=%d divend=%d path='%s' acs='%s'",
+                    rec_name,
                     (unsigned)ma.ma.attribs,
                     (int)ma.ma.division,
-                    (int)this_div,
-                    in_div,
-                    !not_hidden,
+                    div_name ? div_name : "(null)",
                     (int)!!(ma.ma.attribs & MA_DIVBEGIN),
                     (int)!!(ma.ma.attribs & MA_DIVEND),
                     MAS(ma, path),
-                    MAS(ma, acs),
-                    div_ok,
-                    area_ok);
+                    MAS(ma, acs));
 
-        /* If we're just doing a flat area list, don't display              *
-         * division names.                                                  */
-
-        if (!div_name && (ma.ma.attribs & MA_DIVBEGIN))
+        /* Skip division-end markers */
+        if (ma.ma.attribs & MA_DIVEND)
           continue;
 
-        /* If we have reached the end of our division, break out of the     *
-         * loop.                                                            */
+        /* Name-prefix filtering — consistent with lightbar and file-area
+         * paths.  Root view shows top-level divisions and root-level areas.
+         * Division view shows immediate children only. */
 
-        if (ma.ma.attribs & MA_DIVEND)
+        if (!div_name || !*div_name)
         {
-          if (div_name && ma.ma.division==this_div)
-            break;
-          else continue;
+          /* Root view */
+          if (ma.ma.attribs & MA_DIVBEGIN)
+            show = PrivOK(MAS(ma, acs), TRUE);
+          else if (strchr(rec_name, '.') == NULL)
+            show = ValidMsgArea(NULL, &ma, VA_NOVAL, &bi);
+        }
+        else
+        {
+          /* Division view: show only immediate children of this division */
+          if (strnicmp(rec_name, div_name, div_len) == 0 &&
+              rec_name[div_len] == '.')
+          {
+            const char *child = rec_name + div_len + 1;
+
+            if (*child && strchr(child, '.') == NULL)
+            {
+              if (ma.ma.attribs & MA_DIVBEGIN)
+                show = PrivOK(MAS(ma, acs), TRUE);
+              else
+                show = ValidMsgArea(NULL, &ma, VA_NOVAL, &bi);
+            }
+          }
         }
 
-        /* If we're in the right division and the area is valid, display    *
-         * its name.                                                        */
-
-        if ((!div_name || ma.ma.division==this_div+1) &&
+        if (show &&
             (ma.ma.attribs & MA_HIDDN)==0 &&
-            (ma.ma.attribs_2 & MA2_EMAIL)==0 &&
-            (((ma.ma.attribs & MA_DIVBEGIN) && PrivOK(MAS(ma, acs), TRUE)) ||
-             ValidMsgArea(NULL, &ma, VA_NOVAL, &bi)))
+            (ma.ma.attribs_2 & MA2_EMAIL)==0)
         {
           printed++;
           ch=!do_tag ? '*' : TagQueryTagList(&mtm, MAS(ma, name)) ? '@' : ' ';
 
-          ParseCustomMsgAreaList(&ma, div_name,
-                                 (char *)ngcfg_get_string_raw("general.display_files.msg_format"),
-                                 headfoot, FALSE, ch);
+          {
+            /* Use msg_format_div for division entries, msg_format for areas.
+             * Falls back to msg_format if msg_format_div is not configured. */
+            const char *fmt;
+            if (ma.ma.attribs & MA_DIVBEGIN)
+            {
+              fmt = ngcfg_get_string_raw("general.display_files.msg_format_div");
+              if (!fmt || !*fmt)
+                fmt = ngcfg_get_string_raw("general.display_files.msg_format");
+            }
+            else
+              fmt = ngcfg_get_string_raw("general.display_files.msg_format");
+
+            ParseCustomMsgAreaList(&ma, div_name, (char *)fmt, headfoot, FALSE, ch);
+          }
 
           Puts(headfoot);
           vbuf_flush();
@@ -1279,8 +1300,8 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
       }
 
       if (debuglog)
-        debug_log("ListMsgAreas: done iter=%d printed=%d div_name='%s' this_div=%d",
-                  iter, printed, div_name ? div_name : "(null)", (int)this_div);
+        debug_log("ListMsgAreas: done iter=%d printed=%d div_name='%s'",
+                  iter, printed, div_name ? div_name : "(null)");
     }
 
     ParseCustomMsgAreaList(NULL, div_name,

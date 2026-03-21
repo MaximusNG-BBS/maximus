@@ -1288,7 +1288,21 @@ int ListFileAreas(char *div_name, int show_help, char *selected_out)
         if (show && (fa.fa.attribs & FA_HIDDN)==0)
         {
           printed++;
-          ParseCustomFileAreaList(&fa, div_name, (char *)ngcfg_get_string_raw("general.display_files.file_format"), headfoot, FALSE);
+          {
+            /* Use file_format_div for division entries, file_format for areas.
+             * Falls back to file_format if file_format_div is not configured. */
+            const char *fmt;
+            if (fa.fa.attribs & FA_DIVBEGIN)
+            {
+              fmt = ngcfg_get_string_raw("general.display_files.file_format_div");
+              if (!fmt || !*fmt)
+                fmt = ngcfg_get_string_raw("general.display_files.file_format");
+            }
+            else
+              fmt = ngcfg_get_string_raw("general.display_files.file_format");
+
+            ParseCustomFileAreaList(&fa, div_name, (char *)fmt, headfoot, FALSE);
+          }
 
           Puts(headfoot);
           vbuf_flush();

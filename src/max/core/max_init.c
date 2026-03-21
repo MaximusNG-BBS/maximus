@@ -2634,6 +2634,7 @@ static int near build_marea_from_toml(const char *base)
         ma.cbArea = sizeof(ma);
         ma.num_override = 0;
         ma.cbPrior = cbLast;
+        ma.division = div_no;  /* child areas belong to current division level */
         ma.killbynum = (word)renum_max;
         ma.killbyage = (word)renum_days;
         ma.killskip = 0;
@@ -3133,6 +3134,7 @@ static int near build_farea_from_toml(const char *base)
         fa.cbArea = sizeof(fa);
         fa.num_override = 0;
         fa.cbPrior = cbLast;
+        fa.division = div_no;  /* child areas belong to current division level */
         fa.attribs = parse_file_types(types);
 
         *hp++ = '\0';
