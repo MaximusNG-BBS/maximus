@@ -1,0 +1,204 @@
+name = "MESSAGE"
+title = "|03MESSAGE (%t mins)|tx"
+header_file = ":scripts/headmsg-ng"
+footer_file = ":scripts/footmsg-ng"
+header_types = ["Novice", "Regular", "Expert"]
+menu_file = "display/screens/menu_msgs.ans"
+menu_types = ["Novice"]
+menu_length = 0
+menu_color = -1
+# option_width = 0
+
+[custom_menu]
+skip_canned_menu = false
+show_title = true
+lightbar_menu = true
+lightbar_margin = 1
+top_boundary = [7, 22]
+bottom_boundary = [20, 77]
+title_location = [22, 61]
+prompt_location = [23, 1]
+option_spacing = false
+option_justify = "left"
+boundary_justify = "center center"
+boundary_layout = "spread"
+
+[custom_menu.lightbar_color]
+normal = ["Light Gray", "Black"]
+high = ["Yellow", "Black"]
+selected = ["White", "Blue"]
+high_selected = ["Yellow", "Blue"]
+
+[[option]]
+command = "Msg_Area"
+arguments = ""
+priv_level = "Demoted"
+description = "Area change"
+key_poke = ""
+modifiers = ["NoRIP"]
+
+[[option]]
+command = "MEX"
+arguments = "scripts/msgarea"
+priv_level = "Demoted"
+description = "Area change"
+key_poke = ""
+modifiers = ["RIP"]
+
+[[option]]
+command = "Msg_Area"
+arguments = ""
+priv_level = "Demoted"
+description = "["
+key_poke = "["
+modifiers = ["NoDsp"]
+
+[[option]]
+command = "Msg_Area"
+arguments = ""
+priv_level = "Demoted"
+description = "]"
+key_poke = "]"
+modifiers = ["NoDsp"]
+
+[[option]]
+command = "Msg_CheckEmail"
+arguments = ""
+priv_level = "Demoted"
+description = "Check Email"
+modifiers = []
+
+[[option]]
+command = "Msg_Email_Compose"
+arguments = ""
+priv_level = "Demoted"
+description = "Mail a User"
+modifiers = []
+
+[[option]]
+command = "Msg_Enter"
+arguments = ""
+priv_level = "Demoted"
+description = "Write a Message"
+modifiers = []
+
+[[option]]
+command = "Msg_Browse"
+arguments = ""
+priv_level = "Demoted"
+description = "Browse messages"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Msg_NG_Read"
+arguments = ""
+priv_level = "Demoted"
+description = "Read Messages"
+modifiers = []
+
+[[option]]
+command = "Msg_NG_Find"
+arguments = ""
+priv_level = "Demoted"
+description = "Search"
+modifiers = []
+
+[[option]]
+command = "Msg_List"
+arguments = ""
+priv_level = "Demoted"
+description = "List Messages"
+modifiers = []
+
+[[option]]
+command = "Press_Enter"
+arguments = ""
+priv_level = "Demoted"
+description = "L"
+key_poke = ""
+modifiers = ["NoDsp"]
+
+[[option]]
+command = "Msg_Tag"
+arguments = ""
+priv_level = "Demoted"
+description = "Tag Messages"
+modifiers = []
+
+[[option]]
+command = "Msg_Upload"
+arguments = ""
+priv_level = "Demoted"
+description = "Upload a Message"
+modifiers = []
+
+[[option]]
+command = "Msg_Forward"
+arguments = ""
+priv_level = "Demoted"
+description = "Forward a Message"
+modifiers = []
+
+[[option]]
+command = "Msg_Reply_Area"
+arguments = ""
+priv_level = "Demoted"
+description = "X-Reply (Crosspost)"
+modifiers = []
+
+[[option]]
+command = "Msg_Download_Attach"
+arguments = ""
+priv_level = "Demoted"
+description = "Download Attaches"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Display_Menu"
+arguments = "MAIN"
+priv_level = "Transient"
+description = "Main menu"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Display_Menu"
+arguments = "FILE"
+priv_level = "Transient"
+description = "Jump to file areas"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Goodbye"
+arguments = ""
+priv_level = "Transient"
+description = "Goodbye (log off)"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Display_File"
+arguments = "display/help/msg"
+priv_level = "Demoted"
+description = "?help"
+key_poke = ""
+modifiers = ["Local"]
+
+[[option]]
+command = "Display_File"
+arguments = "display/help/mail"
+priv_level = "Demoted"
+description = "?help"
+key_poke = ""
+modifiers = ["Matrix"]
+
+[[option]]
+command = "Display_File"
+arguments = "display/help/echo"
+priv_level = "Demoted"
+description = "?help"
+key_poke = ""
+modifiers = ["Echo"]

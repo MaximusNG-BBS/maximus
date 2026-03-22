@@ -6,7 +6,7 @@
 # Maximum 16 themes supported (indices 1-15 usable)
 
 [general]
-default_theme = "maxng"       # short_name of the default theme
+default_theme = "max"       # short_name of the default theme
 default_lang = "english"      # system default language file basename
 
 [[theme]]

@@ -6,13 +6,15 @@
 # Copyright (C) 2025 Kevin Morgan (Limping Ninja)
 # https://github.com/LimpingNinja
 #
-# Syncs TOML configuration files from the live build tree into the
-# resources/install_tree so that the repo stays current with runtime edits.
-# Also syncs install.sh from build/bin/ to resources/install_tree/bin/.
+# Default workflow: resources/config is source of truth
+#   - resources/config → build/config AND resources/install_tree/config
+#
+# Reverse workflow: build is source of truth (backpropagation)
+#   - build/config → resources/config AND resources/install_tree/config
 #
 # Usage:
-#   scripts/sync-toml.sh              # build → install_tree (default)
-#   scripts/sync-toml.sh --reverse    # install_tree → build
+#   scripts/sync-toml.sh              # resources/config → (build + install_tree)
+#   scripts/sync-toml.sh --reverse    # build/config → (resources/config + install_tree)
 #   scripts/sync-toml.sh --diff       # show differences only
 #
 
@@ -22,6 +24,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+RESOURCES_CONFIG="$PROJECT_ROOT/resources/config"
 BUILD_CONFIG="$PROJECT_ROOT/build/config"
 TREE_CONFIG="$PROJECT_ROOT/resources/install_tree/config"
 BUILD_BIN="$PROJECT_ROOT/build/bin"
@@ -41,7 +44,7 @@ log_skip() { echo -e "  ${YELLOW}[SKIP]${NC}  $1"; }
 log_diff() { echo -e "  ${RED}[DIFF]${NC}  $1"; }
 
 # ── Mode parsing ─────────────────────────────────────────────────────────────
-MODE="forward"   # build → install_tree
+MODE="forward"   # resources/config → build + install_tree
 while [ $# -gt 0 ]; do
     case "$1" in
         --reverse|-r)  MODE="reverse"; shift ;;
@@ -49,8 +52,8 @@ while [ $# -gt 0 ]; do
         --help|-h)
             echo "Usage: $(basename "$0") [--reverse | --diff | --help]"
             echo ""
-            echo "  (default)    Sync build/config → resources/install_tree/config"
-            echo "  --reverse    Sync resources/install_tree/config → build/config"
+            echo "  (default)    Sync resources/config → (build/config + install_tree/config)"
+            echo "  --reverse    Sync build/config → (resources/config + install_tree/config)"
             echo "  --diff       Show differences only, no changes"
             exit 0
             ;;
@@ -63,17 +66,19 @@ done
 
 # ── Set source/dest based on mode ────────────────────────────────────────────
 if [ "$MODE" = "reverse" ]; then
-    SRC_CONFIG="$TREE_CONFIG"
-    DST_CONFIG="$BUILD_CONFIG"
-    SRC_BIN="$TREE_BIN"
-    DST_BIN="$BUILD_BIN"
-    echo -e "${WHITE}Syncing: resources/install_tree → build${NC}"
-else
     SRC_CONFIG="$BUILD_CONFIG"
-    DST_CONFIG="$TREE_CONFIG"
+    DST1_CONFIG="$RESOURCES_CONFIG"
+    DST2_CONFIG="$TREE_CONFIG"
     SRC_BIN="$BUILD_BIN"
     DST_BIN="$TREE_BIN"
-    echo -e "${WHITE}Syncing: build → resources/install_tree${NC}"
+    echo -e "${WHITE}Reverse sync: build → (resources/config + install_tree)${NC}"
+else
+    SRC_CONFIG="$RESOURCES_CONFIG"
+    DST1_CONFIG="$BUILD_CONFIG"
+    DST2_CONFIG="$TREE_CONFIG"
+    SRC_BIN="$BUILD_BIN"  # install.sh only syncs in reverse mode
+    DST_BIN="$TREE_BIN"
+    echo -e "${WHITE}Default sync: resources/config → (build + install_tree)${NC}"
 fi
 echo ""
 
@@ -83,41 +88,58 @@ created=0
 unchanged=0
 diffcount=0
 
-while IFS= read -r -d '' src_file; do
-    rel="${src_file#"$SRC_CONFIG"/}"
-    dst_file="$DST_CONFIG/$rel"
+sync_file() {
+    local src="$1"
+    local dst="$2"
+    local rel="$3"
 
-    if [ "$MODE" = "diff" ]; then
-        if [ ! -f "$dst_file" ]; then
-            log_new "$rel (only in source)"
-            diffcount=$((diffcount + 1))
-        elif ! cmp -s "$src_file" "$dst_file"; then
-            log_diff "$rel"
-            diff --color=auto -u "$dst_file" "$src_file" | head -20
-            echo ""
-            diffcount=$((diffcount + 1))
-        fi
-        continue
-    fi
-
-    dst_dir="$(dirname "$dst_file")"
-    [ -d "$dst_dir" ] || mkdir -p "$dst_dir"
-
-    if [ ! -f "$dst_file" ]; then
-        cp "$src_file" "$dst_file"
+    if [ ! -f "$dst" ]; then
+        cp "$src" "$dst"
         log_new "$rel"
         created=$((created + 1))
-    elif ! cmp -s "$src_file" "$dst_file"; then
-        cp "$src_file" "$dst_file"
+    elif ! cmp -s "$src" "$dst"; then
+        cp "$src" "$dst"
         log_ok "$rel"
         synced=$((synced + 1))
     else
         unchanged=$((unchanged + 1))
     fi
+}
+
+while IFS= read -r -d '' src_file; do
+    rel="${src_file#"$SRC_CONFIG"/}"
+    dst1_file="$DST1_CONFIG/$rel"
+    dst2_file="$DST2_CONFIG/$rel"
+
+    if [ "$MODE" = "diff" ]; then
+        for dst in "$dst1_file" "$dst2_file"; do
+            if [ ! -f "$dst" ]; then
+                log_new "$rel (only in source)"
+                diffcount=$((diffcount + 1))
+                break
+            elif ! cmp -s "$src_file" "$dst"; then
+                log_diff "$rel → ${dst#$PROJECT_ROOT/}"
+                diff --color=auto -u "$dst" "$src_file" | head -20
+                echo ""
+                diffcount=$((diffcount + 1))
+            fi
+        done
+        continue
+    fi
+
+    # Ensure destination directories exist
+    for dst in "$dst1_file" "$dst2_file"; do
+        dst_dir="$(dirname "$dst")"
+        [ -d "$dst_dir" ] || mkdir -p "$dst_dir"
+    done
+
+    # Sync to both destinations
+    sync_file "$src_file" "$dst1_file" "$rel → build"
+    sync_file "$src_file" "$dst2_file" "$rel → install_tree"
 done < <(find "$SRC_CONFIG" -type f -name '*.toml' -print0 | sort -z)
 
-# ── Sync install.sh ──────────────────────────────────────────────────────────
-if [ -f "$SRC_BIN/install.sh" ]; then
+# ── Sync install.sh (only in reverse mode) ──────────────────────────────────
+if [ "$MODE" = "reverse" ] && [ -f "$SRC_BIN/install.sh" ]; then
     dst_install="$DST_BIN/install.sh"
     [ -d "$DST_BIN" ] || mkdir -p "$DST_BIN"
 

@@ -11,7 +11,7 @@ enabled = true
 max_connections = 8
 
 # Default connect timeout (ms) when the script passes 0.
-connect_timeout_ms = 5000
+connect_timeout_ms = 500
 
 # Hard cap on TLS handshake duration (ms). A typical handshake completes
 # in 50–150 ms; anything beyond 500 ms indicates a problem.
