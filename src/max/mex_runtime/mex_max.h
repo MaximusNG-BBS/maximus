@@ -353,6 +353,7 @@ struct mex_ui_form_style
   word focus_attr;
   word save_mode;
   word wrap;
+  word edit_mode;
   IADDR required_msg;   /* string pointer */
   word required_x;
   word required_y;

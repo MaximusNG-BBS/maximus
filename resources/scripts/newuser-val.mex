@@ -73,7 +73,7 @@ void draw_screen(int: show_rip, int: ask_alias, int: ask_phone)
   field    := ui_make_attr(UI_WHITE, UI_BLUE);
   ftr_key  := ui_make_attr(UI_LCYAN, UI_BLACK);
   ftr_txt  := ui_make_attr(UI_DKGRAY, UI_BLACK);
-  req      := ui_make_attr(UI_LRED, UI_BLACK);
+  req      := ui_make_attr(UI_RED, UI_BLACK);
 
   print(AVATAR_CLS);
 
@@ -144,13 +144,13 @@ void draw_screen(int: show_rip, int: ask_alias, int: ask_phone)
   ui_write_padded(17, 7, 7, "IBM-PC:", label);
   ui_write_padded(17, 22, 8, "Hotkeys:", label);
 
-  // Required field markers (* in light red, col 18 = just before field at col 19)
-  ui_write_padded(8, 18, 1, "*", req);              // Real name: always required
-  ui_write_padded(9, 18, 1, "*", req);              // City: always required
+  // Required field markers (* in dim red, 1 col left of label start)
+  ui_write_padded(8, 6, 1, "*", req);               // Real name: always required
+  ui_write_padded(9, 11, 1, "* ", req);              // City: always required
   if (ask_alias)
-    ui_write_padded(10, 18, 1, "*", req);           // Alias: required if configured
+    ui_write_padded(10, 10, 1, "*", req);           // Alias: required if configured
   if (ask_phone)
-    ui_write_padded(11, 18, 1, "*", req);           // Phone: required if configured
+    ui_write_padded(11, 5, 1, "*", req);            // Phone: required if configured
 
   // Layer 8: Field backgrounds — 1 space after label colon
   ui_fill_rect(8, 19, 22, 1, ' ', field);
@@ -169,14 +169,14 @@ void draw_screen(int: show_rip, int: ask_alias, int: ask_phone)
   ui_fill_rect(17, 31, 3, 1, ' ', field);
 
   // Layer 9: Footer help line
-  ui_write_padded(20, 7, 5, "Enter", ftr_key);
-  ui_write_padded(20, 13, 10, "Edit Field", ftr_txt);
-  ui_write_padded(20, 27, 10, "Tab/Arrows", ftr_key);
-  ui_write_padded(20, 38, 5, "Move", ftr_txt);
-  ui_write_padded(20, 47, 5, "Space", ftr_key);
-  ui_write_padded(20, 53, 7, "Toggle", ftr_txt);
-  ui_write_padded(20, 63, 10, "Esc/Ctrl-S", ftr_key);
-  ui_write_padded(20, 74, 4, "Save", ftr_txt);
+  ui_write_padded(20, 5, 5, "Enter", ftr_key);
+  ui_write_padded(20, 11, 10, "Edit Field", ftr_txt);
+  ui_write_padded(20, 25, 10, "Tab/Arrows", ftr_key);
+  ui_write_padded(20, 36, 5, "Move", ftr_txt);
+  ui_write_padded(20, 44, 5, "Space", ftr_key);
+  ui_write_padded(20, 50, 7, "Toggle", ftr_txt);
+  ui_write_padded(20, 60, 10, "Esc/Ctrl-S", ftr_key);
+  ui_write_padded(20, 71, 4, "Save", ftr_txt);
 }
 
 int main()
@@ -219,6 +219,7 @@ int main()
   fs.normal_attr := ui_make_attr(UI_WHITE, UI_BLUE);
   fs.focus_attr := ui_make_attr(UI_YELLOW, UI_RED);
   fs.save_mode := UI_FORM_SAVE_CTRL_S_AND_ESC;
+  fs.edit_mode := UI_FORM_EDIT_LIVE;
   fs.wrap := 1;
   fs.required_msg := "Complete all required fields";
   fs.required_x := 19;

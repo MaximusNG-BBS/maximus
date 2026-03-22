@@ -175,6 +175,10 @@ int ui_select_prompt(string: prompt, ref array [1..] of string: options, int: co
 #define UI_FORM_SAVE_ESC_PROMPT      1
 #define UI_FORM_SAVE_CTRL_S_AND_ESC  2
 
+// Form edit activation modes
+#define UI_FORM_EDIT_ENTER  0
+#define UI_FORM_EDIT_LIVE   1
+
 // Form field definition
 struct ui_form_field
 {
@@ -204,6 +208,7 @@ struct ui_form_style
   int: focus_attr;
   int: save_mode;
   int: wrap;
+  int: edit_mode;
   string: required_msg;
   int: required_x;
   int: required_y;

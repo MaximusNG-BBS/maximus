@@ -583,6 +583,44 @@ static int near ui_form_edit_field(ui_form_field_t *f, const ui_form_style_t *st
 }
 
 /**
+ * @brief Enter the field editor with a pre-seeded first character.
+ *
+ * Appends @p initial_ch to the field value, then calls the normal
+ * field editor. Once inside ui_edit_field(), Left/Right/Enter/Up/Down
+ * already behave correctly.
+ *
+ * @param f          Field to edit.
+ * @param style      Form style.
+ * @param initial_ch First printable character that triggered live edit.
+ * @return           UI_EDIT_* result from the field editor.
+ */
+static int near ui_form_edit_field_seeded(
+    ui_form_field_t *f,
+    const ui_form_style_t *style,
+    int initial_ch)
+{
+  size_t len;
+
+  if (!f || !f->value)
+    return UI_EDIT_ERROR;
+
+  if (f->field_type != UI_FIELD_TEXT &&
+      f->field_type != UI_FIELD_MASKED &&
+      f->field_type != UI_FIELD_FORMAT)
+    return ui_form_edit_field(f, style);
+
+  len = strlen(f->value);
+  if ((int)len < f->max_len && (int)len + 1 < f->value_cap &&
+      initial_ch >= 32 && initial_ch < 127)
+  {
+    f->value[len] = (char)initial_ch;
+    f->value[len + 1] = '\0';
+  }
+
+  return ui_form_edit_field(f, style);
+}
+
+/**
  * @brief Run an interactive form with keyboard navigation and field editing.
  *
  * @param fields      Array of form field definitions.
@@ -732,16 +770,37 @@ int ui_form_run(ui_form_field_t *fields, int field_count, const ui_form_style_t 
     }
     else if (ch >= 32 && ch < 127)
     {
-      /* Check for hotkey match */
-      int i;
-      char ch_lower = (char)tolower(ch);
-      
-      for (i = 0; i < field_count; i++)
+      if (style->edit_mode == UI_FORM_EDIT_LIVE &&
+          (fields[selected].field_type == UI_FIELD_TEXT ||
+           fields[selected].field_type == UI_FIELD_MASKED ||
+           fields[selected].field_type == UI_FIELD_FORMAT))
       {
-        if (fields[i].width > 0 && fields[i].hotkey && tolower(fields[i].hotkey) == ch_lower)
+        /* Live-edit: printable char enters the field editor immediately */
+        ui_form_show_cursor(did_hide_cursor);
+        rc = ui_form_edit_field_seeded(&fields[selected], style, ch);
+        ui_form_hide_cursor(&did_hide_cursor);
+
+        if (rc == UI_EDIT_NEXT)
+          selected = ui_form_find_sequential(selected, field_count, 1, fields);
+        else if (rc == UI_EDIT_PREVIOUS)
+          selected = ui_form_find_sequential(selected, field_count, 0, fields);
+
+        ui_form_redraw(fields, field_count, selected, style);
+      }
+      else
+      {
+        /* Check for hotkey match */
+        int i;
+        char ch_lower = (char)tolower(ch);
+
+        for (i = 0; i < field_count; i++)
         {
-          selected = i;
-          break;
+          if (fields[i].width > 0 && fields[i].hotkey &&
+              tolower(fields[i].hotkey) == ch_lower)
+          {
+            selected = i;
+            break;
+          }
         }
       }
     }

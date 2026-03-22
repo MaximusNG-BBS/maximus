@@ -1051,6 +1051,7 @@ word EXPENTRY intrin_ui_form_style_default(void)
     style->focus_attr = Mci2Attr("|hi|tb", 0x07);   /* theme highlight fg + textbox bg */
     style->save_mode = 0;          /* UI_FORM_SAVE_CTRL_S */
     style->wrap = 1;
+    style->edit_mode = 0;          /* UI_FORM_EDIT_ENTER */
     memset(&style->required_msg, 0, sizeof(style->required_msg));
     style->required_x = 1;
     style->required_y = 24;
@@ -1163,6 +1164,7 @@ word EXPENTRY intrin_ui_form_run(void)
   style.focus_attr = (byte)mex_style->focus_attr;
   style.save_mode = (int)mex_style->save_mode;
   style.wrap = (int)mex_style->wrap;
+  style.edit_mode = (int)mex_style->edit_mode;
   style.required_msg = MexDupVMString(&mex_style->required_msg);
   style.required_x = (int)mex_style->required_x;
   style.required_y = (int)mex_style->required_y;

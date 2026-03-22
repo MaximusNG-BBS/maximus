@@ -32,6 +32,10 @@
 #define UI_FORM_SAVE_ESC_PROMPT      1  /* ESC prompts: Edit/Save/Exit */
 #define UI_FORM_SAVE_CTRL_S_AND_ESC  2  /* Ctrl+S or ESC both validate and save */
 
+/* Form edit activation modes */
+#define UI_FORM_EDIT_ENTER  0  /* Enter begins editing (default) */
+#define UI_FORM_EDIT_LIVE   1  /* Printable input begins editing */
+
 /* Form field definition */
 typedef struct ui_form_field
 {
@@ -68,6 +72,7 @@ typedef struct ui_form_style
   byte focus_attr;         /* default focused field color */
   int save_mode;           /* UI_FORM_SAVE_* */
   int wrap;                /* 1 = wrap navigation at edges */
+  int edit_mode;           /* UI_FORM_EDIT_* */
   
   /* Required field splash */
   const char *required_msg;  /* message shown when required field empty */
