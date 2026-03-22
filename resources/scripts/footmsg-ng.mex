@@ -1,0 +1,66 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+// File: footmsg-ng.mex
+//
+// Desc: Footer banner for the MESSAGE menu (NG variant).
+//
+//       This script is the footer_file counterpart to headmsg-ng.mex.
+//       It runs AFTER the menu body (lightbar / menu_file ANSI) is
+//       drawn, so it can overlay dynamic status text on top of the
+//       static ANSI art at precise screen coordinates.
+//
+//       It displays two lines starting at row 17, col 22:
+//         Row 17 — [lastread / highest]  Area.Name ... Description
+//         Row 18 — "Press <enter> to read next/prev" direction prompt
+//
+//       The area intro header, message counts, and rules/description
+//       display are handled by headmsg-ng.mex (the header_file).
+//
+//////////////////////////////////////////////////////////////////////////////
+
+#include <max.mh>
+#include <maxui.mh>
+
+string lang_get(string: key);
+
+int main(string: argv)
+{
+    string: ltos_current, ltos_high;
+
+    // Skip display when the user has type-ahead stacked; the menu
+    // engine will process the buffered keystrokes without redrawing.
+
+    if (input[1] <> ' ')
+        return 0;
+
+    // Convert lastread and highest message numbers to strings for display.
+    ltos_current := ltostr(msg.current);
+    ltos_high := ltostr(msg.high);
+
+    // Row 19, Col 22: Status bracket and area identity.
+    // Format: [lastread / highest]  Area_Header Area.Name Separator Description
+
+    ui_goto(22, 26);
+    print(COL_LGREEN, lang_get("m_area.msg_lbracket"), COL_LRED, ltos_current,
+          lang_get("m_area.msg_separator"), COL_LRED, ltos_high,
+          COL_LGREEN, lang_get("m_area.msg_rbracket"), "  ",
+          lang_get("m_area.msg_menu_hdr"), marea.name);
+
+    ui_goto(21, 26);     
+    print(COL_CYAN, marea.descript);
+
+    // Row 20, Col 22: Reading direction prompt.
+    // Shows "Press ENTER to read <next|previous>" based on msg.direction.
+
+    //ui_goto(20, 22);
+    //print(lang_get("m_area.msg_enter_prompt1"));
+    //if (msg.direction = 1)
+    //    print(lang_get("m_area.msg_dir_next"));
+    //else
+    //    print(lang_get("m_area.msg_dir_prev"));
+
+    //print(lang_get("m_area.msg_enter_prompt2"));
+
+    return 0;
+}
+

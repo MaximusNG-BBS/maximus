@@ -1,0 +1,122 @@
+//////////////////////////////////////////////////////////////////////////////
+//
+// File: headmsg-ng.mex
+//
+// Desc: Header for the MESSAGE menu (NG variant).
+//
+//       This script is the header_file counterpart to footmsg-ng.mex.
+//       It runs BEFORE the menu body is drawn and handles:
+//
+//         - Skipping display when input is stacked (type-ahead)
+//         - Tracking the last-visited area via a static string so we
+//           only show the area intro on first entry or area change
+//         - Printing the "MESSAGE Section" header and message counts
+//           when the area changes (or on first_time=1)
+//         - Showing area description (.dsc) and rules (.sqr) files
+//           when the user switches to a new area
+//
+//       The status banner (current/high, area name, direction prompt)
+//       is NOT displayed here; that is handled by footmsg-ng.mex which
+//       runs as a footer_file AFTER the menu body, allowing it to
+//       overlay onto the ANSI menu_file at specific screen positions.
+//
+//////////////////////////////////////////////////////////////////////////////
+
+#include <max.mh>
+
+string lang_get(string: key);
+
+int main(string: argv)
+{
+    string: last_area_id;
+    string: last_area;
+    string: fname;
+
+    char: nonstop;
+
+    // If we have stacked input, don't display this screen!
+
+    if (input[1] <> ' ')
+        return 0;
+
+    // Defer video writes until we explicitly flush or read input.
+    id.instant_video := 0;
+
+    // Retrieve the persistent "last_area" value from the static string
+    // store.  This survives across menu iterations so we can detect
+    // when the user has switched to a different message area.
+
+    last_area_id := "headmsg:last_area";
+    create_static_string(last_area_id);
+    get_static_string(last_area_id, last_area);
+
+    // Show the area intro header when:
+    //   - argv="1" : first entry into this menu (set by ShowMenuHeader)
+    //   - marea.name <> last_area : the user changed areas since last draw
+
+    if (argv="1" or marea.name <> last_area)
+    {
+        print(lang_get("m_area.msg_sect"));
+
+        if (msg.num=0)
+            print(lang_get("m_area.msg_nomsgs"));
+        else
+        {
+            print(lang_get("m_area.msg_thereare1"), msg.num, lang_get("m_area.msg_thereare2"),
+                  lang_get("m_area.msg_highest"), msg.high, "\n" COL_WHITE);
+
+            if (msg.current=0)
+              print(lang_get("m_area.msg_haventread"));
+            else if (msg.current=msg.high)
+              print(lang_get("m_area.msg_nonew"));
+            else
+              print(lang_get("m_area.msg_lastread"), msg.current, lang_get("m_area.msg_lastread_end"));
+        }
+
+        if (usr.rip and id.local=False)
+          print("\n\n\n\n\n\n\n\n\n");
+    }
+
+    print(lang_get("m_area.msg_menu_intro"));
+
+    // On area change, show the area's description file (for first-time
+    // visitors) and rules file (always).  File paths depend on whether
+    // the area is Squish (.dsc/.sqr) or Hudson (descript.bbs/rules.bbs).
+
+    if (marea.name <> last_area)
+    {
+        nonstop := 0;
+
+        // If the user has read no messages, display the area's
+        // description.
+
+        if (msg.current = 0)
+        {
+          if (marea.type = MSGTYPE_SQUISH)
+            fname := marea.path + ".dsc";
+          else
+            fname := marea.path + "descript.bbs";
+
+          if (fileexists(fname))
+            display_file(fname, nonstop);
+        }
+
+
+        // Always display the area's rules.
+
+        if (marea.type = MSGTYPE_SQUISH)
+          fname := marea.path + ".sqr";
+        else
+          fname := marea.path + "rules.bbs";
+
+        if (fileexists(fname))
+          display_file(fname, nonstop);
+    }
+
+    // Persist the current area name so subsequent menu iterations
+    // can detect whether the area changed.
+
+    set_static_string(last_area_id, marea.name);
+
+    return 0;
+}
