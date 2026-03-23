@@ -58,12 +58,18 @@ unlisted_system = { text = "|03|!1:    |02Unlisted system (|!2)\n", flags = ["me
 unlisted_node = { text = "Unlisted node", flags = ["mex"] }
 more_prompt = { text = "More", flags = ["mex"] }
 Tag = { text = "T", flags = ["mex"] }
-MoreYnTag = { text = "[Y]es,[n]o,[t]ag,[=]help", flags = ["mex"] }
-CYn = { text = "[Y]es,[n]o", flags = ["mex"] }
-yCN = { text = "[y]es,[N]o", flags = ["mex"] }
-Yne = { text = "[Y]es,[n]o,[=]help", flags = ["mex"] }
-CYnq = { text = "[Y]es,[n]o,[?]help", flags = ["mex"] }
-yCNq = { text = "[y]es,[N]o,[?]help", flags = ["mex"] }
+MoreYnTag = { text = "Ynt=", flags = ["mex"] }
+MoreYnTag_lightbar = { text = "[Y]es,[n]o,[t]ag,[=]nonstop", flags = ["mex"] }
+CYn = { text = "Yn", flags = ["mex"] }
+CYn_lightbar = { text = "[Y]es,[n]o", flags = ["mex"] }
+yCN = { text = "yN", flags = ["mex"] }
+yCN_lightbar = { text = "[y]es,[N]o", flags = ["mex"] }
+Yne = { text = "Yn=", flags = ["mex"] }
+Yne_lightbar = { text = "[Y]es,[n]o,[=]nonstop", flags = ["mex"] }
+CYnq = { text = "Yn?", flags = ["mex"] }
+CYnq_lightbar = { text = "[Y]es,[n]o,[?]help", flags = ["mex"] }
+yCNq = { text = "yN?", flags = ["mex"] }
+yCNq_lightbar = { text = "[y]es,[N]o,[?]help", flags = ["mex"] }
 Yes = { text = "Y", flags = ["mex"] }
 No = { text = "N", flags = ["mex"] }
 M_nonstop = { text = "=", flags = ["mex"] }
@@ -432,6 +438,7 @@ searching_for_user_back = "\r           \r"
 check_ansi = "You have ANSI graphics enabled, but ANSI cannot be detected.\n\nDo you wish to disable ANSI graphics"
 check_rip = "You have RIP graphics enabled, but RIP graphics cannot be detected.\n\nDo you wish to disable RIP graphics"
 
+too_many_attempts = { text = "|er\n\aToo many invalid responses. Please try again later.\n|cd", flags = ["mex"] }
 [f_area]
 deny_file = "file "
 file_prmpt = { text = "|prFile area [Area, \"|!1\"=Prior, \"|!2\"=Next, \"|!3\"=List]: |in", params = [{name = "hotkey1", type = "string", desc = "First menu hotkey character", default = "N"}, {name = "hotkey2", type = "string", desc = "Second menu hotkey character", default = "P"}, {name = "hotkey3", type = "string", desc = "Third menu hotkey character", default = "?"}] }
@@ -586,7 +593,7 @@ msg_attr14 = { text = "Trail Req.", flags = ["mex"] }
 msg_attr15 = { text = "Update Req.", flags = ["mex"] }
 word_not_found = { text = "\n\"|!1\" not found.\n", params = [{name = "search", type = "string", desc = "Search string", default = "hello"}] }
 happy = { text = "|15|17\aDon't worry, be happy!$D35 |03", flags = ["mex"] }
-max_status = { text = "|pr|tb|[K^Z=save|hi|tb  To: $T20|!1, Re: $T27|!2", params = [{name = "recipient", type = "string", desc = "Message recipient (To: field)", default = "All"}, {name = "subject", type = "string", desc = "Message subject (Re: field)", default = "Hello World"}] }
+max_status = { text = "|pr|tb|[K^Z=save|hi|tb  To: $T14|!1, Re: $T16|!2  |sy|tbL:|!3 C:|!4", params = [{name = "recipient", type = "string", desc = "Message recipient (To: field)", default = "All"}, {name = "subject", type = "string", desc = "Message subject (Re: field)", default = "Hello World"}, {name = "line", type = "string", desc = "Current editor line number", default = "1"}, {name = "column", type = "string", desc = "Current editor column number", default = "1"}] }
 end_widget = { text = "|hi-end-|!1", params = [{name = "msg_text_col", type = "string", desc = "Message display color", default = "|07"}] }
 end_widget2 = "|hi-end-|tx"
 status_insert = "|sy|tb Insert"
@@ -598,6 +605,9 @@ abortchange = { text = "|[KThrow away changes", flags = ["mex"] }
 req_graph = "\nMaxEd requires a non-TTY video mode, and a 79x24 monitor.\n\n"
 cant_change_field = { text = "|erYou cannot change that field.\n|cd", flags = ["mex"] }
 
+color_selector_prompt = "|pr|tbColor code (00-23): |hi"
+color_selector_preview = { text = "|pr|tbPreview: |!1 Sample|pr|tb", params = [{name = "color_code", type = "string", desc = "Numeric pipe color code", default = "|07"}] }
+color_selector_preview_box = "|br\xDA\xC4\xC4 |hi Color Grid |br\xC4\xC4\xC4\xC4\xC4\xC4\xBF\n|br\xB3 |0000 |0101 |0202 |0303 |0404 |0505 |br\xB3\n|br\xB3 |0606 |0707 |0808 |0909 |1010 |1111 |br\xB3\n|br\xB3 |1212 |1313 |1414 |1515 |1616 |1717|cd |br\xB3\n|br\xB3 |1818|cd |1919|cd |2020|cd |2121|cd |2222|cd |2323|cd |br\xB3\n|br\xC0\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xD9"
 [m_area]
 msg_abbr = { text = "msg.", flags = ["mex"] }
 msg_prmpt = { text = "|prMessage area [Area, \"|!1\"=Prior, \"|!2\"=Next, \"|!3\"=List]: |in", params = [{name = "hotkey1", type = "string", desc = "First menu hotkey character", default = "N"}, {name = "hotkey2", type = "string", desc = "Second menu hotkey character", default = "P"}, {name = "hotkey3", type = "string", desc = "Third menu hotkey character", default = "?"}] }
@@ -699,11 +709,11 @@ balance_adjusted = { text = "|12\nBalance adjusted by +|!1 cents to compensate f
 replying_to_area = { text = "* Replying to a message originally in area |!1\r\r", params = [{name = "orig_area", type = "string", desc = "Original area name", default = "General"}] }
 reader_more_prompt = { text = "More", flags = ["mex"], rip = "\r!|1K|Y00000100\n!|S0100|B008XHI9Q|c08|R018YHR9A\n!|c0F|R008XHQ99|S0107|B018YHQ99\n!|c01|@0A90More?\n!|1B1E080207PE0201080F000700020407000000\n!|1U1L9000002H00<>Yes<>Y\n!|1U349000002600<>No<>N\n!|1U4N9000001P00<>=Cont<>=\n!|1U669000001600<>*Again<>*\n!|1U7P9000002800<>Prev<>^@K\n!|1U989000001X00<>Next<>^@M\n!|1UAR9000001900<>-orig<>-\n!|1UCA9000001700<>+reply<>+\n!|1UDT9000002A00<>Reply<>R\n!|1B2A080207PE0200080F000700020407000000\n!|1UFC9000001100<>PvtReply<>%\n!|#|#\n" }
 reader_more_blank = { text = "\r|[K", flags = ["mex"], rip = "\r!|S0100|B008RHS9Q|#|#\n" }
-reader_box_top = { text = "|CL|[Y01|[X01|CD|11|17|[K� |14|17|!1: |!2 |11|17$D|!3�", rip = "\r!|S0100|B008GHR9P|w0007271110|Y00000100|1K\n!|c08|R0101HR0C|c0F|R0000HQ0B|S0107|B0101HQ0B\n!|m0403|c02|TMsg Area |c05|T|!1|c00|T: |c01|T|!2\n!|c08|R010EHR1J|c0F|R000DHQ1I|S0107|B010EHQ1I\n!|c08|L041EHL1E|c0F|L051FHM1F|#|#\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "75"}] }
+reader_box_top = { text = "|CL|[Y01|[X01|CD|br|tb|[K\xC4 |14|17|!1: |!2 |br|tb$D|!3\xC4", rip = "\r!|S0100|B008GHR9P|w0007271110|Y00000100|1K\n!|c08|R0101HR0C|c0F|R0000HQ0B|S0107|B0101HQ0B\n!|m0403|c02|TMsg Area |c05|T|!1|c00|T: |c01|T|!2\n!|c08|R010EHR1J|c0F|R000DHQ1I|S0107|B010EHQ1I\n!|c08|L041EHL1E|c0F|L051FHM1F|#|#\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "75"}] }
 reader_box_mid = { text = "|[Y02|[X01|15|17|[KMsg#:       |15|17|!1|15|17", rip = "\r!|c08|c08|@040GMsg#:|c08|@2M0G|!1|#|#\n", params = [{name = "msg_counter", type = "string", desc = "Message counter display (e.g. 'of 500' or '(100-500)')", default = "of 500"}] }
 reader_box_from = { text = "|[Y03|[X01|15|17|[KFrom:", rip = "\r!|c08|@040OFrom:|#|#\n" }
 reader_box_to = { text = "|[Y04|[X01|15|17|[KTo:", rip = "\r!|c08|@040WTo:|#|#\n" }
-reader_box_bottom = { text = "|[Y06|[X01|CD|br|tb|[K$D|!1�", rip = "", params = [{name = "fill_width", type = "string", desc = "Box-drawing bottom border repeat count (zero-padded)", default = "75"}] }
+reader_box_bottom = { text = "|[Y06|[X01|CD|br|tb|[K$D|!1\xc4", rip = "", params = [{name = "fill_width", type = "string", desc = "Box-drawing bottom border repeat count (zero-padded)", default = "75"}] }
 rbox_msgn = { text = "|[Y02|[X07|12|17$L05|!1", rip = "\r!|c01|@1C0G$R05|!1|#|#\n", params = [{name = "msg_num", type = "string", desc = "Current message number", default = "100"}] }
 rbox_high = { text = "|[Y02|[X18|12|17$L05|!1|[K", rip = "\r!|c01|@3K0G$R05|!1|#|#\n", params = [{name = "highest_msg", type = "string", desc = "Highest message number in area", default = "500"}] }
 rbox_replyto = { text = " - |!1", params = [{name = "_tl", type = "string", desc = "Thread/reply link number", default = "100"}] }
@@ -747,7 +757,7 @@ no_files_attached = "|erThere are no unreceived file attaches for you.\n|cd"
 attach_hdr0 = "|15\nList of files attached to |12YOU:\n"
 attach_hdr0_5 = "                                              Compr.\n"
 attach_hdr1 = "Date     Time  From                           Size   Message Area\n"
-attach_hdr2 = "�������� ����� ������������������������������ ������ ��������������������������\n"
+attach_hdr2 = "\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4 \xC4\xC4\xC4\xC4\xC4 \xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4 \xC4\xC4\xC4\xC4\xC4\xC4 \xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\n"
 attach_fmt = { text = "|13$T08$R08|!1 $l020|!2:$l020|!3 |14$T30$R30|!4 |12$L06|!5 |10$T26|!6\n|15", params = [{name = "date", type = "string", desc = "Attachment date", default = "15 Feb 25"}, {name = "hours", type = "string", desc = "Attachment time hours", default = "14"}, {name = "minutes", type = "string", desc = "Attachment time minutes", default = "30"}, {name = "from", type = "string", desc = "Who attached the file", default = "Sysop"}, {name = "size", type = "string", desc = "File size string", default = "1,024"}, {name = "area", type = "string", desc = "Area the attachment is in", default = "NETMAIL"}] }
 attach_fmt2 = { text = "|10\n Date: |13$T08$R08|!1 $l020|!2:$l020|!3\n|10 From: |14|!4\n|10 Area: |11|!5\n\n", params = [{name = "date", type = "string", desc = "Attachment date", default = "15 Feb 25"}, {name = "hours", type = "string", desc = "Attachment time hours", default = "14"}, {name = "minutes", type = "string", desc = "Attachment time minutes", default = "30"}, {name = "from", type = "string", desc = "Who attached the file", default = "Sysop"}, {name = "area", type = "string", desc = "Area the attachment is in", default = "NETMAIL"}] }
 ok_to_overwrite = { text = "File '|!1' exists.  Overwrite", params = [{name = "filename", type = "string", desc = "Existing filename to overwrite", default = "FILE.ZIP"}] }
@@ -896,7 +906,7 @@ chg_col_data2 = { text = "|10", flags = ["mex"], rip = "" }
 chg_separator = { text = "\n", flags = ["mex"], rip = "\r!|1B3M0E0209AA0201080F0807000I0407000000|c05\n!" }
 chg_end = { text = "", flags = ["mex"], rip = "\n!|w000X271610|#|#\n|CL" }
 chg_need_fsr = "|12The full-screen reader cannot be disabled while RIP graphics are active.\n"
-chg1 = { text = "|CL|14|17|[KThe CHANGE SETUP Section|07\n\n", flags = ["mex"], rip = "\r!|1K|c08|R0000HQ0D\n!|c09|R0000HP0C|S0101|B0101HQ0B\n!|c0E|@0403The CHANGE SETUP Section\n!|c08|R000EHQ77|c0F|R000EHP76\n!|S0107|B010FHQ76|c08|R040IHL72\n!|c0F|R050JHM73|c07|R050JHL72\n!|w000X271610|1B5K0E0209AA0200080F0807000I0407000000\n!|c0E" }
+chg1 = { text = "|CL|14|17|[KThe CHANGE SETUP Section|cd\n\n", flags = ["mex"], rip = "\r!|1K|c08|R0000HQ0D\n!|c09|R0000HP0C|S0101|B0101HQ0B\n!|c0E|@0403The CHANGE SETUP Section\n!|c08|R000EHQ77|c0F|R000EHP76\n!|S0107|B010FHQ76|c08|R040IHL72\n!|c0F|R050JHM73|c07|R050JHL72\n!|w000X271610|1B5K0E0209AA0200080F0807000I0407000000\n!|c0E" }
 
 [max_chat]
 cs_avail = { text = "Available for chat", flags = ["mex"] }
@@ -906,9 +916,9 @@ cs_file_xfer = { text = "Transferring a file", flags = ["mex"] }
 cs_outside = { text = "Running external program", flags = ["mex"] }
 ch_page_msg = { text = "\a|!1\n|[K", params = [{name = "message", type = "string", desc = "Page notification message text", default = "You are being paged!"}] }
 ch_hey_dude_msg = { text = "|!1\n|[K", params = [{name = "message", type = "string", desc = "Inter-node page message text", default = "Hey, are you there?"}] }
-hu_is_on_1 = "|15\nUsername                             Node         Status\n"
-hu_is_on_2 = "$D35�  $D04�  $D29�\n"
-hu_is_on_3 = { text = "|14$T36$R36|!1  $L03|!2  |07|!3|!4\n", params = [{name = "user_name", type = "string", desc = "User name on the node", default = "Kevin Morgan"}, {name = "node_num", type = "string", desc = "Node/task number", default = "1"}, {name = "status", type = "string", desc = "Node activity status", default = "Idle"}, {name = "you_marker", type = "string", desc = "' (You)' if this is your node, blank otherwise", default = ""}] }
+hu_is_on_1 = "|CL|13\xC9$D76\xCD\xBB\n|13\xBA|15  Who's Online$D62 |13\xBA\n|13\xC8$D76\xCD\xBC\n |14Node  User$D24   Action\n"
+hu_is_on_2 = "|13$D78\xC4\n"
+hu_is_on_3 = { text = " |15$L04|#2  |03$T28$R28|#1  |11|!3|!4\n", params = [{name = "user_name", type = "string", desc = "User name on the node", default = "Kevin Morgan"}, {name = "node_num", type = "string", desc = "Node task number", default = "1"}, {name = "status", type = "string", desc = "Current user status text", default = "Reading messages"}, {name = "you_marker", type = "string", desc = "(you) marker or empty", default = " (you)"}] }
 ch_xx_join = { text = "|12|!1 |13joins the conversation.\n|[K", params = [{name = "user_name", type = "string", desc = "Name of user joining chat", default = "Kevin Morgan"}] }
 ch_xx_leave = { text = "|12|!1 |13leaves the conversation.\n|[K", params = [{name = "user_name", type = "string", desc = "Name of user leaving chat", default = "Kevin Morgan"}] }
 ch_msg = { text = "|!1\n", params = [{name = "message", type = "string", desc = "Chat message text from another node", default = "Hello!"}] }
@@ -934,6 +944,9 @@ ch_off_abnormally = { text = "|er|!1's|sy session was terminated abnormally.  (R
 ch_youare = { text = "|pr\nYou are currently |ok", flags = ["mex"] }
 ch_availforchat = { text = "AVAILABLE|14 for chat.\n\n", flags = ["mex"] }
 
+hu_is_on_4 = { text = "|08 $L04|#2  |!1\n", params = [{name = "wfc_status", type = "string", desc = "WFC idle status text", default = "Waiting for caller"}, {name = "node_num", type = "string", desc = "Node task number", default = "2"}] }
+hu_is_on_5 = "|13$D78\xC4\n"
+hu_is_on_6 = { text = "|14 Nodes|08: |15|!1   |14Online|08: |15|!2   |14Available|08: |15|!3\n", params = [{name = "total_nodes", type = "string", desc = "Total node count", default = "8"}, {name = "active_users", type = "string", desc = "Active user count", default = "1"}, {name = "chat_avail", type = "string", desc = "Chat-available user count", default = "1"}] }
 [max_ued]
 really_erase = "Really erase pwd field"
 log_nomem_del = "!No mem for delete buf"
@@ -961,33 +974,33 @@ ued_credit = "Credit (cents): "
 ued_time = "Time: "
 ued_ulall = "Total uploads (in K): "
 ued_getpriv = "|[K|prNew priv level (# or priv key): |in"
-ued_ss1 = "|CL|14U|07ser |10������������������������������� |07Last call                   |10�����������Ŀ\n"
-ued_ss2 = " � |14N|07ame                         |14A|07lias                                        |10�\n"
-ued_ss3 = " � |14C|07ity                         |14V|07oicePhone                 |14S|07ex               |10�\n"
-ued_ss4 = " � |14P|07assword                     |14D|07ataPhone                  |14B|07Day              |10�\n"
-ued_ss5 = "|14A|07ccess |10������������������������������������Ŀ    |14S|07ettings |10������������������Ŀ\n"
-ued_ss6 = " � |14P|07riv level             |14C|07redit            |10�     � |14W|07idth                    |10�\n"
-ued_ss7 = " � |14K|07eys                   |14D|07ebit             |10�     � |14L|07ength                   |10�\n"
-ued_ss8 = " � |14G|07roup Num              |14U|07sed Pts          |10�     � |14N|07ulls                    |10�\n"
-ued_ss9 = " � |14A|07lloc Pts              |14S|07howUlist         |10�     � |14M|07sgArea                  |10�\n"
-ued_ss10 = " � |14N|07erd                                     |10�     � |14F|07ileArea                 |10�\n"
-ued_ss11 = "|14I|07nformation |10�����������������������������������Ŀ � |14V|07ideo Mode               |10�\n"
-ued_ss12 = " � |14D|07L (all)                 |14C|07ur. Time           |10� � |14H|07elp                     |10�\n"
-ued_ss13 = " � |14T|07oday DL                 |14A|07dded Time          |10� � |14!|07Language                |10�\n"
-ued_ss14 = " � |14U|07ploads                  |14#|07 calls             |10� � |14P|07rotocol                 |10�\n"
-ued_ss15 = " � |14P|07ostMsgs                 |14R|07eadMsgs            |10� � |14C|07ompress                 |10�\n"
-ued_ss16 = " � |141|07stCall                  |14!|07PwdDate            |10�\n"
-ued_ss17 = "|14F|07lags |10�����������������������������������������Ŀ |14E|07xpiry |10�������������������Ŀ\n"
-ued_ss18 = " � |14H|07otkeys      |14I|07BM Chars         |14S|07crnClr       |10�  � |14E|07xpire by               |10�\n"
-ued_ss19 = " � |14M|07axEd        |14P|07ause (More)      |14A|07vailChat     |10�  � |14A|07ction                  |10�\n"
-ued_ss20 = " � |14T|07abs         |14C|07alledBefore      |14F|07SR           |10�  � |14D|07ate                    |10�\n"
-ued_ss21 = " � |14R|07IP                                          |10�\n"
+ued_ss1 = "|CL|14U|07ser |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4 |07Last call                   |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xBF\n"
+ued_ss2 = " \xB3 |14N|07ame                         |14A|07lias                                        |10\xB3\n"
+ued_ss3 = " \xB3 |14C|07ity                         |14V|07oicePhone                 |14S|07ex               |10\xB3\n"
+ued_ss4 = " \xB3 |14P|07assword                     |14D|07ataPhone                  |14B|07Day              |10\xB3\n"
+ued_ss5 = "|14A|07ccess |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xBF    |14S|07ettings |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xBF\n"
+ued_ss6 = " \xB3 |14P|07riv level             |14C|07redit            |10\xB3     \xB3 |14W|07idth                    |10\xB3\n"
+ued_ss7 = " \xB3 |14K|07eys                   |14D|07ebit             |10\xB3     \xB3 |14L|07ength                   |10\xB3\n"
+ued_ss8 = " \xB3 |14G|07roup Num              |14U|07sed Pts          |10\xB3     \xB3 |14N|07ulls                    |10\xB3\n"
+ued_ss9 = " \xB3 |14A|07lloc Pts              |14S|07howUlist         |10\xB3     \xB3 |14M|07sgArea                  |10\xB3\n"
+ued_ss10 = " \xB3 |14N|07erd                                     |10\xB3     \xB3 |14F|07ileArea                 |10\xB3\n"
+ued_ss11 = "|14I|07nformation |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xBF \xB3 |14V|07ideo Mode               |10\xB3\n"
+ued_ss12 = " \xB3 |14D|07L (all)                 |14C|07ur. Time           |10\xB3 \xB3 |14H|07elp                     |10\xB3\n"
+ued_ss13 = " \xB3 |14T|07oday DL                 |14A|07dded Time          |10\xB3 \xB3 |14!|07Language                |10\xB3\n"
+ued_ss14 = " \xB3 |14U|07ploads                  |14#|07 calls             |10\xB3 \xB3 |14P|07rotocol                 |10\xB3\n"
+ued_ss15 = " \xB3 |14P|07ostMsgs                 |14R|07eadMsgs            |10\xB3 \xB3 |14C|07ompress                 |10\xB3\n"
+ued_ss16 = " \xB3 |141|07stCall                  |14!|07PwdDate            |10\xB3\n"
+ued_ss17 = "|14F|07lags |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xBF |14E|07xpiry |10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xBF\n"
+ued_ss18 = " \xB3 |14H|07otkeys      |14I|07BM Chars         |14S|07crnClr       |10\xB3  \xB3 |14E|07xpire by               |10\xB3\n"
+ued_ss19 = " \xB3 |14M|07axEd        |14P|07ause (More)      |14A|07vailChat     |10\xB3  \xB3 |14A|07ction                  |10\xB3\n"
+ued_ss20 = " \xB3 |14T|07abs         |14C|07alledBefore      |14F|07SR           |10\xB3  \xB3 |14D|07ate                    |10\xB3\n"
+ued_ss21 = " \xB3 |14R|07IP                                          |10\xB3\n"
 ued_ss22 = ""
 ued_spermflag = { text = "|[Y01|[X14|!1", params = [{name = "eqstri", type = "string", desc = "User status indicator", default = "Current"}] }
 ued_sstatcur = "|12 * Current * |15"
 ued_sstatdel = "|12 * Deleted * |15"
 ued_sstatprm = "|12 *Permanent* |15"
-ued_sstatblank = "|10�������������|15"
+ued_sstatblank = "|10\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4\xC4|15"
 ued_slastcall = { text = "|[Y01|[X48|!1", params = [{name = "sc_time", type = "string", desc = "Formatted timestamp", default = "15 Feb 25 14:30"}] }
 ued_sname = { text = "|[Y02|[X14$T18$R18|!1", params = [{name = "name", type = "string", desc = "User's display name", default = "Kevin Morgan"}] }
 ued_scity = { text = "|[Y03|[X14$T18$R18|!1", params = [{name = "city", type = "string", desc = "User's city", default = "Los Angeles"}] }
@@ -1099,8 +1112,8 @@ br_ty_from = "\n|prStart displaying at which msg# (\"=\" for current): |in"
 br_display_verbose = "|14Display:\n\n|14R|07)ead (show entire message: default)\n|14L|07)ist (one per line)\n|14P|07)ack (QWK format)\n|14Q|07)uit\n\n"
 br_display = "Display: [R)ead (show whole msg), L)ist (one per line), P)ack (QWK), Q)uit]: "
 br_dispk = "RLPQ?"
-br_list_head1 = { text = "|CL|15Msg#   From                 To                   Subject\n", rip = "\r!|1K|Y00000100|S0100|B000GHR0V\n!|c08|R010HHR0T|c0F|R000GHQ0S|S0107|B010HHQ0S\n!|c01|@020HMsg#   From                 To                   Subject|#|#\n" }
-br_list_head2 = { text = "������ �������������������� �������������������� ����������������������������\n", rip = "\r!|@020M������ �������������������� �������������������� ����������������������������\n!|w0004271600|#|#\n|CL" }
+br_list_head1 = { text = "|CL|br\xDA\xC4\xC4 |hiMessage Index Listing |br$D|!2\xC4 |hi|!1 |br\xC4\xBF\n", params = [{name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "45"}] }
+br_list_head2 = { text = "|br\xB3  |hd##   Subject                                From            To             |br\xB3\n|br\xC0$D77\xC4\xD9|cd" }
 br_this = { text = "|10Area |13|!1|03: |!2\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}] }
 br_s_where_verbose = "|14Search where?  (More than one letter may be entered.)\n\n|14T|07)o field\n|14F|07)rom field\n|14S|07)ubject field\n|14B|07)ody of message\n|14?|07)help\n|15"
 br_s_where = "Search where [any or all of T)o, F)rom, S)ubject, B)ody, or ?)help]: "
@@ -1121,8 +1134,8 @@ br_field_maybe_plural = " field(s)"
 br_comma = ", "
 br_then_or = "or "
 br_text_to_search = "|prText to search for: |in"
-br_list_format = { text = "|07$L06|!1|!2|!3$T20$R20|!4 |!5$T20$R20|!6 |11$T28|!7\n", params = [{name = "msg_num", type = "string", desc = "Message number", default = "100"}, {name = "status_flag", type = "string", desc = "New/Private indicator (* P or blank)", default = "*"}, {name = "from_color", type = "string", desc = "Sender name color code", default = "|14"}, {name = "sender", type = "string", desc = "Message sender name", default = "Sysop"}, {name = "to_color", type = "string", desc = "Recipient name color code", default = "|10"}, {name = "recipient", type = "string", desc = "Message recipient name", default = "All"}, {name = "subject", type = "string", desc = "Message subject line", default = "Hello World"}] }
-br_msg_new = "|12*"
+br_list_format = { text = " |pr$L04|#1 |ok|!2 |hi$T39$R39|#5|tx$T16$R16|#3$T16$R16|#4", params = [{name = "msg_num", type = "string", desc = "Message number", default = "1"}, {name = "status_flag", type = "string", desc = "New/Private indicator (* - or blank)", default = "*"}, {name = "sender", type = "string", desc = "Message sender name", default = "Sysop"}, {name = "recipient", type = "string", desc = "Message recipient name", default = "All"}, {name = "subject", type = "string", desc = "Message subject line", default = "Hello World"}] }
+br_msg_new = "*"
 br_msg_notnew = " "
 br_notfound = "|15No messages found.\n"
 br_area_banner = { text = "|10Area |13|!1: |07|!2\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}] }
@@ -1150,7 +1163,7 @@ qwk_local_rep = "|prEnter path/name of .REP file: |in"
 unknown_compr = "|erUnknown compression type.\n|cd"
 tossing_rep_packet = { text = "|pr\nTossing .REP packet |!1...\n\n|cd", params = [{name = "filename", type = "string", desc = "Filename (no path)", default = "FILE.ZIP"}] }
 rep_to_send = { text = "|hi\nPlease begin uploading |!1 now.\n|cd", params = [{name = "packet_name", type = "string", desc = "QWK .REP packet filename", default = "MYBBS.REP"}] }
-br_msg_pvt = "|04-"
+br_msg_pvt = "-"
 err_toss_qwk = { text = "|erError tossing from |!1!\n|cd", params = [{name = "msg_file", type = "string", desc = "QWK message filename being tossed", default = "001.MSG"}] }
 wait_doing_compr = "|prCompressing mail.  Please wait...\n|cd"
 qwk_update_lr = "|prPlease wait.  Updating lastread pointers...|cd"
@@ -1168,7 +1181,7 @@ qwk_too_many = { text = "|wn\nWarning!  A maximum of |!1 messages can be packed 
 qwk_nuke_tear = "\r---"
 qwk_replace_tear = "___"
 qwk_msg_skipped = "|er\nMessage skipped.\n|cd"
-qwk_pack_start = "|pr\nArea Name  Description                  Total Msgs  Msgs to you  Msgs Packed\n|hi$D09�  $D27�  $D10�  $D11�  $D11�\n"
+qwk_pack_start = "|pr\nArea Name  Description                  Total Msgs  Msgs to you  Msgs Packed\n|hi$D09\xc4  $D27\xc4  $D10\xc4  $D11\xc4  $D11\xc4\n"
 qwk_pack_fmt = { text = "|10$T09$L09|!1  |11$T27$R27|!2  |13$L07|!3$D05 |12$L06|!4$D07 |10$L07|!5\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "total_msgs", type = "string", desc = "Total messages in area", default = "42"}, {name = "personal", type = "string", desc = "Personal messages in area", default = "2"}, {name = "new_msgs", type = "string", desc = "New messages in area", default = "10"}] }
 qwk_pack_end = { text = "|15$D09�  $D27�  $D10�  $D11�  $D11�\n|12$D11 Total$D24 |13$L07|!1$D05 |12$L06|!2$D07 |10$L07|!3\n\n|15", params = [{name = "total_msgs", type = "string", desc = "Total messages packed", default = "150"}, {name = "personal", type = "string", desc = "Personal messages packed", default = "5"}, {name = "areas", type = "string", desc = "Number of areas packed", default = "12"}] }
 restr_prompt = "Enter date of oldest message to pack, or press <enter> for "
@@ -1191,8 +1204,22 @@ browse_select_c = { text = "", rip = "\r!|1K|w0000271610|#|#\n|CL" }
 browse_which_c = { text = "", rip = "\r!|1K|w0000271610|#|#\n|CL" }
 browse_more_prompt = { text = "More", rip = "\r!|1K|S0100|B008XHR9Q|c08|R028Y6L9A\n!|c0F|R018X6K99|S0107|B028Y6K99\n!|c01|@0690More?\n!|1B1K0A0207PE0201080F000700020407000000\n!|1U1L9000002H00<>Yes<>Y\n!|1U349000002600<>No<>N\n!|1U4N9000001P00<>=Cont<>=\n!|#|#\n" }
 browse_more_blank = { text = "\r|[K", rip = "\r!|S0100|B008KHS90|#|#\n" }
-browse_rbox_top = { text = "|CL|[Y01|[X01|CD|br|tb|[K� |pr|tb|!1: |!2 |br|tb$D|!3�", rip = "\r!|1K|S0100|B008GHR9P|w0007271110|Y00000100\n!|c08|R0101HR0C|c0F|R0000HQ0B\n!|S0107|B0101HQ0B|m0403|c02|TMsg Area \n!|c05|T|!1|c00|T: |c01|T|!2\n!|c08|R010EHR1J|c0F|R000DHQ1I\n!|S0107|B010EHQ1I|c08|L041EHL1E\n!|c0F|L051FHM1F|#|#\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "75"}] }
+browse_rbox_top = { text = "|CL|[Y01|[X01|CD|br|tb|[K\xc4 |pr|tb|!1: |!2 |br|tb$D|!3\xc4", rip = "\r!|1K|S0100|B008GHR9P|w0007271110|Y00000100\n!|c08|R0101HR0C|c0F|R0000HQ0B\n!|S0107|B0101HQ0B|m0403|c02|TMsg Area \n!|c05|T|!1|c00|T: |c01|T|!2\n!|c08|R010EHR1J|c0F|R000DHQ1I\n!|S0107|B010EHQ1I|c08|L041EHL1E\n!|c0F|L051FHM1F|#|#\n", params = [{name = "area_name", type = "string", desc = "Message area name", default = "General"}, {name = "area_desc", type = "string", desc = "Message area description", default = "General Discussion"}, {name = "fill_width", type = "string", desc = "Box-drawing fill repeat count (zero-padded)", default = "75"}] }
 
+br_list_foot = { text = "|br $D78\xC4\n|lb|lf (|prArrows|lf)|hi Move    |lf(|prESC|lf)|hi Quit    |lf(|prENTER|lf)|hi Read    |lf(|prG|lf)|hi Goto Next Base    |lf(|pr?|lf)|hi Help|[K|cd", params = [] }
+ng_read_prompt = "\r\n|prRead|tx: |tx(|prF|tx)orward |tx(|prN|tx)ew |tx(|prB|tx)y You |tx(|prY|tx)ours |tx(|prS|tx)earch |tx(|prQ|tx)uit? |in"
+ng_read_from_prompt = { text = "|prFrom which message # (|hi|!1|pr in area): |in", params = [{name = "highest_msg", type = "string", desc = "Highest message number in current area", default = "1000"}] }
+ng_read_search_prompt = "|prSearch for: |in"
+ng_reader_delete_confirm = "|[K|prDelete this message"
+ng_reader_move_confirm = "|[K|prMove this message"
+ng_reader_footer = "|tb|[K|ac(|hkup|ac/|hkdown|ac) |hiScroll Msg|[X28|ac(|hkleft|ac/|hkright|ac) |hiLast/Next Msg|[X62|hiPress |hk?|hi for Help|cd"
+ng_no_messages_found = "\r\n|hiNo messages found.\r\n|cd"
+ng_no_messages_area = "\r\n|hiNo messages in this area.\r\n|cd"
+ng_no_messages_area_inline = "|[Y11|[X28|hiNo messages in this area.|cd|[Y12|[X22|dmUse Left/Right (or G) to change areas.|cd|[Y13|[X32|dmPress ESC to quit.|cd"
+ng_cannot_read_msg = { text = "\r\n|erCannot read message |!1.\r\n|cd", params = [{name = "msg_num", type = "string", desc = "Message number that failed to open", default = "1"}] }
+ng_err_build_index = "\r\n|erError building message index.\r\n|cd"
+ng_err_open_area = "\r\n|erCannot open area.\r\n|cd"
+ng_no_adjacent_area = "|hiNo message areas in this division beyond that direction.|cd"
 [max_wfc]
 wfc_waiting = "Waiting"
 wfc_hanging_up = "Hanging up"
@@ -1203,10 +1230,10 @@ log_wfc_exit_erl = { text = ":Event - Exiting with errorlevel |!1", params = [{n
 log_wfc_waiting = { text = ":Waiting for caller (event in |!1 mins)", params = [{name = "minutes", type = "string", desc = "Minutes until next scheduled event", default = "60"}] }
 log_wfc_connect = { text = "+Connected at |!1 bps|!2|!3|!4", params = [{name = "baud_rate", type = "string", desc = "Connection speed (bps)", default = "9600"}, {name = "slash_sep", type = "string", desc = "Slash separator (or blank if no ARQ)", default = "/"}, {name = "arq_info", type = "string", desc = "ARQ error correction info", default = "V.42bis"}, {name = "arq_suffix", type = "string", desc = "'/ARQ' suffix or blank", default = "/ARQ"}] }
 log_wfc_keybjunk = " Junk character from keyboard"
-wfc_status_tit = "� Status �"
-wfc_modem_tit = "� Modem Responses �"
-wfc_activ_tit = "� Current Activity �"
-wfc_keys_tit = "� SysOp Keys �"
+wfc_status_tit = "\xC4 Status \xC4"
+wfc_modem_tit = "\xC4 Modem Responses \xC4"
+wfc_activ_tit = "\xC4 Current Activity \xC4"
+wfc_keys_tit = "\xC4 SysOp Keys \xC4"
 wfc_keys1 = "<Alt-X>  System down"
 wfc_keys2 = "<Alt-J>  Shell to operating system"
 wfc_keys3 = "<Alt-K>  Local keyboard log-on"
@@ -1339,7 +1366,7 @@ trk_rep_pri_keys = "OLNUCA"
 trk_rep_s_owner = "Search for messages owned by whom (*=all (default), ?=list): "
 trk_rep_dl_related_qwk = "Download related messages in QWK packet"
 trk_rep_hdr = "ID               Date     Owner Priority     Status  Message\n---------------- -------- ----- ------------ ------- -------------------------\n"
-trk_rep_hdr_graph = "|CL|hiID               Date     Owner Priority     Status  Message\n���������������� �������� ����� ������������ ������� ���������������������������\n|pr"
+trk_rep_hdr_graph = "|CL|hiID               Date     Owner Priority     Status  Message\n\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4 \xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4 \xc4\xc4\xc4\xc4\xc4 \xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4 \xc4\xc4\xc4\xc4\xc4\xc4\xc4 \xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\n|pr"
 trk_rep_msgnum = { text = "|!1#|!2", params = [{name = "area_name", type = "string", desc = "Area name for tracked message", default = "General"}, {name = "msg_uid", type = "string", desc = "Message UID number", default = "1234"}] }
 trk_rep_fmt = { text = "$T16$R16|!1 $l020|!2.$l020|!3.$l020|!4|!5$T05$R05|!6 $T12$R12|!7 $T07$R07|!8 $T26|!9\n", params = [{name = "track_id", type = "string", desc = "Tracking ID", default = "AB12"}, {name = "year", type = "string", desc = "Report date year (2-digit)", default = "25"}, {name = "month", type = "string", desc = "Report date month", default = "2"}, {name = "day", type = "string", desc = "Report date day", default = "15"}, {name = "changed_flag", type = "string", desc = "'*' if changed, blank otherwise", default = " "}, {name = "owner", type = "string", desc = "Tracking owner name", default = "Sysop"}, {name = "priority", type = "string", desc = "Tracking priority", default = "Normal"}, {name = "status", type = "string", desc = "Tracking status", default = "Open"}, {name = "comment", type = "string", desc = "Tracking comment", default = "Working on it"}] }
 trk_rep_qwk_bulletin = { text = "|!1blt-1.99", params = [{name = "qwk_path", type = "string", desc = "QWK directory path", default = "/tmp/qwk/"}] }
@@ -1356,7 +1383,7 @@ trk_bad_cmd = { text = "Invalid tracking command: |!1\n", params = [{name = "_tb
 trk_bad_old_id = { text = "Error findind old tracking ID \"|!1\" in database!\n", params = [{name = "track_id", type = "string", desc = "Invalid tracking ID that could not be found", default = "XXXX"}] }
 trk_err_updating_db = { text = "Error updating tracking database for \"|!1\"!\n", params = [{name = "track_id", type = "string", desc = "Tracking ID that failed to update", default = "AB12"}] }
 trk_info_updated = { text = "Tracking information updated for \"|!1\"!\n", params = [{name = "track_id", type = "string", desc = "Tracking ID that was updated", default = "AB12"}] }
-trk_list_hdr = "|hi\nID   Owner\n���� ������������������������\n|pr"
+trk_list_hdr = "|hi\nID   Owner\n\xc4\xc4\xc4\xc4 \xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\xc4\n|pr"
 trk_list_type = { text = "$T04$R04|!1 |!2\n", params = [{name = "list_type", type = "string", desc = "Report list filter type", default = "All"}, {name = "owner_name", type = "string", desc = "Owner filter name", default = "Sysop"}] }
 trk_err_removing = { text = "Error removing message |!1 from tracking database!\n", params = [{name = "szTrackID", type = "string", desc = "Tracking ID", default = "AB12"}] }
 trk_owner_not_accept = { text = "Error!  '|!1' is not an acceptable message owner.\n", params = [{name = "szOwner", type = "string", desc = "Tracking owner", default = "Sysop"}] }
@@ -1414,6 +1441,13 @@ chat_whoami = { text = ", this is your sysop\n", flags = ["mex"] }
 chat_status = { text = " MEXChat V1.0", flags = ["mex"] }
 chat_needremote = { text = "|er\nMEXChat can only be used with a remote user.\n|cd", flags = ["mex"] }
 
+[editor]
+header = { text = "|cd|br\xB3|17|prSUBJECT: |hi|!5$X|TW |[>|cd|br\xB3\n|cd|br$X|TW\xC4|[<\xB4 |ac# |hi$L05|#2 |cd|br\xC3|[H|[D12\xC3 |hi$R20|#1 |cd|br\xB4|[>|cd|br\xB4", params = [{name = "message_area", type = "string", desc = "Current message area name", default = "Retro Gaming"}, {name = "message_number", type = "string", desc = "Displayed editor message number (existing message number or next assigned number for new entry)", default = "190"}, {name = "from", type = "string", desc = "Message sender name", default = "Sysop"}, {name = "to", type = "string", desc = "Message recipient name", default = "All"}, {name = "subject", type = "string", desc = "Message subject line", default = "Retro LockDown"}, {name = "reply_to", type = "string", desc = "Original message number being replied to when applicable", default = "189"}] }
+spell_unknown_word = { text = "|erUnknown: |hi\"|!1\"|cd", params = [{name = "word", type = "string", desc = "Misspelled word from the editor buffer", default = "teh"}] }
+quote_window_top = { text = "|br\xDA\xC4\xC4 |hi Quote Window |br$D|!1\xC4\xBF", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "60"}] }
+quote_window_left = "|br\xB3"
+quote_window_bottom = { text = "|br\xC3 |hk^Q|ac/|hkESC|hi=End |br\xC4 |hkCR|hi=Accept |br\xC4 |hkUp|ac/|hkDn|ac/|hkPgUp|ac/|hkPgDn|hi=Scroll |br$D|!1\xC4\xD9", params = [{name = "fill_width", type = "string", desc = "Padding repeat count for box-drawing fill (zero-padded)", default = "30"}] }
+quote_attribution = { text = "In a message to |!2, |!1 wrote:", params = [{name = "sender", type = "string", desc = "Original message sender name", default = "Sysop"}, {name = "recipient", type = "string", desc = "Original message recipient name", default = "All"}, {name = "date", type = "string", desc = "Original message date string", default = "01 Jan 26"}] }
 [_legacy_map]
 # Maps old s_ret() numeric IDs to heap.symbol keys
 "0x0000" = "global.left_x"

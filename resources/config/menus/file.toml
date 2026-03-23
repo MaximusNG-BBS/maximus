@@ -1,14 +1,14 @@
 name = "FILE"
 title = "FILE (%t mins)"
-header_file = ""
+header_file = ":scripts/headerfile"
 header_types = []
-footer_file = ":scripts/footerfile"
+footer_file = ""
 footer_types = []
-menu_file = "display/screens/menu_files.ans"
+# menu_file = "display/screens/menu_files.ans"
 menu_types = ["Novice"]
 menu_length = 0
 menu_color = -1
-option_width = 16
+# option_width = 16
 
 [[option]]
 command = "File_Area"
@@ -187,22 +187,22 @@ key_poke = ""
 modifiers = []
 
 
-[custom_menu]
-skip_canned_menu = false
-show_title = true
-lightbar_menu = true
-lightbar_margin = 1
-top_boundary = [7, 5]
-bottom_boundary = [21, 58]
-title_location = [22, 15]
-prompt_location = [23, 1]
-option_spacing = false
-option_justify = "left"
-boundary_justify = "center center"
-boundary_layout = "spread"
+# [custom_menu]
+# skip_canned_menu = false
+# show_title = true
+# lightbar_menu = true
+# lightbar_margin = 1
+# top_boundary = [7, 5]
+# bottom_boundary = [21, 58]
+# title_location = [22, 15]
+# prompt_location = [23, 1]
+# option_spacing = false
+# option_justify = "left"
+# boundary_justify = "center center"
+# boundary_layout = "spread"
 
-[custom_menu.lightbar_color]
-normal = ["Light Gray", "Black"]
-high = ["Yellow", "Black"]
-selected = ["White", "Blue"]
-high_selected = ["Yellow", "Blue"]
+# [custom_menu.lightbar_color]
+# normal = ["Light Gray", "Black"]
+# high = ["Yellow", "Black"]
+# selected = ["White", "Blue"]
+# high_selected = ["Yellow", "Blue"]
