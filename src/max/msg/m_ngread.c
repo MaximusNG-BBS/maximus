@@ -995,8 +995,7 @@ int ng_msg_reader_loop(msg_index_t *idx, int entry_index, int *out_index)
     draw_reader_footer(0, viewer.line_count);
 
     /* Update lastread pointer and mark as read */
-    if (e->msgn > last_msg)
-      last_msg = e->msgn;
+    last_msg = e->msgn;  /* Always update to current message being read */
 
     /* Keep the current lightbar index visually in sync: once opened/read,
      * this entry should no longer show the "new" marker on return. */
