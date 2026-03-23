@@ -25,7 +25,7 @@
 #include "maxed.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <hunspell/hunspell.h>
+#include <hunspell.h>
 #include "mci.h"
 
 #define MAGNET_SPELL_BACKEND_NONE      0

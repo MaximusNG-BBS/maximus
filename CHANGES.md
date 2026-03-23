@@ -2,27 +2,218 @@
 
 ---
 
-## Summary of Changes (Jan 30 – Feb 21, 2026)
+## Summary of Changes (Nov 30, 2025 – Mar 23, 2026)
 
-A lot has happened since the 4.0 baseline landed. Here's the short version:
+It’s been a minute since the November 30th baseline, but the engine has seen a massive overhaul. Here’s the "Sysop’s Guide" to what’s new:
 
-**The entire source tree got reorganized.** Code now lives in a clean `src/` hierarchy, runtime assets in `resources/`, and all the DOS/OS2-era cruft that nobody's touched in 20 years is gone. The build system was updated to match and this is the foundation everything else builds on.
+**The Tree got a Trim.** The entire source tree was reorganized into a clean `src/` hierarchy, with runtime assets moved to `resources/`. All that DOS/OS2-era cruft that hasn't been touched in 20 years is officially gone. The build system was updated to match, giving us a solid foundation for everything else.
 
-**Maximus now speaks TOML for everything.** The old binary language files (`.mad`/`.ltf`/`.lth`) are retired. All 1,334 display strings live in `english.toml`, editable with any text editor. There's a full converter for migrating legacy language packs, a delta overlay system for theme colors, and positional parameters (`|!1` through `|!F`) replace the old `printf`-style `%s`/`%d` codes. MEX scripts can query language strings at runtime via new `lang_get()` intrinsics.
+**TOML-First Configuration.** We’ve moved away from the old binary language files (`.mad`/`.ltf`/`.lth`) and towards human-readable TOML. All 1,300+ display strings now live in `english.toml`, editable with any text editor. There's a full converter for migrating legacy language packs, a delta overlay system for theme colors, and positional parameters (`|!1` through `|!F`) replacing the old `printf`-style `%s`/`%d` codes. MEX scripts can even query these strings at runtime via new `lang_get()` intrinsics.
 
-**Lightbar everything.** Menus got a proper lightbar renderer. A classic single-column, positioned multi-column, and a new `ui_select_prompt` for inline selections. On top of that, the traditional canned menu system now supports bounded rendering: you define a rectangle in your menu config and Maximus lays out options inside it with configurable justification and spacing. File and message areas got their own dedicated lightbar mode with division drill-in, hierarchy navigation, configurable highlight styles, and optional custom screen support.
+**The Theme Engine Arrives.** Maximus now supports a multi-phase theme system. You can register custom BBS "skins" that override colors, menus, and display files on the fly. Users can select their preferred theme from a new `Chg_Theme` menu, and those choices persist in the new SQLite-backed user database. We’ve even added tiered display file resolution, so `welcome.maxng.ans` beats `welcome.ans` if the "maxng" theme is active.
 
-**MaxCFG keeps getting better.** The config editor gained a full language string browser/editor with TOML write-back, a shared MCI preview interpreter for live-previewing display strings, and menu editing improvements for the new lightbar and bounded layout features.
+**Login Flow Rewrite.** The login module (`max_log.c`) was rebuilt from the ground up as a robust state machine. This replaces the old monolithic chain with a predictable 12-state dispatch, fixing long-standing bugs and adding hooks for a new-user MEX questionnaire that tracks answered fields with a bitmask.
 
-**New UI primitives - and they're all scriptable.** The lightbar list engine (`ui_lightbar_list_run`) is a generic paged list with full keyboard nav (arrows, PgUp/PgDn, Home/End, Enter, ESC) and a key-passthrough mechanism so callers can layer domain-specific behavior on top without touching the primitive. Lightbar prompts (`ui_select_prompt`) give you inline single-key selection with highlight bar navigation that us used everywhere from Yes/No/Cancel to multi-option menus. Input fields (`ui_edit_field`) got centralized key decoding, forward-delete, format masks, and start-mode control (append vs. overwrite vs. cursor-at-end). On top of all that, there's a new struct-based form runner with 2D spatial navigation across fields, cursor show/hide tied to edit state, and required-field validation. Every one of these primitives is fully exposed to MEX via intrinsics, so sysops can build custom interactive screens entirely from script.
+**UI Power-Ups & "MagnEt" Editor.** The full-screen editor (MagnEt) is now a powerhouse. It features live spell-checking via Hunspell, a new Mystic BBS-style popup quote window with scrollable previews, and per-area color support. We’ve also expanded the lightbar engine to handle file and message areas with full keyboard navigation and configurable highlights.
 
-**MCI display codes expanded.** New terminal control codes, semantic theme color stubs (the lowercase pipe namespace — `|tx`, `|pr`, `|hi`, etc.), deferred parameter expansion (`|#N`) with format-op support, and a bunch of rendering/attribute fixes across the board.
+**MEX Scripting Gets Serious.** MEX can now spawn other MEX scripts (`mex_spawn`), allowing for modular designs and nested execution. We've also added intrinsics for JSON DOM manipulation, raw socket I/O, and OpenSSL-backed TLS for HTTPS requests. To help you get started, there's a new library of 10+ tutorial scripts based on the wiki.
 
-**Runtime foundations for 4.0.** SQLite-backed user database, TOML-first configuration via `libmaxcfg`, and Door32 support with automatic dropfile generation. MAXTEL gained headless/daemon modes and interactive sysop features (snoop overlay, chat break-in, shell-out to maxcfg).
-
-**Hardened input flows.** Remote login now enforces attempt limits on name, city, alias, and password entry — excess failures disconnect the caller. Legacy DOS dropfile generators (WWIV chain.txt, CallInfo, door.sys, dorinfo) removed in favor of native C dropfile support. All MEC display files cleaned up for Unix path compatibility.
+**115 Pages of Documentation.** We've launched a massive Jekyll-powered wiki with over 115 pages of guides, references, and screenshots. From first-time setup to advanced MEX networking, it's all in there.
 
 Full details for each change are in the dated entries below.
+
+---
+
+## Thu Mar 19 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*Reliability and Connectivity Polish*
+
+**Lost Carrier Detection and Socket Hardening**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### Fixed: Carrier Loss Detection
+- `ipcomm.c`: Preserve listen socket across sessions instead of clearing it after the first connection.
+- `ipcomm.c`: Probe accepted Unix sockets with `MSG_PEEK|MSG_DONTWAIT` for non-destructive liveness detection.
+- `ipcomm.c`: Immediate call to `Lost_Carrier()` when a dropped TCP/IP connection is detected, preventing "ghost" sessions.
+- `maxtel.c`: Explicitly `shutdown()` both bridge endpoints before closing to ensure clean EOF propagation.
+
+### Fixed: Lockfile Management
+- `ipcomm.c`: Clear the `maxipc` lockfile on all carrier-loss and error paths to prevent startup blocks.
+
+---
+
+## Wed Mar 18 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*UI Hardening and Themed Navigation*
+
+**Required Fields, Form Navigation, and Transparent Themed Menus**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Transparent Themed Menus
+- `Read_Menu_Toml()` now probes for `menus.<name>.<theme>` before falling back to the base menu.
+- This allows sysops to create theme-specific menu layouts (e.g., `menus.main.maxng`) that are automatically swapped in based on the user's active theme.
+
+### Fixed: UI Form Engine (BUG-001, BUG-002)
+- `ui_form`: Added `UI_FORM_SAVE_CTRL_S_AND_ESC` mode; ESC now validates required fields and saves.
+- `ui_form`: Navigation (arrows/Tab) now correctly skips hidden fields (width=0).
+- `ui_form_run()`: Fixed hotkey matching to ignore hidden fields.
+
+### Improved: New-User Registration (MEX)
+- `newuser-val.mex`: Draws red '*' markers for required fields based on `general.session` config.
+- Phone and Alias fields are now conditionally required based on sysop settings.
+
+---
+
+## Tue Mar 17 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*The Theme Engine (Phases 1-5)*
+
+**Theme Registry, Themed Configs, and Persistent User Skins**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Theme System Infrastructure
+- **Phase 1 (Menu Integration):** Added `Chg_Theme` menu command and `theme.toml` registry.
+- **Phase 2 (Themed Config):** Added `colors.<theme>.toml` and `display.<theme>.toml` support; tiered lookup for config keys.
+- **Phase 3 (Tiered Display Files):** `DisplayOpenFile()` now probes for `<file>.<theme>.<ext>` before the base file.
+- **Phase 5 (Persistence):** Added `theme` column to SQLite user database; theme selection now survives logouts.
+- New `|TN` MCI code returns the current theme's short name.
+
+### Improved: User Editor (MaxCFG)
+- Added "Theme Slot" field (0-15) to the user editor Settings screen.
+
+---
+
+## Mon Mar 16 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*UI Refinements and New-User Experience*
+
+**Key Collision Fixes, Spell Checking, and Registration MEX**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### Improved: UI Input Handling
+- Decoupled arrow keys from ASCII 'A'-'D' to fix collisions on UNIX terminals when typing uppercase.
+- `ui_edit_field`: Improved format-mask editing (overwrite mode, cursor positioning).
+- Shift-Tab support added via `UI_KEY_STAB`.
+
+### New: Registration Questionnaire (MEX)
+- `newuser-val.mex`: A complete form-based registration UI for new users.
+- Tracks answered fields via `newuser_answered_mask` bitmask to prevent redundant prompts.
+- New-user terminal preferences (ANSI/RIP/etc.) are now persisted immediately after setup.
+
+### New: Spell Checking and Editor Power-Ups
+- Live spell-checking in the editor via Hunspell backend.
+- Unknown-word highlighting and suggestion menu.
+- Added `|[<`, `|[>`, `|[H` cursor MCI codes and `|TW`, `|TC`, `|TH` for terminal geometry.
+- `|DF{path}` MCI code for embedding one display file inside another.
+
+### Changed: Resource Reorganization
+- ANSI display files moved to `resources/display/screens/`.
+- MEX scripts moved from `resources/m/` to `resources/scripts/`.
+- New build scripts: `install.sh`, `mex-compile.sh`, and `recompile.sh`.
+
+---
+
+## Wed Mar 11 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*Foundation Rewrite*
+
+**State-Machine Login Flow**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Login State Machine
+- Monolithic `Login()` replaced with a 12-state dispatch machine (INIT -> LOGO -> NAME -> AUTH -> etc.).
+- Cleaner separation of concerns and improved error handling during the login handshake.
+- Fixed a long-standing bug where terminal initialization occurred too late in the flow.
+
+---
+
+## Sun Mar 8 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*Feature Polish and Code Standards*
+
+**Popup Quote Window and Doxygen Documentation**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Popup Quote Window (MagnEt)
+- Mystic BBS-style bordered popup window for quoting messages.
+- Full scrollable preview with highlight bar and one-key paste.
+- Auto-insert attribution lines (e.g., "In a message to Kevin, Junie wrote:").
+
+### Improved: Code Standards
+- Standardized GPL-2.0 copyright headers across 80+ new files.
+- Added Doxygen comments to over 500 new functions across all subsystems.
+
+---
+
+## Sat Mar 7 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*MEX Power-Ups*
+
+**Nested Execution and Script Spawning**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: MEX Nested Execution
+- `mex_spawn("script", "args")`: Spawns a child MEX script and returns the exit code to the parent.
+- Support for `MNU_MEX` from within `menu_cmd()`.
+- VM state save/restore allows nesting up to 8 levels deep.
+
+---
+
+## Mon Mar 2 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*Documentation and Content*
+
+**Jekyll Wiki and MEX Tutorials**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Maximus Wiki
+- Launched a 115-page Jekyll wiki (`docs/wiki/`) covering every aspect of the BBS.
+- Includes a 10-lesson MEX scripting tutorial with active sample scripts.
+- Full token catalog for MECCA display codes.
+
+### Improved: MEX Compiler
+- Richer error messages with source context and caret pointing to error columns.
+- New error codes for unterminated strings and invalid escape sequences.
+
+---
+
+## Thu Feb 26 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*Modern Messaging and Theming*
+
+**Email System, NG Message Reader, and Semantic Colors**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Dedicated Email System
+- Private singleton EMAIL area with `msg_checkemail`, `msg_email_compose`, and `msg_email_inbox` commands.
+- Separate from the normal message area hierarchy.
+
+### New: NG Message Reader
+- Modernized message browsing with paged lightbar indices.
+- Fast background indexing via `sq_scan.c` (bulk .SQI/.SQD header scanning).
+- Full-screen reader loop with support for semantic theme colors.
+
+### New: Semantic Theme Colors
+- Lowercase pipe codes (`|tx`, `|hi`, `|ac`, etc.) resolved at the output layer.
+- Allows sysops to change the "look and feel" of the BBS by editing theme slots in `colors.toml`.
+
+---
+
+## Sun Feb 22 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+
+*Connectivity and Interoperability*
+
+**JSON, Sockets, and OpenSSL for MEX**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: MEX Networking Intrinsics
+- **JSON:** Full DOM manipulation (parse, create, print) via cJSON.
+- **Sockets:** `sock_open`, `sock_send`, `sock_recv` for raw networking.
+- **HTTPS:** `http_request` with redirect following and TLS support via OpenSSL.
+- Removed vendored mbedTLS in favor of system OpenSSL.
+
+### New: Weather MEX Script
+- AccuWeather API client with 39 custom ANSI weather icons.
 
 ---
 

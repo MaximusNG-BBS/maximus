@@ -162,7 +162,8 @@ config_install:
 	@export PREFIX
 	@scripts/copy_install_tree.sh "$(PREFIX)"
 	@if [ -f ${PREFIX}/config/maximus.toml ]; then \
-		LC_ALL=C sed -i "s|/var/max|${PREFIX}|g" ${PREFIX}/config/maximus.toml; \
+		LC_ALL=C sed "s|/var/max|${PREFIX}|g" ${PREFIX}/config/maximus.toml > ${PREFIX}/config/maximus.toml.tmp && \
+		mv -f ${PREFIX}/config/maximus.toml.tmp ${PREFIX}/config/maximus.toml; \
 	fi
 	
 	@$(MAKE) reconfig

@@ -70,6 +70,6 @@ else
   cp build/runbbs.sh "${PREFIX}/runbbs.sh" 2>/dev/null || true
 fi
 
-cp docs/max_mast.txt "${PREFIX}/docs"
+cp docs/max_mast.txt "${PREFIX}/docs" 2>/dev/null || true
 
 exit 0
