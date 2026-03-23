@@ -827,41 +827,15 @@ bool ctl_to_ng_populate_display_files(const char *maxctl_path, MaxCfgNgGeneralDi
     if (ctl_to_ng_parse_keyword(maxctl_path, "Uses XferBaud", buf, sizeof(buf))) {
         files->xfer_baud = dup_str_or_null(buf);
     }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Uses FileAreas", buf, sizeof(buf))) {
-        files->file_area_list = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format FileHeader", buf, sizeof(buf))) {
-        files->file_header = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format FileFormat", buf, sizeof(buf))) {
-        files->file_format = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format FileFooter", buf, sizeof(buf))) {
-        files->file_footer = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Uses MsgAreas", buf, sizeof(buf))) {
-        files->msg_area_list = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format MsgHeader", buf, sizeof(buf))) {
-        files->msg_header = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format MsgFormat", buf, sizeof(buf))) {
-        files->msg_format = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format MsgFooter", buf, sizeof(buf))) {
-        files->msg_footer = dup_str_or_null(buf);
-    }
+    /* file_area_list, file_header, file_format, file_footer,
+     * msg_area_list, msg_header, msg_format, msg_footer,
+     * time_format, date_format — now live in display.toml,
+     * not display_files.toml.  Legacy CTL import skips them. */
     if (ctl_to_ng_parse_keyword(maxctl_path, "Uses ProtocolDump", buf, sizeof(buf))) {
         files->protocol_dump = dup_str_or_null(buf);
     }
     if (ctl_to_ng_parse_keyword(maxctl_path, "Uses Filename_Format", buf, sizeof(buf))) {
         files->fname_format = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format Time", buf, sizeof(buf))) {
-        files->time_format = dup_str_or_null(buf);
-    }
-    if (ctl_to_ng_parse_keyword(maxctl_path, "Format Date", buf, sizeof(buf))) {
-        files->date_format = dup_str_or_null(buf);
     }
     if (ctl_to_ng_parse_keyword(maxctl_path, "Uses Tunes", buf, sizeof(buf))) {
         files->tune = dup_str_or_null(buf);

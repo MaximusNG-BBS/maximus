@@ -72,8 +72,8 @@ void Add_To_Upload_Log(char *path,char *fname,long bytes)
       cant_open(p1);
     else
     {
-      Timestamp_Format((char *)ngcfg_get_string_raw("general.display_files.date_format"), &stamp, p1);
-      Timestamp_Format((char *)ngcfg_get_string_raw("general.display_files.time_format"), &stamp, p2);
+      Timestamp_Format((char *)ngcfg_get_string_raw("general.display.general.date_format"), &stamp, p1);
+      Timestamp_Format((char *)ngcfg_get_string_raw("general.display.general.time_format"), &stamp, p2);
 
 
       { char _ib[32], _buf[512];

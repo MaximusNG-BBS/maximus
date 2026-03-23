@@ -555,8 +555,8 @@ static int near Open_Chatlog(void)
   Get_Dos_Date(&stamp);
 
   {
-    const char *dateformat = ngcfg_get_string_raw("general.display_files.date_format");
-    const char *timeformat = ngcfg_get_string_raw("general.display_files.time_format");
+    const char *dateformat = ngcfg_get_string_raw("general.display.general.date_format");
+    const char *timeformat = ngcfg_get_string_raw("general.display.general.time_format");
     strcpy(p1, Timestamp_Format((char *)dateformat, &stamp, temp));
     strcpy(p2, Timestamp_Format((char *)timeformat, &stamp, temp));
   }
@@ -578,8 +578,8 @@ void Close_Chatlog(void)
   Get_Dos_Date(&stamp);
 
   {
-    const char *dateformat = ngcfg_get_string_raw("general.display_files.date_format");
-    const char *timeformat = ngcfg_get_string_raw("general.display_files.time_format");
+    const char *dateformat = ngcfg_get_string_raw("general.display.general.date_format");
+    const char *timeformat = ngcfg_get_string_raw("general.display.general.time_format");
     strcpy(p1, Timestamp_Format((char *)dateformat, &stamp, temp));
     strcpy(p2, Timestamp_Format((char *)timeformat, &stamp, temp));
   }

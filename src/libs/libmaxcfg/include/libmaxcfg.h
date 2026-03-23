@@ -364,18 +364,8 @@ typedef struct {
     char *header_help;
     char *entry_help;
     char *xfer_baud;
-    char *file_area_list;
-    char *file_header;
-    char *file_format;
-    char *file_footer;
-    char *msg_area_list;
-    char *msg_header;
-    char *msg_format;
-    char *msg_footer;
     char *protocol_dump;
     char *fname_format;
-    char *time_format;
-    char *date_format;
     char *tune;
 } MaxCfgNgGeneralDisplayFiles;
 

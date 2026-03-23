@@ -2,24 +2,24 @@
 # Runtime path prefix: general.display
 
 [general]
-lightbar_prompts = false
+lightbar_prompts = true
 time_format = "%H:%M:%S"
 date_format = "%C-%D-%Y"
 lightbar_prompts_padding = 1       # Padding spaces on EITHER side of each option (int, default 1)
-lightbar_prompts_verbose = false   # When true, " or " between last two options
+lightbar_prompts_verbose = true   # When true, " or " between last two options
 lightbar_prompts_brackets = ""     # "" = none, "square" = [X], "rounded" = (X)
 
 # Login name + password entry
-bounded_input_login = false
+bounded_input_login = true
 # New user registration flow
-bounded_input_newuser = false
+bounded_input_newuser = true
 # MECCA questionnaire token fields
-bounded_input_quest = false
+bounded_input_quest = true
 # MEX ui_prompt_field / ui_edit_field intrinsics
-bounded_input_mex = false
+bounded_input_mex = true
 
 [file_areas]
-lightbar_area = false
+lightbar_area = true
 reduce_area = 5
 
 # Selection highlight behavior: row, full, or name
@@ -49,7 +49,7 @@ file_format_div = "|tx |hi%-20a |tx... %-n%x0a"
 file_footer = "%x0a|prLocation: |hi%b|07%x0a"
 
 [msg_areas]
-lightbar_area = false
+lightbar_area = true
 reduce_area = 5
 
 # Selection highlight behavior: row, full, or name
@@ -71,7 +71,7 @@ msg_format_div = "|pr |hi%-20a|tx ... |fi%n%x0a"
 msg_footer = "%x0a|prLocation: |hi%b|07%x0a"
 
 [msg_reader]
-lightbar_area = false
+lightbar_area = true
 reduce_area = 5
 
 # Selection highlight behavior: row, full, or number

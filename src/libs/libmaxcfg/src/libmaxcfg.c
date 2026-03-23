@@ -4600,18 +4600,8 @@ void maxcfg_ng_general_display_files_free(MaxCfgNgGeneralDisplayFiles *files)
     maxcfg_free_and_null(&files->header_help);
     maxcfg_free_and_null(&files->entry_help);
     maxcfg_free_and_null(&files->xfer_baud);
-    maxcfg_free_and_null(&files->file_area_list);
-    maxcfg_free_and_null(&files->file_header);
-    maxcfg_free_and_null(&files->file_format);
-    maxcfg_free_and_null(&files->file_footer);
-    maxcfg_free_and_null(&files->msg_area_list);
-    maxcfg_free_and_null(&files->msg_header);
-    maxcfg_free_and_null(&files->msg_format);
-    maxcfg_free_and_null(&files->msg_footer);
     maxcfg_free_and_null(&files->protocol_dump);
     maxcfg_free_and_null(&files->fname_format);
-    maxcfg_free_and_null(&files->time_format);
-    maxcfg_free_and_null(&files->date_format);
     maxcfg_free_and_null(&files->tune);
     memset(files, 0, sizeof(*files));
 }
@@ -6201,18 +6191,8 @@ MaxCfgStatus maxcfg_ng_write_general_display_files_toml(FILE *fp, const MaxCfgNg
     toml_kv_string(fp, "header_help", files->header_help);
     toml_kv_string(fp, "entry_help", files->entry_help);
     toml_kv_string(fp, "xfer_baud", files->xfer_baud);
-    toml_kv_string(fp, "file_area_list", files->file_area_list);
-    toml_kv_string(fp, "file_header", files->file_header);
-    toml_kv_string(fp, "file_format", files->file_format);
-    toml_kv_string(fp, "file_footer", files->file_footer);
-    toml_kv_string(fp, "msg_area_list", files->msg_area_list);
-    toml_kv_string(fp, "msg_header", files->msg_header);
-    toml_kv_string(fp, "msg_format", files->msg_format);
-    toml_kv_string(fp, "msg_footer", files->msg_footer);
     toml_kv_string(fp, "protocol_dump", files->protocol_dump);
     toml_kv_string(fp, "fname_format", files->fname_format);
-    toml_kv_string(fp, "time_format", files->time_format);
-    toml_kv_string(fp, "date_format", files->date_format);
     toml_kv_string(fp, "tune", files->tune);
     return MAXCFG_OK;
 }

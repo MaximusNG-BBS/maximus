@@ -836,7 +836,7 @@ static int lb_collect_file_areas(char *div_name, lb_farea_entry_t *entries, int 
       e->is_div = !!(fa.fa.attribs & FA_DIVBEGIN);
 
       ParseCustomFileAreaList(&fa, div_name,
-        (char *)ngcfg_get_string_raw("general.display_files.file_format"),
+        (char *)ngcfg_get_string_raw("general.display.file_areas.file_format"),
         raw, FALSE);
 
       /* Strip trailing newline/CR for lightbar row display */
@@ -1005,7 +1005,7 @@ static int lb_file_area_interact(char *div_name, char *selected_out)
     if (!did_show_custom_screen)
     {
       ParseCustomFileAreaList(NULL, cdiv,
-        (char *)ngcfg_get_string_raw("general.display_files.file_header"),
+        (char *)ngcfg_get_string_raw("general.display.file_areas.file_header"),
         headfoot, TRUE);
 
       if (show_header)
@@ -1031,7 +1031,7 @@ static int lb_file_area_interact(char *div_name, char *selected_out)
         ui_goto(ly + lh, 1);
 
       ParseCustomFileAreaList(NULL, cdiv,
-        (char *)ngcfg_get_string_raw("general.display_files.file_footer"),
+        (char *)ngcfg_get_string_raw("general.display.file_areas.file_footer"),
         headfoot, FALSE);
 
       if (show_footer)
@@ -1174,7 +1174,7 @@ int ListFileAreas(char *div_name, int show_help, char *selected_out)
   memset(&fa, 0, sizeof fa);
 
   {
-    const char *file_area_list = ngcfg_get_path("general.display_files.file_area_list");
+    const char *file_area_list = ngcfg_get_path("general.display.file_areas.file_area_list");
 
     if (debuglog)
       debug_log("ListFileAreas: file_area_list='%s' (ptr=%p, empty=%d)",
@@ -1214,7 +1214,7 @@ int ListFileAreas(char *div_name, int show_help, char *selected_out)
     display_line=display_col=1;
 
 
-    ParseCustomFileAreaList(NULL, div_name, (char *)ngcfg_get_string_raw("general.display_files.file_header"), headfoot, TRUE);
+    ParseCustomFileAreaList(NULL, div_name, (char *)ngcfg_get_string_raw("general.display.file_areas.file_header"), headfoot, TRUE);
     Puts(headfoot);
 
     if ((haff=AreaFileFindOpen(haf, div_name, AFFO_DIV))==NULL)
@@ -1294,12 +1294,12 @@ int ListFileAreas(char *div_name, int show_help, char *selected_out)
             const char *fmt;
             if (fa.fa.attribs & FA_DIVBEGIN)
             {
-              fmt = ngcfg_get_string_raw("general.display_files.file_format_div");
+              fmt = ngcfg_get_string_raw("general.display.file_areas.file_format_div");
               if (!fmt || !*fmt)
-                fmt = ngcfg_get_string_raw("general.display_files.file_format");
+                fmt = ngcfg_get_string_raw("general.display.file_areas.file_format");
             }
             else
-              fmt = ngcfg_get_string_raw("general.display_files.file_format");
+              fmt = ngcfg_get_string_raw("general.display.file_areas.file_format");
 
             ParseCustomFileAreaList(&fa, div_name, (char *)fmt, headfoot, FALSE);
           }
@@ -1318,7 +1318,7 @@ int ListFileAreas(char *div_name, int show_help, char *selected_out)
     }
 
 
-    ParseCustomFileAreaList(NULL, div_name, (char *)ngcfg_get_string_raw("general.display_files.file_footer"), headfoot, FALSE);
+    ParseCustomFileAreaList(NULL, div_name, (char *)ngcfg_get_string_raw("general.display.file_areas.file_footer"), headfoot, FALSE);
     Puts(headfoot);
 
     Putc('\n');

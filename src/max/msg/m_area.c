@@ -800,7 +800,7 @@ static int lb_collect_msg_areas(char *div_name, int do_tag,
       e->tag_ch = ch;
 
       ParseCustomMsgAreaList(&ma, div_name,
-        (char *)ngcfg_get_string_raw("general.display_files.msg_format"),
+        (char *)ngcfg_get_string_raw("general.display.msg_areas.msg_format"),
         raw, FALSE, ch);
 
       /* Strip trailing newline/CR for lightbar row display */
@@ -966,7 +966,7 @@ static int lb_msg_area_interact(char *div_name, int do_tag, char *selected_out)
     if (!did_show_custom_screen)
     {
       ParseCustomMsgAreaList(NULL, cdiv,
-        (char *)ngcfg_get_string_raw("general.display_files.msg_header"),
+        (char *)ngcfg_get_string_raw("general.display.msg_areas.msg_header"),
         headfoot, TRUE, '*');
 
       if (show_header)
@@ -992,7 +992,7 @@ static int lb_msg_area_interact(char *div_name, int do_tag, char *selected_out)
         ui_goto(ly + lh, 1);
 
       ParseCustomMsgAreaList(NULL, cdiv,
-        (char *)ngcfg_get_string_raw("general.display_files.msg_footer"),
+        (char *)ngcfg_get_string_raw("general.display.msg_areas.msg_footer"),
         headfoot, FALSE, '*');
 
       if (show_footer)
@@ -1139,7 +1139,7 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
 
   memset(&ma, 0, sizeof ma);
 
-  msg_area_list = ngcfg_get_path("general.display_files.msg_area_list");
+  msg_area_list = ngcfg_get_path("general.display.msg_areas.msg_area_list");
 
   if (msg_area_list && *msg_area_list && !do_tag)
   {
@@ -1179,7 +1179,7 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
     display_line=display_col=1;
 
     ParseCustomMsgAreaList(NULL, div_name,
-                           (char *)ngcfg_get_string_raw("general.display_files.msg_header"),
+                           (char *)ngcfg_get_string_raw("general.display.msg_areas.msg_header"),
                            headfoot, TRUE, '*');
     Puts(headfoot);
 
@@ -1275,12 +1275,12 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
             const char *fmt;
             if (ma.ma.attribs & MA_DIVBEGIN)
             {
-              fmt = ngcfg_get_string_raw("general.display_files.msg_format_div");
+              fmt = ngcfg_get_string_raw("general.display.msg_areas.msg_format_div");
               if (!fmt || !*fmt)
-                fmt = ngcfg_get_string_raw("general.display_files.msg_format");
+                fmt = ngcfg_get_string_raw("general.display.msg_areas.msg_format");
             }
             else
-              fmt = ngcfg_get_string_raw("general.display_files.msg_format");
+              fmt = ngcfg_get_string_raw("general.display.msg_areas.msg_format");
 
             ParseCustomMsgAreaList(&ma, div_name, (char *)fmt, headfoot, FALSE, ch);
           }
@@ -1305,7 +1305,7 @@ int ListMsgAreas(char *div_name, int do_tag, int show_help, char *selected_out)
     }
 
     ParseCustomMsgAreaList(NULL, div_name,
-                           (char *)ngcfg_get_string_raw("general.display_files.msg_footer"),
+                           (char *)ngcfg_get_string_raw("general.display.msg_areas.msg_footer"),
                            headfoot, FALSE, '*');
     Puts(headfoot);
 

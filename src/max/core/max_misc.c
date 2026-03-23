@@ -1208,9 +1208,9 @@ char * MsgDte(union stamp_combo *st,char *datebuf)
   strcpy(datebuf, "");
 #else
   char temp[BUFLEN+1];
-  strcpy(datebuf, Timestamp_Format((char *)ngcfg_get_string_raw("general.display_files.date_format"), st, temp));
+  strcpy(datebuf, Timestamp_Format((char *)ngcfg_get_string_raw("general.display.general.date_format"), st, temp));
   strcat(datebuf, " ");
-  strcat(datebuf, Timestamp_Format((char *)ngcfg_get_string_raw("general.display_files.time_format"), st, temp));
+  strcat(datebuf, Timestamp_Format((char *)ngcfg_get_string_raw("general.display.general.time_format"), st, temp));
 #endif
 
   return datebuf;

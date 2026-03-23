@@ -1414,8 +1414,6 @@ static void action_display_files(void)
         "general.display_files.header_help",
         "general.display_files.entry_help",
         "general.display_files.xfer_baud",
-        "general.display_files.file_area_list",
-        "general.display_files.msg_area_list",
         "general.display_files.protocol_dump",
         "general.display_files.fname_format",
         "general.display_files.tune",

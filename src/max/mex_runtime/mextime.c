@@ -129,9 +129,9 @@
 
     MexStampToStamp(pms, &sc);
 
-    Timestamp_Format((char *)ngcfg_get_string_raw("general.display_files.date_format"), &sc, szDate);
+    Timestamp_Format((char *)ngcfg_get_string_raw("general.display.general.date_format"), &sc, szDate);
     strcat(szDate, " ");
-    Timestamp_Format((char *)ngcfg_get_string_raw("general.display_files.time_format"), &sc, szDate+strlen(szDate));
+    Timestamp_Format((char *)ngcfg_get_string_raw("general.display.general.time_format"), &sc, szDate+strlen(szDate));
 
     MexReturnString(szDate);
 

@@ -480,13 +480,13 @@ void Statistics(void)
   union stamp_combo stamp;
 
   {
-    const char *dateformat = ngcfg_get_string_raw("general.display_files.date_format");
+    const char *dateformat = ngcfg_get_string_raw("general.display.general.date_format");
     Timestamp_Format((char *)dateformat, Get_Dos_Date(&stamp), temp);
   }
   Printf(ustat1,temp);
 
   {
-    const char *timeformat = ngcfg_get_string_raw("general.display_files.time_format");
+    const char *timeformat = ngcfg_get_string_raw("general.display.general.time_format");
     Timestamp_Format((char *)timeformat, &stamp, temp);
   }
   Puts(temp);
