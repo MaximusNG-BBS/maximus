@@ -82,10 +82,31 @@ else
 fi
 echo ""
 
+# ── Files that must never overwrite the resources root copy ─────────────────
+# english.toml is the post-conversion output; it is generated from the .mad
+# conversion + delta_english.toml overlay, so backpropagating it would lose
+# the mechanical base.  Add other filenames here as needed.
+NEVER_REVERSE_TO_RESOURCES=(
+    "lang/english.toml"
+)
+
+# ── Deploy-path fixup ────────────────────────────────────────────────────────
+# maximus.toml in resources/install_tree must keep sys_path = "/var/max"
+# regardless of what the build copy says.  After copying, sed-replace it.
+DEPLOY_SYS_PATH="/var/max"
+
+fixup_sys_path() {
+    local file="$1"
+    if [ -f "$file" ]; then
+        sed -i 's|^sys_path = .*|sys_path = "'"$DEPLOY_SYS_PATH"'"|' "$file"
+    fi
+}
+
 # ── Sync TOML files ──────────────────────────────────────────────────────────
 synced=0
 created=0
 unchanged=0
+skipped=0
 diffcount=0
 
 sync_file() {
@@ -133,9 +154,30 @@ while IFS= read -r -d '' src_file; do
         [ -d "$dst_dir" ] || mkdir -p "$dst_dir"
     done
 
+    # In reverse mode, skip files that must not overwrite resources root
+    skip_dst1=false
+    if [ "$MODE" = "reverse" ]; then
+        for skip in "${NEVER_REVERSE_TO_RESOURCES[@]}"; do
+            if [ "$rel" = "$skip" ]; then
+                skip_dst1=true
+                log_skip "$rel (never reverse to resources root)"
+                skipped=$((skipped + 1))
+                break
+            fi
+        done
+    fi
+
     # Sync to both destinations
-    sync_file "$src_file" "$dst1_file" "$rel → build"
+    if [ "$skip_dst1" = false ]; then
+        sync_file "$src_file" "$dst1_file" "$rel → build"
+    fi
     sync_file "$src_file" "$dst2_file" "$rel → install_tree"
+
+    # Fix sys_path in maximus.toml when written to resources or install_tree
+    if [ "$(basename "$rel")" = "maximus.toml" ]; then
+        [ "$skip_dst1" = false ] && [ "$DST1_CONFIG" != "$BUILD_CONFIG" ] && fixup_sys_path "$dst1_file"
+        [ "$DST2_CONFIG" != "$BUILD_CONFIG" ] && fixup_sys_path "$dst2_file"
+    fi
 done < <(find "$SRC_CONFIG" -type f -name '*.toml' -print0 | sort -z)
 
 # ── Sync install.sh (only in reverse mode) ──────────────────────────────────
@@ -175,5 +217,5 @@ if [ "$MODE" = "diff" ]; then
         echo -e "${YELLOW}$diffcount file(s) differ.${NC}"
     fi
 else
-    echo -e "${WHITE}Done:${NC} $synced updated, $created new, $unchanged unchanged"
+    echo -e "${WHITE}Done:${NC} $synced updated, $created new, $skipped skipped, $unchanged unchanged"
 fi
