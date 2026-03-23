@@ -90,3 +90,6 @@ __pycache__/
 .windsurf/
 .roo/
 .kilocode/
+
+# Local agent steering
+AGENTS.md
