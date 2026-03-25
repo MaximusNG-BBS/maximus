@@ -561,6 +561,16 @@ int get_static_string(string: key, ref string: data);
 int set_static_string(string: key, string: data);
 int destroy_static_string(string: key);
 
+// User identity helpers
+
+string user_display_name()
+{
+  if (id.alias_system and usr.alias[1] <> '\0')
+    return usr.alias;
+
+  return usr.name;
+}
+
 // Miscellaneous functions:
 
 int vidsync();
@@ -599,6 +609,7 @@ string compressor_num_to_name(char: cnum);
 string language_num_to_name(char: lnum);
 int chat_querystatus(ref struct _cstat: cstat);
 string prm_string(int: stringnum);
+int cfg_bool(string: toml_path);
 
 // Functions for activating menu commands and displaying MECCA files.
 
@@ -754,4 +765,3 @@ int mdm_command(string: cmdstring);
 void mdm_flow(int: state);
 int carrier();
 long xfertime(int: protocol, long: bytes);
-

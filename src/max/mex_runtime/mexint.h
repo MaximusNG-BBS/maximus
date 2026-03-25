@@ -88,6 +88,7 @@
   word EXPENTRY intrin_LanguageNumberToName(void);
   word EXPENTRY intrin_ChatQueryStatus(void);
   word EXPENTRY intrin_prm_string(void);
+  word EXPENTRY intrin_cfg_bool(void);
   word EXPENTRY intrin_log(void);
   word EXPENTRY intrin_stamp_string(void);
   word EXPENTRY intrin_menu_cmd(void);
@@ -278,6 +279,9 @@
   void MexSockCleanup(void);
   void MexSockInit(void);
 
+  /* PRM compatibility resolver — mexprm.c */
+  const char *mex_prm_resolve(int stringnum);
+
   void _MexKillStructString(void *pstr, int increment);
   void MexReturnStringBytes(char *s, int len);
   void MexReturnString(char *s);
@@ -300,4 +304,3 @@
   extern struct _mex_instance_stack *pmisThis;
 
 #endif /* __MEXINT_H_DEFINED */
-

@@ -29,9 +29,14 @@
 #
 #
 
-SQUISH_LIB_DIRS = src/libs/btree src/libs/unix src/libs/slib src/libs/msgapi src/utils/squish
-SQAFIX_LIB_DIRS = src/libs/msgapi src/utils/sqafix
-MAX_LIB_DIRS    = src/libs/unix src/libs/slib src/libs/msgapi src/libs/mexvm src/libs/prot src/libs/legacy/comdll src/libs/libmaxcfg src/libs/sqlite src/libs/libmaxdb
+#
+# Shared-library build order matters on Darwin. Build foundational libs first:
+# unix -> sqlite/libmaxdb -> slib(libmax) -> dependent shared libs.
+#
+CORE_LIB_DIRS   = src/libs/unix src/libs/sqlite src/libs/libmaxdb src/libs/slib
+SQUISH_LIB_DIRS = $(CORE_LIB_DIRS) src/libs/btree src/libs/msgapi src/utils/squish
+SQAFIX_LIB_DIRS = $(CORE_LIB_DIRS) src/libs/msgapi src/utils/sqafix
+MAX_LIB_DIRS    = $(CORE_LIB_DIRS) src/libs/btree src/libs/msgapi src/libs/mexvm src/libs/prot src/libs/legacy/comdll src/libs/libmaxcfg
 LIB_DIRS	= $(SQUISH_LIB_DIRS) $(SQAFIX_LIB_DIRS) $(MAX_LIB_DIRS)
 PROG_DIRS	= src/utils/squish src/max src/apps/mex src/utils/util src/apps/maxcfg
 MAXTEL_DIR	= src/apps/maxtel

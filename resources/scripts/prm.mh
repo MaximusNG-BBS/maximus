@@ -153,4 +153,14 @@
 #define PRM_MAREANAME   138      // Message area data file name
 #define PRM_FAREANAME   139      // File area data file name
 #define PRM_CALLERS     140      // Callers log
+#define PRM_MEXDATAPATH 141      // Derived MEX app data path
 
+//////////////////////////////////////////////////////////////////////////////
+//
+// Next-gen aliases — preferred names for new MEX scripts.
+// These resolve to the same numeric IDs as their legacy counterparts.
+//
+//////////////////////////////////////////////////////////////////////////////
+
+#define PRM_DISPLAYPATH   PRM_MISCPATH   // Display/misc files path (NG name)
+#define PRM_NODEPATH      PRM_IPCPATH    // Node/IPC path (NG name)

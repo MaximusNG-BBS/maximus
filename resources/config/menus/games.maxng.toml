@@ -1,0 +1,61 @@
+name = "Games and Utils"
+title = "G&U (%t mins)"
+header_file = ""
+header_types = ["Novice", "Regular", "Expert"]
+menu_file = "display/screens/menu_games.ans"
+menu_types = []
+menu_length = 0
+menu_color = -1
+option_width = 0
+
+[[option]]
+command = "MEX"
+arguments = "scripts/card"
+priv_level = "Demoted"
+description = "b mex blackjack"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "MEX"
+arguments = "scripts/weather"
+priv_level = "Demoted"
+description = "w weather forecast"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Goodbye"
+arguments = ""
+priv_level = "Demoted"
+description = "Goodbye"
+key_poke = ""
+modifiers = []
+
+[[option]]
+command = "Display_Menu"
+arguments = "MAIN"
+priv_level = "Demoted"
+description = "Back"
+key_poke = ""
+modifiers = []
+
+[custom_menu]
+skip_canned_menu = false
+show_title = true
+lightbar_menu = true
+lightbar_margin = 1
+top_boundary = [9, 4]
+bottom_boundary = [15, 76]
+title_location = [3, 70]
+prompt_location = [22, 3]
+option_spacing = false
+option_justify = "left"
+boundary_justify = "center center"
+boundary_layout = "spread"
+
+[custom_menu.lightbar_color]
+normal = ["White", "Cyan"]
+high = ["Yellow", "Cyan"]
+selected = ["White", "Magenta"]
+high_selected = ["Yellow", "Magenta"]

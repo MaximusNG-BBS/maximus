@@ -63,7 +63,7 @@ mb_read.obj     m_util.obj      m_attach.obj    l_attach.obj    \
 t_add.obj       t_disp.obj      t_kill.obj      max_clss.obj    \
 t_menu.obj      t_misc.obj      t_qwk.obj       t_report.obj    \
 static.obj      language.obj    theme.obj       api_brow.obj    mex.obj         \
-mexint.obj      debug.obj       debug_log.obj   events.obj      max_in.obj      \
+mexint.obj      mexprm.obj      debug.obj       debug_log.obj   events.obj      max_in.obj      \
 max_gets.obj    max_locl.obj    max_out.obj     max_outl.obj    \
 max_outr.obj    max_wfc.obj     max_fman.obj    max_init.obj    \
 max_mtsk.obj    max_inif.obj    max_args.obj    max_rest.obj    \
@@ -182,7 +182,7 @@ language.o: $(LANGSRC)
 # Any .o that includes libmaxcfg.h must rebuild when the header changes
 # (struct size changes, e.g. MCI_THEME_SLOT_COUNT, cause silent corruption otherwise)
 LIBMAXCFG_H := $(SRC)/src/libs/libmaxcfg/include/libmaxcfg.h
-language.o mci.o mexint.o f_xfer.o f_intrin.o ued_disp.o m_misc.o \
+language.o mci.o mexint.o mexprm.o f_xfer.o f_intrin.o ued_disp.o m_misc.o \
 max_cmod.o node.o max_init.o max_rmen.o max_fini.o theme.o: $(LIBMAXCFG_H)
 
 theme.o: core/theme.h

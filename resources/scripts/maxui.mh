@@ -64,10 +64,17 @@
 #define UI_BRACKET_ROUNDED   2
 #define UI_BRACKET_CURLY     3
 
+// ui_read_key() decoded values (matches MaxUI C key constants)
+#define UI_KEY_DELETE        0x0100
+#define UI_KEY_UP            0x0101
+#define UI_KEY_DOWN          0x0102
+#define UI_KEY_LEFT          0x0103
+#define UI_KEY_RIGHT         0x0104
+
 // UI function prototypes
 void ui_goto(int: row, int: col);
 int ui_make_attr(int: fg, int: bg);
-int mci2attr(string: mci_str);
+int ui_mci2attr(string: mci_str);
 void ui_set_attr(int: attr);
 void ui_fill_rect(int: row, int: col, int: width, int: height, char: ch, int: attr);
 void ui_write_padded(int: row, int: col, int: width, string: s, int: attr);

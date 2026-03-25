@@ -166,6 +166,7 @@ create_release_package() {
 
     # Copy SQLite userdb init resources (schema + wrapper)
     mkdir -p "$release_path/data/db"
+    mkdir -p "$release_path/data/mex"
     mkdir -p "$release_path/data/users"
     cp -f "${PROJECT_ROOT}/scripts/db/userdb_schema.sql" "$release_path/data/db/userdb_schema.sql" 2>/dev/null || true
     cp -f "${PROJECT_ROOT}/scripts/db/init-userdb.sh" "$release_path/bin/init-userdb.sh" 2>/dev/null || true

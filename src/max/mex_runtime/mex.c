@@ -166,6 +166,7 @@ static struct _usrfunc _intrinfunc[]=
   {"open",                    intrin_open,                    0},
   {"privok",                  intrin_privok,                  0},
   {"prm_string",              intrin_prm_string,              0},
+  {"cfg_bool",                intrin_cfg_bool,                0},
   {"protocol_num_to_name",    intrin_ProtocolNumberToName,    0},
   {"read",                    intrin_read,                    0},
   {"readln",                  intrin_readln,                  0},
@@ -1078,4 +1079,3 @@ void MexStampToStamp(struct mex_stamp *pms, SCOMBO *psc)
 
 
 #endif /* MEX */
-

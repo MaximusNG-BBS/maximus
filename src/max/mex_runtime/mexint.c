@@ -182,7 +182,10 @@ static const char *near ngcfg_lang_file_name(byte idx)
   }
 
 
-  /* Return a specific string from the .PRM file */
+  /* Return a specific string from the .PRM file.
+   * Resolution is handled by mex_prm_resolve() in mexprm.c,
+   * which maps legacy PRM_* IDs onto the NG TOML config layer.
+   */
 
   word EXPENTRY intrin_prm_string(void)
   {
@@ -192,11 +195,29 @@ static const char *near ngcfg_lang_file_name(byte idx)
     MexArgBegin(&ma);
     stringnum=MexArgGetWord(&ma);
 
-    (void)stringnum;
-    MexReturnString("");
+    MexReturnString((char *)mex_prm_resolve(stringnum));
 
     return MexArgEnd(&ma);
- }
+  }
+
+
+  /* Return a boolean from the NG/TOML config by dotted key path. */
+
+  word EXPENTRY intrin_cfg_bool(void)
+  {
+    MA ma;
+    char *toml_path;
+
+    MexArgBegin(&ma);
+    toml_path=MexArgGetString(&ma, FALSE);
+
+    regs_2[0] = (word)(toml_path && *toml_path ? ngcfg_get_bool(toml_path) : 0);
+
+    if (toml_path)
+      free(toml_path);
+
+    return MexArgEnd(&ma);
+  }
 
 
 
@@ -257,4 +278,3 @@ static const char *near ngcfg_lang_file_name(byte idx)
   }
 
 #endif /* MEX */
-
