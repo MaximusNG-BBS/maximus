@@ -20,6 +20,7 @@
 
 #define MAX_LANG_m_area
 #include "mexall.h"
+#include "dv.h"
 #include "mci.h"
 #include "ui_field.h"
 #include "ui_lightbar.h"
@@ -90,8 +91,60 @@ typedef struct mex_text_viewer_obj
   struct mex_text_viewer_obj *next;
 } mex_text_viewer_obj_t;
 
+typedef struct mex_overlay_obj
+{
+  char *key;
+  int row;
+  int col;
+  int width;
+  int height;
+  word *cells;
+  struct mex_overlay_obj *next;
+} mex_overlay_obj_t;
+
+typedef struct mex_region_obj
+{
+  char *key;
+  int width;
+  int height;
+  word *cells;
+  struct mex_region_obj *next;
+} mex_region_obj_t;
+
+typedef struct mex_screen_obj
+{
+  char *key;
+  int width;
+  int height;
+  int cursor_row;
+  int cursor_col;
+  byte attr;
+  word *cells;
+  struct mex_screen_obj *next;
+} mex_screen_obj_t;
+
 static mex_scroll_region_obj_t *near g_scroll_regions = NULL;
 static mex_text_viewer_obj_t *near g_text_viewers = NULL;
+static mex_overlay_obj_t *near g_overlays = NULL;
+static mex_region_obj_t *near g_regions = NULL;
+static mex_screen_obj_t *near g_screens = NULL;
+
+/**
+ * @brief Determine whether a UI/output intrinsic should flush immediately.
+ *
+ * MEX scripts default to instant video, but batched UI updates temporarily
+ * suppress per-call flushes so a composed region can appear in one pass.
+ *
+ * @return 1 if a flush should happen now, 0 otherwise.
+ */
+static int near mex_ui_should_flush(void)
+{
+  if (!pmisThis || !pmisThis->pmid)
+    return 0;
+
+  return (pmisThis->pmid->instant_video &&
+          pmisThis->pmid->ui_update_depth == 0);
+}
 
 /**
  * @brief Look up a scrolling region object by key name.
@@ -134,6 +187,309 @@ static mex_text_viewer_obj_t *near mex_find_text_viewer(const char *key)
 }
 
 /**
+ * @brief Look up a live-screen overlay snapshot by key name.
+ *
+ * @param key  Unique key string identifying the overlay.
+ * @return Pointer to the matching object, or NULL if not found.
+ */
+static mex_overlay_obj_t *near mex_find_overlay(const char *key)
+{
+  mex_overlay_obj_t *cur;
+
+  if (!key || !*key)
+    return NULL;
+
+  for (cur = g_overlays; cur; cur = cur->next)
+    if (cur->key && strcmp(cur->key, key) == 0)
+      return cur;
+
+  return NULL;
+}
+
+/**
+ * @brief Look up a region snapshot by key name.
+ */
+static mex_region_obj_t *near mex_find_region(const char *key)
+{
+  mex_region_obj_t *cur;
+
+  if (!key || !*key)
+    return NULL;
+
+  for (cur = g_regions; cur; cur = cur->next)
+    if (cur->key && strcmp(cur->key, key) == 0)
+      return cur;
+
+  return NULL;
+}
+
+/**
+ * @brief Look up a full-screen snapshot by key name.
+ */
+static mex_screen_obj_t *near mex_find_screen(const char *key)
+{
+  mex_screen_obj_t *cur;
+
+  if (!key || !*key)
+    return NULL;
+
+  for (cur = g_screens; cur; cur = cur->next)
+    if (cur->key && strcmp(cur->key, key) == 0)
+      return cur;
+
+  return NULL;
+}
+
+/**
+ * @brief Remove and free an overlay snapshot object.
+ *
+ * @param target  Overlay object to remove.
+ * @return 0 on success, -1 if target not found.
+ */
+static int near mex_overlay_remove(mex_overlay_obj_t *target)
+{
+  mex_overlay_obj_t *cur;
+  mex_overlay_obj_t *prev;
+
+  if (!target)
+    return -1;
+
+  prev = NULL;
+  for (cur = g_overlays; cur; prev = cur, cur = cur->next)
+    if (cur == target)
+      break;
+
+  if (!cur)
+    return -1;
+
+  if (prev)
+    prev->next = cur->next;
+  else
+    g_overlays = cur->next;
+
+  if (cur->cells)
+    free(cur->cells);
+  if (cur->key)
+    free(cur->key);
+  free(cur);
+  return 0;
+}
+
+/**
+ * @brief Remove and free a region snapshot object.
+ */
+static int near mex_region_remove(mex_region_obj_t *target)
+{
+  mex_region_obj_t *cur;
+  mex_region_obj_t *prev;
+
+  if (!target)
+    return -1;
+
+  prev = NULL;
+  for (cur = g_regions; cur; prev = cur, cur = cur->next)
+    if (cur == target)
+      break;
+
+  if (!cur)
+    return -1;
+
+  if (prev)
+    prev->next = cur->next;
+  else
+    g_regions = cur->next;
+
+  if (cur->cells)
+    free(cur->cells);
+  if (cur->key)
+    free(cur->key);
+  free(cur);
+  return 0;
+}
+
+/**
+ * @brief Remove and free a full-screen snapshot object.
+ */
+static int near mex_screen_remove(mex_screen_obj_t *target)
+{
+  mex_screen_obj_t *cur;
+  mex_screen_obj_t *prev;
+
+  if (!target)
+    return -1;
+
+  prev = NULL;
+  for (cur = g_screens; cur; prev = cur, cur = cur->next)
+    if (cur == target)
+      break;
+
+  if (!cur)
+    return -1;
+
+  if (prev)
+    prev->next = cur->next;
+  else
+    g_screens = cur->next;
+
+  if (cur->cells)
+    free(cur->cells);
+  if (cur->key)
+    free(cur->key);
+  free(cur);
+  return 0;
+}
+
+/**
+ * @brief Capture a live-screen rectangle into a heap block.
+ *
+ * Coordinates are 1-based and inclusive. Output width/height reflect clipping.
+ *
+ * @return 0 on success, -1 on error.
+ */
+static int near mex_capture_live_rect(int left, int top, int right, int bottom,
+                                      int *out_width, int *out_height, word **out_cells)
+{
+  int max_rows, max_cols;
+  int width, height;
+  int r, c;
+  size_t count;
+  word *cells;
+
+  if (!out_width || !out_height || !out_cells)
+    return -1;
+
+  max_rows = VidNumRows();
+  max_cols = VidNumCols();
+
+  if (left < 1)
+    left = 1;
+  if (top < 1)
+    top = 1;
+  if (right > max_cols)
+    right = max_cols;
+  if (bottom > max_rows)
+    bottom = max_rows;
+
+  if (left > right || top > bottom)
+    return -1;
+
+  width = right - left + 1;
+  height = bottom - top + 1;
+  count = (size_t)width * (size_t)height;
+
+  cells = (word *)malloc(count * sizeof(word));
+  if (!cells)
+    return -1;
+
+  for (r = 0; r < height; r++)
+    for (c = 0; c < width; c++)
+      cells[(r * width) + c] = (word)VidGetch(left + c - 1, top + r - 1);
+
+  *out_width = width;
+  *out_height = height;
+  *out_cells = cells;
+  return 0;
+}
+
+/**
+ * @brief Restore a heap block of live-screen cells at the given top-left.
+ */
+static void near mex_restore_live_rect(int left, int top, int width, int height, const word *cells)
+{
+  int max_rows, max_cols;
+  int r, c;
+
+  if (!cells || width < 1 || height < 1)
+    return;
+
+  max_rows = VidNumRows();
+  max_cols = VidNumCols();
+
+  for (r = 0; r < height; r++)
+  {
+    int dst_row = top + r;
+    if (dst_row < 1 || dst_row > max_rows)
+      continue;
+
+    for (c = 0; c < width; c++)
+    {
+      int dst_col = left + c;
+      word cell;
+
+      if (dst_col < 1 || dst_col > max_cols)
+        continue;
+
+      cell = cells[(r * width) + c];
+      VidPutch(dst_col - 1, dst_row - 1,
+               (byte)(cell & 0x00ff),
+               (byte)((cell >> 8) & 0x00ff));
+    }
+  }
+}
+
+/**
+ * @brief Draw a boxed frame directly to the live screen.
+ */
+static void near mex_draw_box(int row, int col, int width, int height, byte attr, const char *title)
+{
+  int i;
+
+  if (row < 1)
+    row = 1;
+  if (col < 1)
+    col = 1;
+
+  if (width < 2 || height < 2)
+    return;
+
+  ui_set_attr(attr);
+
+  /* Top edge: corner + horizontal + corner */
+
+  ui_goto(row, col);
+  Putc('\xda');
+  for (i = 1; i < width - 1; i++)
+    Putc('\xc4');
+  Putc('\xbf');
+
+  /* Side edges */
+
+  for (i = 1; i < height - 1; i++)
+  {
+    ui_goto(row + i, col);
+    Putc('\xb3');
+    ui_goto(row + i, col + width - 1);
+    Putc('\xb3');
+  }
+
+  /* Bottom edge: corner + horizontal + corner */
+
+  ui_goto(row + height - 1, col);
+  Putc('\xc0');
+  for (i = 1; i < width - 1; i++)
+    Putc('\xc4');
+  Putc('\xd9');
+
+  /* Optional title on top edge */
+
+  if (title && *title)
+  {
+    int title_len = (int)strlen(title);
+    int max_title = width - 4;
+
+    if (max_title > 0)
+    {
+      if (title_len > max_title)
+        title_len = max_title;
+
+      ui_goto(row, col + 1);
+      for (i = 0; i < title_len; i++)
+        Putc(title[i]);
+    }
+  }
+}
+
+/**
  * @brief MEX intrinsic: ui_goto(row, col) — Position cursor at row/col.
  *
  * @return MEX status.
@@ -149,7 +505,7 @@ word EXPENTRY intrin_ui_goto(void)
   
   ui_goto(row, col);
   
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
   
   return MexArgEnd(&ma);
@@ -162,6 +518,609 @@ word EXPENTRY intrin_ui_read_key(void)
 {
   regs_2[0] = (word)ui_read_key();
   return 0;
+}
+
+/**
+ * @brief ui_begin_update() - Suspend immediate per-call flushes for batched UI paint.
+ *
+ * @return MEX status.
+ */
+word EXPENTRY intrin_ui_begin_update(void)
+{
+  if (pmisThis && pmisThis->pmid && pmisThis->pmid->ui_update_depth < 0xffff)
+    pmisThis->pmid->ui_update_depth++;
+
+  return 0;
+}
+
+/**
+ * @brief ui_end_update() - End a batched UI paint and flush once if needed.
+ *
+ * @return MEX status.
+ */
+word EXPENTRY intrin_ui_end_update(void)
+{
+  if (pmisThis && pmisThis->pmid && pmisThis->pmid->ui_update_depth > 0)
+    pmisThis->pmid->ui_update_depth--;
+
+  if (mex_ui_should_flush())
+    vbuf_flush();
+
+  return 0;
+}
+
+/**
+ * @brief MEX intrinsic: ui_overlay_push(key, row, col, width, height) — Snapshot a live screen rectangle.
+ *
+ * Coordinates are 1-based. The captured area can later be restored exactly
+ * with ui_overlay_pop(key) or discarded with ui_overlay_drop(key).
+ *
+ * @return MEX status; 0 on success, -1 on failure.
+ */
+word EXPENTRY intrin_ui_overlay_push(void)
+{
+  MA ma;
+  char *key;
+  int row, col, width, height;
+  int max_rows, max_cols;
+  mex_overlay_obj_t *obj;
+  int clipped_w, clipped_h;
+  word *cells = NULL;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  row = (int)MexArgGetWord(&ma);
+  col = (int)MexArgGetWord(&ma);
+  width = (int)MexArgGetWord(&ma);
+  height = (int)MexArgGetWord(&ma);
+
+  regs_2[0] = (word)-1;
+
+  if (!key || !*key || width < 1 || height < 1)
+  {
+    if (key)
+      free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_find_overlay(key))
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  max_rows = VidNumRows();
+  max_cols = VidNumCols();
+
+  if (row < 1)
+    row = 1;
+  if (col < 1)
+    col = 1;
+  if (row > max_rows || col > max_cols)
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if ((row + height - 1) > max_rows)
+    height = max_rows - row + 1;
+  if ((col + width - 1) > max_cols)
+    width = max_cols - col + 1;
+
+  if (width < 1 || height < 1)
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  obj = (mex_overlay_obj_t *)calloc(1, sizeof(*obj));
+  if (!obj)
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_capture_live_rect(col, row, col + width - 1, row + height - 1,
+                            &clipped_w, &clipped_h, &cells) != 0)
+  {
+    free(obj);
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  obj->cells = cells;
+
+  obj->key = key;
+  obj->row = row;
+  obj->col = col;
+  obj->width = clipped_w;
+  obj->height = clipped_h;
+
+  obj->next = g_overlays;
+  g_overlays = obj;
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief MEX intrinsic: ui_overlay_pop(key) — Restore and free a live screen snapshot.
+ *
+ * @return MEX status; 0 on success, -1 if not found.
+ */
+word EXPENTRY intrin_ui_overlay_pop(void)
+{
+  MA ma;
+  char *key;
+  mex_overlay_obj_t *obj;
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+
+  regs_2[0] = (word)-1;
+
+  obj = mex_find_overlay(key);
+  if (key)
+    free(key);
+
+  if (!obj || !obj->cells)
+    return MexArgEnd(&ma);
+
+  mex_restore_live_rect(obj->col, obj->row, obj->width, obj->height, obj->cells);
+
+  mex_overlay_remove(obj);
+  if (mex_ui_should_flush())
+    vbuf_flush();
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief MEX intrinsic: ui_overlay_drop(key) — Free a live screen snapshot without restoring it.
+ *
+ * @return MEX status; 0 on success, -1 if not found.
+ */
+word EXPENTRY intrin_ui_overlay_drop(void)
+{
+  MA ma;
+  char *key;
+  mex_overlay_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+
+  regs_2[0] = (word)-1;
+  obj = mex_find_overlay(key);
+  if (key)
+    free(key);
+
+  if (!obj)
+    return MexArgEnd(&ma);
+
+  mex_overlay_remove(obj);
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_region_get(key, left, top, right, bottom) - Capture a named live-screen block.
+ *
+ * Coordinates are 1-based and inclusive.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 error).
+ */
+word EXPENTRY intrin_ui_region_get(void)
+{
+  MA ma;
+  char *key;
+  int left, top, right, bottom;
+  int width, height;
+  word *cells = NULL;
+  mex_region_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  left = (int)MexArgGetWord(&ma);
+  top = (int)MexArgGetWord(&ma);
+  right = (int)MexArgGetWord(&ma);
+  bottom = (int)MexArgGetWord(&ma);
+
+  regs_2[0] = (word)-1;
+
+  if (!key || !*key)
+  {
+    if (key)
+      free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_find_region(key))
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_capture_live_rect(left, top, right, bottom, &width, &height, &cells) != 0)
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  obj = (mex_region_obj_t *)calloc(1, sizeof(*obj));
+  if (!obj)
+  {
+    free(cells);
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  obj->key = key;
+  obj->width = width;
+  obj->height = height;
+  obj->cells = cells;
+  obj->next = g_regions;
+  g_regions = obj;
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_region_put(key, left, top) - Restore a named block at a destination.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 not found).
+ */
+word EXPENTRY intrin_ui_region_put(void)
+{
+  MA ma;
+  char *key;
+  int left, top;
+  mex_region_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  left = (int)MexArgGetWord(&ma);
+  top = (int)MexArgGetWord(&ma);
+
+  regs_2[0] = (word)-1;
+
+  obj = mex_find_region(key);
+  if (key)
+    free(key);
+
+  if (!obj || !obj->cells)
+    return MexArgEnd(&ma);
+
+  mex_restore_live_rect(left, top, obj->width, obj->height, obj->cells);
+
+  if (mex_ui_should_flush())
+    vbuf_flush();
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_region_drop(key) - Free a named block without restoring it.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 not found).
+ */
+word EXPENTRY intrin_ui_region_drop(void)
+{
+  MA ma;
+  char *key;
+  mex_region_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+
+  regs_2[0] = (word)-1;
+  obj = mex_find_region(key);
+  if (key)
+    free(key);
+
+  if (!obj)
+    return MexArgEnd(&ma);
+
+  mex_region_remove(obj);
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_region_width(key) - Return a named block's width.
+ */
+word EXPENTRY intrin_ui_region_width(void)
+{
+  MA ma;
+  char *key;
+  mex_region_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  regs_2[0] = 0;
+
+  obj = mex_find_region(key);
+  if (key)
+    free(key);
+
+  if (obj)
+    regs_2[0] = (word)obj->width;
+
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_region_height(key) - Return a named block's height.
+ */
+word EXPENTRY intrin_ui_region_height(void)
+{
+  MA ma;
+  char *key;
+  mex_region_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  regs_2[0] = 0;
+
+  obj = mex_find_region(key);
+  if (key)
+    free(key);
+
+  if (obj)
+    regs_2[0] = (word)obj->height;
+
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_paint_region(left, top, right, bottom) - Finalize a bounded paint update.
+ *
+ * Current backend paints directly to the live video buffer, so this helper is
+ * primarily a semantic boundary and flush point.
+ *
+ * @return MEX status.
+ */
+word EXPENTRY intrin_ui_paint_region(void)
+{
+  MA ma;
+
+  MexArgBegin(&ma);
+  (void)MexArgGetWord(&ma);
+  (void)MexArgGetWord(&ma);
+  (void)MexArgGetWord(&ma);
+  (void)MexArgGetWord(&ma);
+
+  if (mex_ui_should_flush())
+    vbuf_flush();
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_save_screen(key) - Save the full visible screen plus cursor/attr state.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 error).
+ */
+word EXPENTRY intrin_ui_save_screen(void)
+{
+  MA ma;
+  char *key;
+  mex_screen_obj_t *obj;
+  int width, height;
+  word *cells = NULL;
+  int col, row;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  regs_2[0] = (word)-1;
+
+  if (!key || !*key)
+  {
+    if (key)
+      free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_find_screen(key))
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_capture_live_rect(1, 1, VidNumCols(), VidNumRows(), &width, &height, &cells) != 0)
+  {
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  obj = (mex_screen_obj_t *)calloc(1, sizeof(*obj));
+  if (!obj)
+  {
+    free(cells);
+    free(key);
+    return MexArgEnd(&ma);
+  }
+
+  VidGetXY(&col, &row);
+
+  obj->key = key;
+  obj->width = width;
+  obj->height = height;
+  obj->cursor_row = row;
+  obj->cursor_col = col;
+  obj->attr = (byte)VidGetAttr();
+  obj->cells = cells;
+  obj->next = g_screens;
+  g_screens = obj;
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_restore_screen(key) - Restore a previously saved full screen.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 not found).
+ */
+word EXPENTRY intrin_ui_restore_screen(void)
+{
+  MA ma;
+  char *key;
+  mex_screen_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  regs_2[0] = (word)-1;
+
+  obj = mex_find_screen(key);
+  if (key)
+    free(key);
+
+  if (!obj || !obj->cells)
+    return MexArgEnd(&ma);
+
+  mex_restore_live_rect(1, 1, obj->width, obj->height, obj->cells);
+  VidSetAttr((char)obj->attr);
+  VidGotoXY(obj->cursor_col, obj->cursor_row, FALSE);
+
+  if (mex_ui_should_flush())
+    vbuf_flush();
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_drop_screen(key) - Free a full-screen snapshot without restoring it.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 not found).
+ */
+word EXPENTRY intrin_ui_drop_screen(void)
+{
+  MA ma;
+  char *key;
+  mex_screen_obj_t *obj;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+
+  regs_2[0] = (word)-1;
+  obj = mex_find_screen(key);
+  if (key)
+    free(key);
+
+  if (!obj)
+    return MexArgEnd(&ma);
+
+  mex_screen_remove(obj);
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_window_push(...) - Save-under and draw a boxed window.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 error).
+ */
+word EXPENTRY intrin_ui_window_push(void)
+{
+  MA ma;
+  char *key;
+  int left, top, right, bottom;
+  byte fill_attr, border_attr;
+  char *title;
+  mex_overlay_obj_t *obj;
+  int width, height;
+  word *cells = NULL;
+
+  MexArgBegin(&ma);
+  key = MexArgGetString(&ma, FALSE);
+  left = (int)MexArgGetWord(&ma);
+  top = (int)MexArgGetWord(&ma);
+  right = (int)MexArgGetWord(&ma);
+  bottom = (int)MexArgGetWord(&ma);
+  fill_attr = (byte)MexArgGetWord(&ma);
+  border_attr = (byte)MexArgGetWord(&ma);
+  title = MexArgGetString(&ma, FALSE);
+
+  regs_2[0] = (word)-1;
+
+  if (!key || !*key)
+  {
+    if (key)
+      free(key);
+    if (title)
+      free(title);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_find_overlay(key))
+  {
+    free(key);
+    if (title)
+      free(title);
+    return MexArgEnd(&ma);
+  }
+
+  if (mex_capture_live_rect(left, top, right, bottom, &width, &height, &cells) != 0)
+  {
+    free(key);
+    if (title)
+      free(title);
+    return MexArgEnd(&ma);
+  }
+
+  obj = (mex_overlay_obj_t *)calloc(1, sizeof(*obj));
+  if (!obj)
+  {
+    free(cells);
+    free(key);
+    if (title)
+      free(title);
+    return MexArgEnd(&ma);
+  }
+
+  obj->key = key;
+  obj->row = top;
+  obj->col = left;
+  obj->width = width;
+  obj->height = height;
+  obj->cells = cells;
+  obj->next = g_overlays;
+  g_overlays = obj;
+
+  ui_fill_rect(top, left, width, height, ' ', fill_attr);
+  mex_draw_box(top, left, width, height, border_attr, title);
+
+  if (title)
+    free(title);
+
+  if (mex_ui_should_flush())
+    vbuf_flush();
+
+  regs_2[0] = 0;
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief ui_window_pop(key) - Restore and free a previously pushed window.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 not found).
+ */
+word EXPENTRY intrin_ui_window_pop(void)
+{
+  return intrin_ui_overlay_pop();
+}
+
+/**
+ * @brief ui_window_drop(key) - Free a previously pushed window without restoring it.
+ *
+ * @return MEX status; result in regs_2[0] (0 success, -1 not found).
+ */
+word EXPENTRY intrin_ui_window_drop(void)
+{
+  return intrin_ui_overlay_drop();
 }
 
 /**
@@ -249,7 +1208,7 @@ word EXPENTRY intrin_ui_lightbar_pos(void)
     regs_2[0] = (word)-1;
   }
 
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
 
   return MexArgEnd(&ma);
@@ -348,7 +1307,7 @@ word EXPENTRY intrin_ui_select_prompt_hotkey(void)
      regs_2[0] = (word)-1;
    }
 
-   if (pmisThis->pmid->instant_video)
+   if (mex_ui_should_flush())
      vbuf_flush();
 
    return MexArgEnd(&ma);
@@ -446,7 +1405,7 @@ word EXPENTRY intrin_ui_select_prompt_hotkey(void)
      regs_2[0] = (word)-1;
    }
 
-   if (pmisThis->pmid->instant_video)
+   if (mex_ui_should_flush())
      vbuf_flush();
 
    return MexArgEnd(&ma);
@@ -467,7 +1426,7 @@ word EXPENTRY intrin_ui_set_attr(void)
   
   ui_set_attr(attr);
   
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
   
   return MexArgEnd(&ma);
@@ -491,6 +1450,38 @@ word EXPENTRY intrin_ui_make_attr(void)
   bg = (byte)MexArgGetWord(&ma);
 
   regs_2[0] = (word)((fg & 0x0f) | ((bg & 0x0f) << 4));
+  return MexArgEnd(&ma);
+}
+
+/**
+ * @brief MEX intrinsic: ui_box(row, col, width, height, attr, title) — Draw a double-line border box.
+ *
+ * The interior is left untouched; callers can fill it separately if needed.
+ *
+ * @return MEX status.
+ */
+word EXPENTRY intrin_ui_box(void)
+{
+  MA ma;
+  int row, col, width, height;
+  byte attr;
+  char *title;
+  MexArgBegin(&ma);
+  row = (int)MexArgGetWord(&ma);
+  col = (int)MexArgGetWord(&ma);
+  width = (int)MexArgGetWord(&ma);
+  height = (int)MexArgGetWord(&ma);
+  attr = (byte)MexArgGetWord(&ma);
+  title = MexArgGetString(&ma, FALSE);
+
+  mex_draw_box(row, col, width, height, attr, title);
+
+  if (title)
+    free(title);
+
+  if (mex_ui_should_flush())
+    vbuf_flush();
+
   return MexArgEnd(&ma);
 }
 
@@ -536,7 +1527,7 @@ word EXPENTRY intrin_ui_fill_rect(void)
   
   ui_fill_rect(row, col, width, height, ch, attr);
   
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
   
   return MexArgEnd(&ma);
@@ -567,7 +1558,7 @@ word EXPENTRY intrin_ui_write_padded(void)
     free(s);
   }
   
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
   
   return MexArgEnd(&ma);
@@ -858,7 +1849,7 @@ word EXPENTRY intrin_ui_lightbar(void)
     regs_2[0] = (word)-1;
   }
   
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
   
   return MexArgEnd(&ma);
@@ -965,7 +1956,7 @@ word EXPENTRY intrin_ui_select_prompt(void)
     regs_2[0] = (word)-1;
   }
   
-  if (pmisThis->pmid->instant_video)
+  if (mex_ui_should_flush())
     vbuf_flush();
   
   return MexArgEnd(&ma);
@@ -1408,7 +2399,7 @@ word EXPENTRY intrin_ui_scroll_region_render(void)
   if (obj)
   {
     ui_scrolling_region_render(&obj->r);
-    if (pmisThis->pmid->instant_video)
+    if (mex_ui_should_flush())
       vbuf_flush();
     regs_2[0] = 0;
   }
@@ -1638,7 +2629,7 @@ word EXPENTRY intrin_ui_text_viewer_render(void)
   if (obj)
   {
     ui_text_viewer_render(&obj->v);
-    if (pmisThis->pmid->instant_video)
+    if (mex_ui_should_flush())
       vbuf_flush();
     regs_2[0] = 0;
   }

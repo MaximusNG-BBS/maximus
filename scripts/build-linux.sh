@@ -82,10 +82,6 @@ make build
 log_info "Installing to build directory..."
 make install
 
-# Build maxtel
-log_info "Building maxtel..."
-make maxtel_install
-
 log_info "Build complete!"
 echo ""
 echo "Binaries are in: $PROJECT_ROOT/build/bin/"

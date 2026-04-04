@@ -1,0 +1,3472 @@
+///////////////////////////////////////////////////////////////////////////////
+//
+// File: smuggle.mex
+//
+// Desc: Smuggler of Rome - Roman underworld trading game for Maximus
+//
+///////////////////////////////////////////////////////////////////////////////
+
+#include <max.mh>
+#include <rand.mh>
+#include <input.mh>
+#include <prm.mh>
+#include <maxui.mh>
+
+#define GOODS_COUNT       6
+#define DISTRICT_COUNT    6
+
+#define ACTION_NONE       0
+#define ACTION_BUY        1
+#define ACTION_SELL       2
+#define ACTION_TRAVEL     3
+#define ACTION_VAULT      4
+#define ACTION_LENDER     5
+#define ACTION_CACHE      6
+#define ACTION_QUIT       7
+#define ACTION_SCORES     8
+#define ACTION_REDRAW     9
+#define ACTION_SELLSWORDS 10
+#define ACTION_CARTWRIGHT 11
+
+#define SCORE_FILE        "smuggle_scores.dat"
+#define SAVE_DIR          "smuggler-saves/"
+#define SAVE_PREFIX       "smuggle_state_"
+#define SCORE_ROWS        5
+#define TRIUMPH_TARGET    10000
+#define EVENT_MSG_MAX     12
+#define TRADER_SLOTS      4
+
+#define SWORD_NONE        0
+#define SWORD_KNIFE       1
+#define SWORD_GLADIUS     2
+#define SWORD_SPATHA      3
+
+#define ARMOR_NONE        0
+#define ARMOR_LEATHER     1
+#define ARMOR_MAIL        2
+#define ARMOR_SCALE       3
+
+#define EVENT_CLASS_INFO     1
+#define EVENT_CLASS_GAIN     2
+#define EVENT_CLASS_WARNING  3
+#define EVENT_CLASS_DANGER   4
+#define EVENT_CLASS_THEFT    5
+
+// Set MAIN_UNDERLAY to a display file path (bbs/ans) to use a themed
+// background instead of the programmatically drawn boxes.  Leave empty
+// to use the default drawn layout.
+#define MAIN_UNDERLAY     ""
+#define INTRO_SCREEN      "scripts/smuggler/intro"
+
+array [1..GOODS_COUNT] of string: goods;
+array [1..DISTRICT_COUNT] of string: districts;
+
+array [1..GOODS_COUNT] of long: prices;
+array [1..GOODS_COUNT] of int: carried;
+array [1..GOODS_COUNT] of int: cached;
+
+int: current_district, previous_district;
+int: day_number, days_left_on_note;
+int: health, suspicion, guards, capacity_total;
+int: game_over, quit_requested, retired;
+int: pending_resume_advance;
+int: prestige_points, influence_points, might_points;
+int: unlock_sellswords, unlock_cartwright, unlock_warehouse, unlock_property, unlock_traders;
+int: self_cart_count, self_oxen_count, self_sword_tier, self_armor_tier;
+int: trader_slots_unlocked;
+long: purse, vault_balance, debt_to_varro;
+long: last_trade_value;
+int: last_trade_volume;
+string: last_event;
+array [1..EVENT_MSG_MAX] of string: event_msgs;
+array [1..EVENT_MSG_MAX] of int: event_msg_classes;
+int: event_msg_count;
+array [1..SCORE_ROWS] of string: score_names;
+array [1..SCORE_ROWS] of long: score_values;
+char: gfx_screen_loaded;
+char: resumed_game;
+array [1..TRADER_SLOTS] of int: trader_active;
+array [1..TRADER_SLOTS] of int: trader_route_from;
+array [1..TRADER_SLOTS] of int: trader_route_to;
+array [1..TRADER_SLOTS] of int: trader_goods_mask;
+array [1..TRADER_SLOTS] of int: trader_cut_pct;
+array [1..TRADER_SLOTS] of int: trader_guards;
+array [1..TRADER_SLOTS] of int: trader_carts;
+array [1..TRADER_SLOTS] of int: trader_oxen;
+array [1..TRADER_SLOTS] of int: trader_sword_tier;
+array [1..TRADER_SLOTS] of int: trader_armor_tier;
+
+void load_scores();
+string district_tagline(int: idx);
+void gfx_redraw_all();
+void gfx_draw_event();
+void gfx_draw_header();
+void gfx_draw_market();
+void gfx_draw_status();
+void gfx_draw_inventory();
+void gfx_draw_triumph();
+void gfx_refresh_event_only();
+void gfx_refresh_status_event();
+void gfx_refresh_status_cargo_event();
+void gfx_refresh_day_rollover();
+int triumph_ready();
+void init_game();
+int prompt_offer_modal(string: title, string: prompt, int: price);
+int prompt_offer_accept(string: title, string: prompt, int: price);
+int prompt_visit_action();
+int prompt_options_action();
+void sync_progress_state();
+string triumph_rank_text();
+string next_unlock_text();
+string save_dir();
+string state_file();
+void clear_game_state_save();
+void save_game_state();
+int load_game_state();
+void randomize_market_prices();
+void run_arrival_events();
+void apply_turn_upkeep();
+void visit_sellswords();
+void visit_cartwright();
+
+
+char upper_key(char: ch)
+{
+  if (ch >= 'a' and ch <= 'z')
+    return ch - 32;
+  return ch;
+}
+
+
+void init_labels()
+{
+  goods[1] := "Falernian Wine";
+  goods[2] := "Syrian Incense";
+  goods[3] := "Poppy Resin";
+  goods[4] := "Silk Bolts";
+  goods[5] := "Forged Seals";
+  goods[6] := "Legion Steel";
+
+  districts[1] := "Forum District";
+  districts[2] := "Subura";
+  districts[3] := "Ostia Docks";
+  districts[4] := "Aventine";
+  districts[5] := "Campus Martius";
+  districts[6] := "Palatine Shadows";
+}
+
+
+int carried_total()
+{
+  int: i, total;
+
+  total := 0;
+  i := 1;
+
+  while (i <= GOODS_COUNT)
+  {
+    total := total + carried[i];
+    i := i + 1;
+  }
+
+  return total;
+}
+
+
+int cached_total()
+{
+  int: i, total;
+
+  total := 0;
+  i := 1;
+
+  while (i <= GOODS_COUNT)
+  {
+    total := total + cached[i];
+    i := i + 1;
+  }
+
+  return total;
+}
+
+
+int free_capacity()
+{
+  return capacity_total - carried_total();
+}
+
+
+long net_worth()
+{
+  return purse + vault_balance - debt_to_varro;
+}
+
+
+int net_worth_negative()
+{
+  return (purse + vault_balance) < debt_to_varro;
+}
+
+
+long net_worth_abs()
+{
+  if (net_worth_negative())
+    return debt_to_varro - (purse + vault_balance);
+
+  return (purse + vault_balance) - debt_to_varro;
+}
+
+
+string net_worth_text()
+{
+  if (net_worth_negative())
+    return "-" + ltostr(net_worth_abs());
+
+  return ltostr(net_worth_abs());
+}
+
+
+string state_identity_key()
+{
+  string: src, out, part;
+  int: i;
+  char: ch;
+
+  if (strlen(usr.name) > 0)
+    src := strlower(usr.name);
+  else
+    src := strlower(user_display_name());
+
+  out := "";
+  i := 1;
+
+  while (i <= strlen(src) and strlen(out) < 24)
+  {
+    ch := src[i];
+    if ((ch >= 'a' and ch <= 'z') or (ch >= '0' and ch <= '9'))
+      out := out + substr(src, i, 1);
+    else if (ch = ' ' or ch = '-' or ch = '.' or ch = '_')
+      out := out + "_";
+    i := i + 1;
+  }
+
+  if (strlen(out) = 0)
+    out := "caller";
+
+  return out;
+}
+
+
+string state_file()
+{
+  return save_dir() + SAVE_PREFIX + state_identity_key() + ".dat";
+}
+
+
+string save_dir()
+{
+  return prm_string(PRM_MEXDATAPATH) + SAVE_DIR;
+}
+
+
+void clear_game_state_save()
+{
+  remove(state_file());
+}
+
+
+void sync_progress_state()
+{
+  if (guards < 0)
+    guards := 0;
+
+  if (capacity_total < 1)
+    capacity_total := 1;
+
+  if (net_worth() >= 600 or might_points >= 1 or guards > 0)
+    unlock_sellswords := 1;
+
+  if (debt_to_varro = 0 or net_worth() >= 1200 or prestige_points >= 2 or self_cart_count > 0)
+    unlock_cartwright := 1;
+
+  if (debt_to_varro = 0 and net_worth() >= 3500 and influence_points >= 3)
+    unlock_warehouse := 1;
+
+  if (debt_to_varro = 0 and net_worth() >= 5500 and influence_points >= 4)
+    unlock_traders := 1;
+
+  if (debt_to_varro = 0 and net_worth() >= 7000 and prestige_points >= 6)
+    unlock_property := 1;
+
+  trader_slots_unlocked := 1;
+  if (unlock_traders and influence_points >= 5)
+    trader_slots_unlocked := 2;
+  if (unlock_traders and prestige_points >= 7)
+    trader_slots_unlocked := 3;
+  if (unlock_traders and prestige_points >= 9 and influence_points >= 7)
+    trader_slots_unlocked := 4;
+
+  if (self_sword_tier < SWORD_NONE)
+    self_sword_tier := SWORD_NONE;
+  if (self_armor_tier < ARMOR_NONE)
+    self_armor_tier := ARMOR_NONE;
+}
+
+
+string triumph_rank_text()
+{
+  int: total;
+
+  total := prestige_points + influence_points + might_points;
+
+  if (total < 2)
+    return "Street Runner";
+  if (total < 5)
+    return "Shadow Broker";
+  if (total < 8)
+    return "Forum Factor";
+  if (total < 12)
+    return "House Operator";
+  if (total < 16)
+    return "Night Magnate";
+  if (total < 21)
+    return "Patrician";
+
+  return "Imperial Power";
+}
+
+
+string next_unlock_text()
+{
+  if (unlock_sellswords = 0)
+    return "Sellswords";
+  if (unlock_cartwright = 0)
+    return "Cartwright";
+  if (unlock_warehouse = 0)
+    return "Warehouse";
+  if (unlock_traders = 0)
+    return "Trade Routes";
+  if (unlock_property = 0)
+    return "Estate Paths";
+  if (triumph_ready())
+    return "Retire in glory";
+
+  return "Power paths";
+}
+
+
+int triumph_ready()
+{
+  return health > 0 and debt_to_varro <= 0 and net_worth() >= TRIUMPH_TARGET and current_district = 1;
+}
+
+
+string triumph_status_text()
+{
+  if (health <= 0)
+    return "The grave keeps no triumph.";
+
+  if (debt_to_varro > 0)
+    return "Clear Varro's note first.";
+
+  if (net_worth() < TRIUMPH_TARGET)
+    return "Need " + ltostr(TRIUMPH_TARGET - net_worth()) + " more.";
+
+  if (current_district <> 1)
+    return "Return to the Forum.";
+
+  return "Ready to retire in glory.";
+}
+
+
+long note_daily_fee()
+{
+  if (debt_to_varro <= 0)
+    return 0;
+
+  return 6 + (debt_to_varro / 200);
+}
+
+
+int home_services_available()
+{
+  return current_district = 1;
+}
+
+
+int district_watch_modifier()
+{
+  if (current_district = 2) return 3;
+  if (current_district = 3) return 2;
+  if (current_district = 5) return 1;
+  if (current_district = 6) return 2;
+  return 0;
+}
+
+
+long price_min(int: idx)
+{
+  if (idx = 1) return 12;
+  if (idx = 2) return 35;
+  if (idx = 3) return 24;
+  if (idx = 4) return 90;
+  if (idx = 5) return 70;
+  if (idx = 6) return 120;
+
+  return 10;
+}
+
+
+long price_span(int: idx)
+{
+  if (idx = 1) return 28;
+  if (idx = 2) return 65;
+  if (idx = 3) return 55;
+  if (idx = 4) return 150;
+  if (idx = 5) return 170;
+  if (idx = 6) return 230;
+
+  return 20;
+}
+
+
+int event_class_attr(int: cls)
+{
+  if (cls = EVENT_CLASS_GAIN)
+    return ui_make_attr(UI_LGREEN, UI_BLACK);
+
+  if (cls = EVENT_CLASS_WARNING)
+    return ui_make_attr(UI_YELLOW, UI_BLACK);
+
+  if (cls = EVENT_CLASS_DANGER)
+    return ui_make_attr(UI_LRED, UI_BLACK);
+
+  if (cls = EVENT_CLASS_THEFT)
+    return ui_make_attr(UI_DKGRAY, UI_BLACK);
+
+  return ui_make_attr(UI_WHITE, UI_BLACK);
+}
+
+
+void clear_event_buffer()
+{
+  int: i;
+
+  event_msg_count := 0;
+  i := 1;
+  while (i <= EVENT_MSG_MAX)
+  {
+    event_msgs[i] := "";
+    event_msg_classes[i] := EVENT_CLASS_INFO;
+    i := i + 1;
+  }
+}
+
+
+void push_event_message(int: cls, string: msg)
+{
+  int: i;
+
+  if (strlen(msg) = 0)
+    return;
+
+  if (event_msg_count < EVENT_MSG_MAX)
+    event_msg_count := event_msg_count + 1;
+  else
+  {
+    i := 1;
+    while (i < EVENT_MSG_MAX)
+    {
+      event_msgs[i] := event_msgs[i+1];
+      event_msg_classes[i] := event_msg_classes[i+1];
+      i := i + 1;
+    }
+  }
+
+  event_msgs[event_msg_count] := msg;
+  event_msg_classes[event_msg_count] := cls;
+}
+
+
+void set_event_class(int: cls, string: msg)
+{
+  last_event := msg;
+  clear_event_buffer();
+  push_event_message(cls, msg);
+}
+
+
+void clear_event()
+{
+  last_event := "";
+  clear_event_buffer();
+}
+
+
+void append_event_class(int: cls, string: msg)
+{
+  if (strlen(msg) = 0)
+    return;
+
+  if (strlen(last_event) = 0)
+    last_event := msg;
+  else
+    last_event := last_event + "\n" + msg;
+
+  push_event_message(cls, msg);
+}
+
+
+void set_event(string: msg)
+{
+  set_event_class(EVENT_CLASS_INFO, msg);
+}
+
+
+void set_event_gain(string: msg)
+{
+  set_event_class(EVENT_CLASS_GAIN, msg);
+}
+
+
+void set_event_warning(string: msg)
+{
+  set_event_class(EVENT_CLASS_WARNING, msg);
+}
+
+
+void set_event_danger(string: msg)
+{
+  set_event_class(EVENT_CLASS_DANGER, msg);
+}
+
+
+void append_event(string: msg)
+{
+  append_event_class(EVENT_CLASS_INFO, msg);
+}
+
+
+void append_event_gain(string: msg)
+{
+  append_event_class(EVENT_CLASS_GAIN, msg);
+}
+
+
+void append_event_warning(string: msg)
+{
+  append_event_class(EVENT_CLASS_WARNING, msg);
+}
+
+
+void append_event_danger(string: msg)
+{
+  append_event_class(EVENT_CLASS_DANGER, msg);
+}
+
+
+void append_event_theft(string: msg)
+{
+  append_event_class(EVENT_CLASS_THEFT, msg);
+}
+
+
+string wrap_text_line(string: text, int: width)
+{
+  int: pos;
+  string: token, line, out, rest;
+
+  pos := 0;
+  line := "";
+  out := "";
+  token := strtok(text, " ", pos);
+
+  while (strlen(token) > 0)
+  {
+    while (strlen(token) > width)
+    {
+      if (strlen(line) > 0)
+      {
+        if (strlen(out) > 0)
+          out := out + "\n";
+        out := out + line;
+        line := "";
+      }
+
+      if (strlen(out) > 0)
+        out := out + "\n";
+      out := out + substr(token, 1, width);
+      rest := substr(token, width + 1, strlen(token) - width);
+      token := rest;
+    }
+
+    if (strlen(line) = 0)
+      line := token;
+    else if (strlen(line) + 1 + strlen(token) <= width)
+      line := line + " " + token;
+    else
+    {
+      if (strlen(out) > 0)
+        out := out + "\n";
+      out := out + line;
+      line := token;
+    }
+
+    token := strtok(text, " ", pos);
+  }
+
+  if (strlen(line) > 0)
+  {
+    if (strlen(out) > 0)
+      out := out + "\n";
+    out := out + line;
+  }
+
+  return out;
+}
+
+
+string wrap_event_text(string: text, int: width)
+{
+  int: pos;
+  string: para, out, wrapped;
+
+  pos := 0;
+  out := "";
+  para := strtok(text, "\n", pos);
+
+  while (strlen(para) > 0)
+  {
+    wrapped := wrap_text_line(para, width);
+    if (strlen(out) > 0)
+      out := out + "\n";
+    out := out + wrapped;
+    para := strtok(text, "\n", pos);
+  }
+
+  return out;
+}
+
+
+string prompt_text_line(string: text)
+{
+  int: pos;
+  string: token, out;
+
+  pos := 0;
+  out := "";
+  token := strtok(text, " \n\r", pos);
+
+  while (strlen(token) > 0)
+  {
+    if (strlen(out) > 0)
+      out := out + " ";
+    out := out + token;
+    token := strtok(text, " \n\r", pos);
+  }
+
+  return out;
+}
+
+
+string score_file()
+{
+  return prm_string(PRM_MEXDATAPATH) + SCORE_FILE;
+}
+
+
+void save_game_state()
+{
+  int: fd, i;
+  string: path, temp;
+
+  sync_progress_state();
+
+  path := state_file();
+  temp := path + ".tmp";
+
+  fd := open(temp, IOPEN_WRITE | IOPEN_CREATE);
+  if (fd = -1)
+    return;
+
+  writeln(fd, "version|1");
+  writeln(fd, "current_district|" + itostr(current_district));
+  writeln(fd, "previous_district|" + itostr(previous_district));
+  writeln(fd, "day_number|" + itostr(day_number));
+  writeln(fd, "days_left_on_note|" + itostr(days_left_on_note));
+  writeln(fd, "health|" + itostr(health));
+  writeln(fd, "suspicion|" + itostr(suspicion));
+  writeln(fd, "guards|" + itostr(guards));
+  writeln(fd, "capacity_total|" + itostr(capacity_total));
+  writeln(fd, "pending_resume_advance|" + itostr(pending_resume_advance));
+  writeln(fd, "purse|" + ltostr(purse));
+  writeln(fd, "vault_balance|" + ltostr(vault_balance));
+  writeln(fd, "debt_to_varro|" + ltostr(debt_to_varro));
+  writeln(fd, "last_trade_value|" + ltostr(last_trade_value));
+  writeln(fd, "last_trade_volume|" + itostr(last_trade_volume));
+  writeln(fd, "prestige_points|" + itostr(prestige_points));
+  writeln(fd, "influence_points|" + itostr(influence_points));
+  writeln(fd, "might_points|" + itostr(might_points));
+  writeln(fd, "unlock_sellswords|" + itostr(unlock_sellswords));
+  writeln(fd, "unlock_cartwright|" + itostr(unlock_cartwright));
+  writeln(fd, "unlock_warehouse|" + itostr(unlock_warehouse));
+  writeln(fd, "unlock_property|" + itostr(unlock_property));
+  writeln(fd, "unlock_traders|" + itostr(unlock_traders));
+  writeln(fd, "self_cart_count|" + itostr(self_cart_count));
+  writeln(fd, "self_oxen_count|" + itostr(self_oxen_count));
+  writeln(fd, "self_sword_tier|" + itostr(self_sword_tier));
+  writeln(fd, "self_armor_tier|" + itostr(self_armor_tier));
+  writeln(fd, "trader_slots_unlocked|" + itostr(trader_slots_unlocked));
+
+  i := 1;
+  while (i <= GOODS_COUNT)
+  {
+    writeln(fd, "price_" + itostr(i) + "|" + ltostr(prices[i]));
+    writeln(fd, "carried_" + itostr(i) + "|" + itostr(carried[i]));
+    writeln(fd, "cached_" + itostr(i) + "|" + itostr(cached[i]));
+    i := i + 1;
+  }
+
+  i := 1;
+  while (i <= TRADER_SLOTS)
+  {
+    writeln(fd, "trader_active_" + itostr(i) + "|" + itostr(trader_active[i]));
+    writeln(fd, "trader_from_" + itostr(i) + "|" + itostr(trader_route_from[i]));
+    writeln(fd, "trader_to_" + itostr(i) + "|" + itostr(trader_route_to[i]));
+    writeln(fd, "trader_goods_" + itostr(i) + "|" + itostr(trader_goods_mask[i]));
+    writeln(fd, "trader_cut_" + itostr(i) + "|" + itostr(trader_cut_pct[i]));
+    writeln(fd, "trader_guards_" + itostr(i) + "|" + itostr(trader_guards[i]));
+    writeln(fd, "trader_carts_" + itostr(i) + "|" + itostr(trader_carts[i]));
+    writeln(fd, "trader_oxen_" + itostr(i) + "|" + itostr(trader_oxen[i]));
+    writeln(fd, "trader_sword_" + itostr(i) + "|" + itostr(trader_sword_tier[i]));
+    writeln(fd, "trader_armor_" + itostr(i) + "|" + itostr(trader_armor_tier[i]));
+    i := i + 1;
+  }
+
+  close(fd);
+  remove(path);
+  rename(temp, path);
+}
+
+
+int load_game_state()
+{
+  int: fd, sep, idx, advanced_on_resume;
+  string: line, key, value;
+
+  fd := open(state_file(), IOPEN_READ);
+  if (fd = -1)
+    return 0;
+
+  init_game();
+  advanced_on_resume := 0;
+
+  while (readln(fd, line) <> -1)
+  {
+    sep := stridx(line, 1, '|');
+    if (sep > 0)
+    {
+      key := substr(line, 1, sep - 1);
+      value := substr(line, sep + 1, strlen(line) - sep);
+
+      if (key = "current_district") current_district := strtoi(value);
+      else if (key = "previous_district") previous_district := strtoi(value);
+      else if (key = "day_number") day_number := strtoi(value);
+      else if (key = "days_left_on_note") days_left_on_note := strtoi(value);
+      else if (key = "health") health := strtoi(value);
+      else if (key = "suspicion") suspicion := strtoi(value);
+      else if (key = "guards") guards := strtoi(value);
+      else if (key = "capacity_total") capacity_total := strtoi(value);
+      else if (key = "pending_resume_advance") pending_resume_advance := strtoi(value);
+      else if (key = "purse") purse := strtol(value);
+      else if (key = "vault_balance") vault_balance := strtol(value);
+      else if (key = "debt_to_varro") debt_to_varro := strtol(value);
+      else if (key = "last_trade_value") last_trade_value := strtol(value);
+      else if (key = "last_trade_volume") last_trade_volume := strtoi(value);
+      else if (key = "prestige_points") prestige_points := strtoi(value);
+      else if (key = "influence_points") influence_points := strtoi(value);
+      else if (key = "might_points") might_points := strtoi(value);
+      else if (key = "unlock_sellswords") unlock_sellswords := strtoi(value);
+      else if (key = "unlock_cartwright") unlock_cartwright := strtoi(value);
+      else if (key = "unlock_warehouse") unlock_warehouse := strtoi(value);
+      else if (key = "unlock_property") unlock_property := strtoi(value);
+      else if (key = "unlock_traders") unlock_traders := strtoi(value);
+      else if (key = "self_cart_count") self_cart_count := strtoi(value);
+      else if (key = "self_oxen_count") self_oxen_count := strtoi(value);
+      else if (key = "self_sword_tier") self_sword_tier := strtoi(value);
+      else if (key = "self_armor_tier") self_armor_tier := strtoi(value);
+      else if (key = "trader_slots_unlocked") trader_slots_unlocked := strtoi(value);
+      else if (strfind(key, "price_") = 1)
+      {
+        idx := strtoi(substr(key, 7, strlen(key) - 6));
+        if (idx >= 1 and idx <= GOODS_COUNT)
+          prices[idx] := strtol(value);
+      }
+      else if (strfind(key, "carried_") = 1)
+      {
+        idx := strtoi(substr(key, 9, strlen(key) - 8));
+        if (idx >= 1 and idx <= GOODS_COUNT)
+          carried[idx] := strtoi(value);
+      }
+      else if (strfind(key, "cached_") = 1)
+      {
+        idx := strtoi(substr(key, 8, strlen(key) - 7));
+        if (idx >= 1 and idx <= GOODS_COUNT)
+          cached[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_active_") = 1)
+      {
+        idx := strtoi(substr(key, 14, strlen(key) - 13));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_active[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_from_") = 1)
+      {
+        idx := strtoi(substr(key, 13, strlen(key) - 12));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_route_from[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_to_") = 1)
+      {
+        idx := strtoi(substr(key, 11, strlen(key) - 10));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_route_to[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_goods_") = 1)
+      {
+        idx := strtoi(substr(key, 14, strlen(key) - 13));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_goods_mask[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_cut_") = 1)
+      {
+        idx := strtoi(substr(key, 12, strlen(key) - 11));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_cut_pct[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_guards_") = 1)
+      {
+        idx := strtoi(substr(key, 15, strlen(key) - 14));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_guards[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_carts_") = 1)
+      {
+        idx := strtoi(substr(key, 14, strlen(key) - 13));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_carts[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_oxen_") = 1)
+      {
+        idx := strtoi(substr(key, 13, strlen(key) - 12));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_oxen[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_sword_") = 1)
+      {
+        idx := strtoi(substr(key, 14, strlen(key) - 13));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_sword_tier[idx] := strtoi(value);
+      }
+      else if (strfind(key, "trader_armor_") = 1)
+      {
+        idx := strtoi(substr(key, 14, strlen(key) - 13));
+        if (idx >= 1 and idx <= TRADER_SLOTS)
+          trader_armor_tier[idx] := strtoi(value);
+      }
+    }
+  }
+
+  close(fd);
+
+  if (pending_resume_advance)
+  {
+    clear_event();
+    apply_turn_upkeep();
+    if (game_over = 0)
+    {
+      randomize_market_prices();
+      run_arrival_events();
+    }
+    pending_resume_advance := 0;
+    advanced_on_resume := 1;
+    save_game_state();
+  }
+
+  resumed_game := 1;
+  quit_requested := 0;
+  game_over := 0;
+  retired := 0;
+  sync_progress_state();
+  if (advanced_on_resume)
+    set_event_gain("You reopen your ledger where you left it. Rome kept moving, but your operation survived the night.");
+  else
+    set_event_gain("You reopen your ledger where you left it.");
+  return 1;
+}
+
+
+int is_graphics()
+{
+  return (usr.video <> VIDEO_TTY);
+}
+
+
+void gfx_write_at(int: row, int: col, int: attr, string: s)
+{
+  if (strlen(s) > 0)
+    ui_write_padded(row, col, strlen(s), s, attr);
+}
+
+
+void gfx_write_field(int: row, int: col, int: width, int: attr, string: s)
+{
+  ui_write_padded(row, col, width, s, attr);
+}
+
+
+void gfx_clear_rect(int: row, int: col, int: width, int: height, int: attr)
+{
+  ui_fill_rect(row, col, width, height, ' ', attr);
+}
+
+
+void gfx_fill_box(int: row, int: col, int: width, int: height, int: fill_attr, int: border_attr, string: title)
+{
+  if (width < 2 or height < 2)
+    return;
+
+  ui_fill_rect(row + 1, col + 1, width - 2, height - 2, ' ', fill_attr);
+  ui_box(row, col, width, height, border_attr, title);
+}
+
+
+void gfx_draw_action_header(int: submenu)
+{
+  int: border_attr;
+
+  border_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+
+  if (submenu)
+    ui_box(8, 31, 49, 5, border_attr, " Actions (ESC: return to previous menu) ");
+  else
+    ui_box(8, 31, 49, 5, border_attr, " Actions ");
+}
+
+
+int gfx_capture_action_block(string: key)
+{
+  return ui_gettext(key, 32, 9, 78, 11);
+}
+
+
+void gfx_restore_action_block(string: key)
+{
+  ui_puttext(key, 32, 9);
+  ui_block_drop(key);
+  ui_paint_region(32, 9, 78, 11);
+}
+
+
+int gfx_begin_modal(string: key, int: left, int: top, int: right, int: bottom)
+{
+  return ui_gettext(key, left, top, right, bottom);
+}
+
+
+void gfx_end_modal(string: key, int: left, int: top, int: right, int: bottom)
+{
+  ui_begin_update();
+  ui_puttext(key, left, top);
+  ui_paint_region(left, top, right, bottom);
+  ui_end_update();
+  ui_block_drop(key);
+}
+
+
+void gfx_clear_action_area()
+{
+  gfx_clear_rect(9, 32, 47, 3, ui_make_attr(UI_WHITE, UI_BLACK));
+}
+
+
+void gfx_draw_header()
+{
+  int: bar_attr, title_attr, note_attr;
+
+  bar_attr := ui_make_attr(UI_WHITE, UI_BLUE);
+  title_attr := ui_make_attr(UI_YELLOW, UI_BLUE);
+  note_attr := ui_make_attr(UI_LCYAN, UI_BLUE);
+
+  ui_fill_rect(1, 1, 79, 1, ' ', bar_attr);
+  gfx_write_field(1, 3, 20, title_attr, "Smuggler of Rome");
+  gfx_write_field(1, 24, 28, bar_attr, "Day " + itostr(day_number) + "  " + districts[current_district]);
+  gfx_write_field(1, 54, 25, note_attr, "Note due in " + itostr(days_left_on_note) + " days");
+}
+
+
+void gfx_draw_status()
+{
+  int: left_attr, right_attr, debt_attr, worth_attr;
+
+  left_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+  right_attr := ui_make_attr(UI_LCYAN, UI_BLACK);
+  debt_attr := ui_make_attr(UI_LRED, UI_BLACK);
+  worth_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+
+  gfx_clear_rect(3, 32, 47, 4, left_attr);
+  gfx_write_field(3, 33, 21, left_attr, "Purse      " + strpadleft(ltostr(purse), 10, ' '));
+  gfx_write_field(3, 57, 21, left_attr, "Vault      " + strpadleft(ltostr(vault_balance), 10, ' '));
+  gfx_write_field(4, 33, 21, debt_attr, "Debt       " + strpadleft(ltostr(debt_to_varro), 10, ' '));
+  gfx_write_field(4, 57, 21, worth_attr, "Net Worth  " + strpadleft(net_worth_text(), 10, ' '));
+  gfx_write_field(5, 33, 21, right_attr, "Health     " + strpadleft(itostr(health), 10, ' '));
+  gfx_write_field(5, 57, 21, right_attr, "Suspicion  " + strpadleft(itostr(suspicion), 10, ' '));
+  gfx_write_field(6, 33, 21, right_attr, "Guards     " + strpadleft(itostr(guards), 10, ' '));
+  gfx_write_field(6, 57, 21, right_attr,
+                  "Capacity   " + strpadleft(itostr(free_capacity()) + "/" + itostr(capacity_total), 10, ' '));
+}
+
+
+void gfx_draw_market()
+{
+  int: i, row, price_attr;
+
+  gfx_clear_rect(3, 2, 28, 6, ui_make_attr(UI_WHITE, UI_BLACK));
+  i := 1;
+  row := 3;
+  while (i <= GOODS_COUNT)
+  {
+    gfx_write_field(row, 3, 18, ui_make_attr(UI_WHITE, UI_BLACK),
+                    strpad(itostr(i) + ". " + goods[i], 18, ' '));
+
+    if (prices[i] <= price_min(i) + (price_span(i) / 3))
+      price_attr := ui_make_attr(UI_LGREEN, UI_BLACK);
+    else if (prices[i] >= price_min(i) + ((price_span(i) * 2) / 3))
+      price_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    else
+      price_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+
+    gfx_write_field(row, 22, 7, price_attr, strpadleft(ltostr(prices[i]), 7, ' '));
+    i := i + 1;
+    row := row + 1;
+  }
+}
+
+
+void gfx_draw_inventory()
+{
+  int: i, row;
+
+  gfx_clear_rect(11, 2, 28, 7, ui_make_attr(UI_WHITE, UI_BLACK));
+  gfx_write_field(11, 3, 24, ui_make_attr(UI_GRAY, UI_BLACK), "Good         Carry Cache");
+
+  i := 1;
+  row := 12;
+  while (i <= GOODS_COUNT)
+  {
+    gfx_write_field(row, 3, 12, ui_make_attr(UI_WHITE, UI_BLACK), strpad(substr(goods[i], 1, 12), 12, ' '));
+    gfx_write_field(row, 16, 4, ui_make_attr(UI_CYAN, UI_BLACK), strpadleft(itostr(carried[i]), 4, ' '));
+    gfx_write_field(row, 21, 5, ui_make_attr(UI_MAGENTA, UI_BLACK), strpadleft(itostr(cached[i]), 5, ' '));
+    i := i + 1;
+    row := row + 1;
+  }
+}
+
+
+void gfx_draw_triumph()
+{
+  int: label_attr, value_attr, alert_attr, ready_attr;
+  int: debt_state_attr, forum_state_attr, status_attr;
+  string: debt_text, forum_text, rank_text, unlock_text;
+
+  label_attr := ui_make_attr(UI_GRAY, UI_BLACK);
+  value_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+  alert_attr := ui_make_attr(UI_LRED, UI_BLACK);
+  ready_attr := ui_make_attr(UI_LGREEN, UI_BLACK);
+
+  gfx_clear_rect(20, 2, 28, 4, ui_make_attr(UI_WHITE, UI_BLACK));
+
+  if (debt_to_varro > 0)
+    debt_text := "Owes " + ltostr(debt_to_varro);
+  else
+    debt_text := "Clear";
+
+  if (current_district = 1)
+    forum_text := "Ready";
+  else
+    forum_text := "Away";
+
+  rank_text := triumph_rank_text();
+  unlock_text := next_unlock_text();
+
+  if (debt_to_varro > 0)
+    debt_state_attr := alert_attr;
+  else
+    debt_state_attr := ready_attr;
+
+  if (current_district = 1)
+    forum_state_attr := ready_attr;
+  else
+    forum_state_attr := value_attr;
+
+  if (triumph_ready())
+    status_attr := ready_attr;
+  else
+    status_attr := value_attr;
+
+  gfx_write_field(20, 3, 26, label_attr, "Rank");
+  gfx_write_field(20, 10, 19, value_attr, strpad(substr(rank_text, 1, 19), 19, ' '));
+  gfx_write_field(21, 3, 26, label_attr, "Next");
+  gfx_write_field(21, 10, 19, value_attr, strpad(substr(unlock_text, 1, 19), 19, ' '));
+  gfx_write_field(22, 3, 12, label_attr, "Debt");
+  gfx_write_field(22, 10, 8, debt_state_attr, strpad(substr(debt_text, 1, 8), 8, ' '));
+  gfx_write_field(22, 19, 8, label_attr, "Forum");
+  gfx_write_field(22, 25, 4, forum_state_attr, strpad(substr(forum_text, 1, 4), 4, ' '));
+  gfx_write_field(23, 3, 26, status_attr,
+                  strpad(substr(triumph_status_text(), 1, 26), 26, ' '));
+}
+
+
+void gfx_draw_event()
+{
+  int: row, pos, i, attr;
+  string: wrapped, line;
+
+  gfx_clear_rect(14, 32, 47, 11, ui_make_attr(UI_WHITE, UI_BLACK));
+
+  row := 14;
+
+  if (event_msg_count = 0)
+  {
+    wrapped := wrap_event_text(last_event, 47);
+    pos := 0;
+    line := strtok(wrapped, "\n", pos);
+    while (row <= 24 and strlen(line) > 0)
+    {
+      gfx_write_field(row, 32, 47, ui_make_attr(UI_WHITE, UI_BLACK), line);
+      row := row + 1;
+      line := strtok(wrapped, "\n", pos);
+    }
+    return;
+  }
+
+  i := 1;
+  while (i <= event_msg_count and row <= 24)
+  {
+    wrapped := wrap_text_line(event_msgs[i], 47);
+    pos := 0;
+    line := strtok(wrapped, "\n", pos);
+    attr := event_class_attr(event_msg_classes[i]);
+
+    while (row <= 24 and strlen(line) > 0)
+    {
+      gfx_write_field(row, 32, 47, attr, line);
+      row := row + 1;
+      line := strtok(wrapped, "\n", pos);
+    }
+
+    i := i + 1;
+  }
+}
+
+
+void gfx_prompt_text(string: prompt)
+{
+  gfx_write_field(10, 33, 45, ui_make_attr(UI_WHITE, UI_BLACK), prompt_text_line(prompt));
+}
+
+
+void gfx_load_shell()
+{
+  print(AVATAR_CLS);
+
+  if (MAIN_UNDERLAY <> "")
+  {
+    char: ns;
+    ns := 0;
+    display_file(MAIN_UNDERLAY, ns);
+  }
+  else
+  {
+    ui_begin_update();
+    ui_fill_rect(1, 1, 79, 24, ' ', ui_make_attr(UI_WHITE, UI_BLACK));
+    ui_fill_rect(1, 1, 79, 1, ' ', ui_make_attr(UI_WHITE, UI_BLUE));
+    gfx_fill_box(2, 1, 30, 8, ui_make_attr(UI_WHITE, UI_BLACK), ui_make_attr(UI_YELLOW, UI_BLACK), " Market ");
+    gfx_fill_box(2, 31, 49, 6, ui_make_attr(UI_WHITE, UI_BLACK), ui_make_attr(UI_LCYAN, UI_BLACK), " Status ");
+    gfx_fill_box(8, 31, 49, 5, ui_make_attr(UI_WHITE, UI_BLACK), ui_make_attr(UI_BLACK, UI_CYAN), " Actions ");
+    gfx_fill_box(10, 1, 30, 9, ui_make_attr(UI_WHITE, UI_BLACK), ui_make_attr(UI_LMAGENTA, UI_BLACK), " Cargo ");
+    gfx_fill_box(19, 1, 30, 6, ui_make_attr(UI_WHITE, UI_BLACK), ui_make_attr(UI_LGREEN, UI_BLACK), " Triumph ");
+    gfx_fill_box(13, 31, 49, 12, ui_make_attr(UI_WHITE, UI_BLACK), ui_make_attr(UI_WHITE, UI_BLACK), " Street Word ");
+    ui_end_update();
+  }
+
+  gfx_screen_loaded := 1;
+}
+
+
+void gfx_redraw_all()
+{
+  if (gfx_screen_loaded = 0)
+    gfx_load_shell();
+
+  ui_begin_update();
+  gfx_draw_header();
+  gfx_draw_market();
+  gfx_draw_status();
+  gfx_draw_event();
+  gfx_draw_inventory();
+  gfx_draw_triumph();
+  gfx_clear_action_area();
+  ui_paint_region(1, 1, 79, 24);
+  ui_end_update();
+  ui_goto(24, 1);
+}
+
+
+void gfx_refresh_event_only()
+{
+  if (gfx_screen_loaded = 0)
+  {
+    gfx_redraw_all();
+    return;
+  }
+
+  ui_begin_update();
+  gfx_draw_event();
+  ui_paint_region(32, 14, 78, 24);
+  ui_end_update();
+  ui_goto(24, 1);
+}
+
+
+void gfx_refresh_status_event()
+{
+  if (gfx_screen_loaded = 0)
+  {
+    gfx_redraw_all();
+    return;
+  }
+
+  ui_begin_update();
+  gfx_draw_status();
+  gfx_draw_triumph();
+  gfx_draw_event();
+  ui_paint_region(32, 3, 78, 6);
+  ui_paint_region(2, 20, 29, 23);
+  ui_paint_region(32, 14, 78, 24);
+  ui_end_update();
+  ui_goto(24, 1);
+}
+
+
+void gfx_refresh_status_cargo_event()
+{
+  if (gfx_screen_loaded = 0)
+  {
+    gfx_redraw_all();
+    return;
+  }
+
+  ui_begin_update();
+  gfx_draw_status();
+  gfx_draw_inventory();
+  gfx_draw_triumph();
+  gfx_draw_event();
+  ui_paint_region(32, 3, 78, 6);
+  ui_paint_region(2, 11, 29, 17);
+  ui_paint_region(2, 20, 29, 23);
+  ui_paint_region(32, 14, 78, 24);
+  ui_end_update();
+  ui_goto(24, 1);
+}
+
+
+void gfx_refresh_day_rollover()
+{
+  if (gfx_screen_loaded = 0)
+  {
+    gfx_redraw_all();
+    return;
+  }
+
+  ui_begin_update();
+  gfx_draw_header();
+  gfx_draw_market();
+  gfx_draw_status();
+  gfx_draw_inventory();
+  gfx_draw_triumph();
+  gfx_draw_event();
+  ui_paint_region(1, 1, 79, 1);
+  ui_paint_region(2, 3, 29, 8);
+  ui_paint_region(32, 3, 78, 6);
+  ui_paint_region(2, 11, 29, 17);
+  ui_paint_region(2, 20, 29, 23);
+  ui_paint_region(32, 14, 78, 24);
+  ui_end_update();
+  ui_goto(24, 1);
+}
+
+
+void clear_scores()
+{
+  int: i;
+
+  i := 1;
+  while (i <= SCORE_ROWS)
+  {
+    score_names[i] := "";
+    score_values[i] := 0;
+    i := i + 1;
+  }
+}
+
+
+void insert_score(string: name, long: value)
+{
+  int: i, j;
+
+  if (value <= 0)
+    return;
+
+  i := 1;
+  while (i <= SCORE_ROWS)
+  {
+    if (strlen(score_names[i]) = 0 or value > score_values[i])
+    {
+      j := SCORE_ROWS;
+      while (j > i)
+      {
+        score_names[j] := score_names[j-1];
+        score_values[j] := score_values[j-1];
+        j := j - 1;
+      }
+
+      score_names[i] := name;
+      score_values[i] := value;
+      return;
+    }
+
+    i := i + 1;
+  }
+}
+
+
+void load_scores()
+{
+  int: fd, sep;
+  string: line, name, value_s;
+
+  clear_scores();
+
+  fd := open(score_file(), IOPEN_READ);
+  if (fd = -1)
+    return;
+
+  while (readln(fd, line) <> -1)
+  {
+    sep := stridx(line, 1, '|');
+    if (sep > 0)
+    {
+      name := substr(line, 1, sep-1);
+      value_s := substr(line, sep+1, strlen(line)-sep);
+      insert_score(name, strtol(value_s));
+    }
+  }
+
+  close(fd);
+}
+
+
+void save_scores()
+{
+  int: fd, i;
+
+  fd := open(score_file(), IOPEN_WRITE | IOPEN_CREATE);
+  if (fd = -1)
+    return;
+
+  i := 1;
+  while (i <= SCORE_ROWS)
+  {
+    if (strlen(score_names[i]) > 0)
+      writeln(fd, score_names[i] + "|" + ltostr(score_values[i]));
+    i := i + 1;
+  }
+
+  close(fd);
+}
+
+
+void update_scores()
+{
+  load_scores();
+  if (net_worth_negative() = 0)
+    insert_score(user_display_name(), net_worth_abs());
+  save_scores();
+}
+
+
+void gfx_show_scores_popup()
+{
+  int: i, row;
+  int: fill_attr, border_attr, text_attr, hint_attr;
+  int: left, top, right, bottom;
+
+  load_scores();
+
+  left := 20;
+  top := 8;
+  right := 59;
+  bottom := 17;
+
+  if (gfx_begin_modal("smuggle_scores", left, top, right, bottom) <> 0)
+    return;
+
+  fill_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+  border_attr := ui_make_attr(UI_LGREEN, UI_BLUE);
+  text_attr := fill_attr;
+  hint_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+
+  ui_begin_update();
+  ui_fill_rect(top, left, right - left + 1, bottom - top + 1, ' ', fill_attr);
+  ui_box(top, left, right - left + 1, bottom - top + 1, border_attr, " Top Smugglers ");
+  gfx_write_field(9, 22, 35, border_attr, "Name");
+  gfx_write_field(9, 48, 10, border_attr, "Net Worth");
+
+  i := 1;
+  row := 10;
+  while (i <= SCORE_ROWS)
+  {
+    if (strlen(score_names[i]) > 0)
+    {
+      gfx_write_field(row, 22, 24, text_attr, strpad(itostr(i) + ". " + substr(score_names[i], 1, 21), 24, ' '));
+      gfx_write_field(row, 48, 10, text_attr, strpadleft(ltostr(score_values[i]), 10, ' '));
+    }
+    else
+      gfx_write_field(row, 22, 36, fill_attr, "");
+
+    i := i + 1;
+    row := row + 1;
+  }
+
+  gfx_write_field(15, 22, 36, hint_attr, "Press any key to return");
+  ui_end_update();
+
+  getch();
+  gfx_end_modal("smuggle_scores", left, top, right, bottom);
+}
+
+
+int prompt_offer_modal(string: title, string: prompt, int: price)
+{
+  int: choice;
+  int: row, pos;
+  string: body, line;
+  int: modal_fill_attr, modal_border_attr, modal_text_attr, modal_prompt_attr;
+  struct ui_lightbar_style: lb_style;
+  array [1..2] of struct ui_lightbar_item: items;
+  int: left, top, right, bottom;
+
+  if (is_graphics() = 0)
+    return 0;
+
+  left := 18;
+  top := 7;
+  right := 62;
+  bottom := 15;
+
+  if (gfx_begin_modal("smuggle_offer", left, top, right, bottom) <> 0)
+    return 0;
+
+  modal_fill_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+  modal_border_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+  modal_text_attr := modal_fill_attr;
+  modal_prompt_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+
+  ui_begin_update();
+  ui_fill_rect(7, 18, 45, 9, ' ', modal_fill_attr);
+  ui_box(7, 18, 45, 9, modal_border_attr, title);
+
+  body := wrap_text_line(prompt + " for " + itostr(price) + " denarii.", 41);
+  pos := 0;
+  row := 9;
+  line := strtok(body, "\n", pos);
+  while (row <= 11 and strlen(line) > 0)
+  {
+    gfx_write_field(row, 20, 41, modal_text_attr, line);
+    row := row + 1;
+    line := strtok(body, "\n", pos);
+  }
+
+  gfx_write_field(12, 20, 41, modal_prompt_attr, "Take the offer?");
+
+  ui_lightbar_style_default(lb_style);
+  lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+  lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+  lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+  lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+  lb_style.wrap := 1;
+  lb_style.enable_hotkeys := 1;
+  lb_style.show_brackets := UI_BRACKET_SQUARE;
+
+  items[1].text := "Yes";
+  items[1].x := 27; items[1].y := 13; items[1].width := 8; items[1].justify := UI_JUSTIFY_LEFT;
+  items[2].text := "No";
+  items[2].x := 39; items[2].y := 13; items[2].width := 8; items[2].justify := UI_JUSTIFY_LEFT;
+  ui_end_update();
+
+  choice := ui_lightbar_pos(items, 2, lb_style);
+
+  gfx_end_modal("smuggle_offer", left, top, right, bottom);
+
+  return choice = 1;
+}
+
+
+int prompt_offer_accept(string: title, string: prompt, int: price)
+{
+  char: ch;
+
+  if (is_graphics())
+    return prompt_offer_modal(title, prompt, price);
+
+  print("\n|11", prompt, " for |15", price, "|11 denarii. Take it? |14[Y/N]|07 ");
+  ch := upper_key(getch());
+  print(ch, "\n");
+  return ch = 'Y';
+}
+
+
+int offer_goods_bargain(int: good_idx, int: lots, int: discount_pct,
+                        string: title, string: prompt,
+                        string: accept_msg, string: decline_msg)
+{
+  int: price, floor_price;
+
+  if (lots <= 0)
+    return 0;
+
+  floor_price := (price_min(good_idx) * lots) / 2;
+  price := (prices[good_idx] * lots * discount_pct) / 100;
+
+  if (price < floor_price)
+    price := floor_price;
+
+  if (price < lots)
+    price := lots;
+
+  if (purse < price or free_capacity() < lots)
+    return 0;
+
+  if (prompt_offer_accept(title, prompt, price))
+  {
+    purse := purse - price;
+    carried[good_idx] := carried[good_idx] + lots;
+    append_event_gain(accept_msg);
+    append_event_gain("[+" + itostr(lots) + " lots of " + goods[good_idx] + "]");
+  }
+  else
+    append_event(decline_msg);
+
+  return 1;
+}
+
+
+int offer_guard_bargain(int: price, string: title, string: prompt,
+                        string: accept_msg, string: decline_msg)
+{
+  if (purse < price)
+    return 0;
+
+  if (prompt_offer_accept(title, prompt, price))
+  {
+    purse := purse - price;
+    guards := guards + 1;
+    append_event_gain(accept_msg);
+    append_event_gain("[+1 hired blade]");
+  }
+  else
+    append_event(decline_msg);
+
+  return 1;
+}
+
+
+int offer_capacity_bargain(int: price, int: extra_capacity,
+                           string: title, string: prompt,
+                           string: accept_msg, string: decline_msg)
+{
+  if (purse < price)
+    return 0;
+
+  if (prompt_offer_accept(title, prompt, price))
+  {
+    purse := purse - price;
+    capacity_total := capacity_total + extra_capacity;
+    append_event_gain(accept_msg);
+    append_event_gain("[+" + itostr(extra_capacity) + " capacity]");
+  }
+  else
+    append_event(decline_msg);
+
+  return 1;
+}
+
+
+void show_scores()
+{
+  int: i;
+
+  load_scores();
+
+  if (strlen(score_names[1]) = 0)
+    return;
+
+  print("|11Top Smugglers|07\n");
+  i := 1;
+  while (i <= SCORE_ROWS)
+  {
+    if (strlen(score_names[i]) > 0)
+      print("|14", i, ". |15", score_names[i], "|03 -- |10", score_values[i], "|07\n");
+    i := i + 1;
+  }
+  print("\n");
+}
+
+
+string district_tagline(int: idx)
+{
+  if (idx = 1) return "marble steps, scribes, and debts dressed as law";
+  if (idx = 2) return "alleys, lamp smoke, and knives hired by the hour";
+  if (idx = 3) return "tar, gulls, river barges, and dockside whispers";
+  if (idx = 4) return "warehouse shadows and old money pretending to be respectable";
+  if (idx = 5) return "training yards, gamblers, and crowds hungry for spectacle";
+  if (idx = 6) return "curtained litters, sealed doors, and secrets sold twice";
+  return "the restless pulse of Rome after dark";
+}
+
+
+string district_arrival_text(int: idx)
+{
+  if (idx = 1) return "You pass beneath the Forum colonnades, where every favor has a witness and every witness has a price.";
+  if (idx = 2) return "Subura takes you back without ceremony: hot brick, loud stalls, and men who watch your purse before your face.";
+  if (idx = 3) return "Ostia reeks of wet rope and salt. Cargo changes hands faster than names do.";
+  if (idx = 4) return "The Aventine keeps its ledgers in quiet rooms and settles arguments behind closed shutters.";
+  if (idx = 5) return "Campus Martius hums with wagers, drills, and the kind of crowd that buys fast when rumor catches fire.";
+  if (idx = 6) return "Palatine Shadows greets you with polished sandals, closed curtains, and business that never reaches daylight.";
+  return "Rome opens another shadow market before you.";
+}
+
+
+string travel_line(int: idx)
+{
+  if (idx = 1) return "You cut back toward the Forum before dawn, keeping to the stone shade and avoiding eyes that remember faces.";
+  if (idx = 2) return "You vanish into Subura's alleys, where even honest footsteps sound guilty.";
+  if (idx = 3) return "You ride the riverward traffic toward Ostia, where every crate might be worth killing over.";
+  if (idx = 4) return "You climb toward the Aventine, where contraband prefers polished hands and quiet courtyards.";
+  if (idx = 5) return "You head for Campus Martius, where soldiers, gamblers, and merchants all pretend to be respectable at the same time.";
+  if (idx = 6) return "You move toward the Palatine, where silk screens hide worse things than scandal.";
+  return "You move through Rome by habit and bad intention.";
+}
+
+
+string district_service_note()
+{
+  if (current_district = 1)
+    return "The Forum remembers you. House Varro and your hidden cache are both within reach tonight.";
+
+  return "Away from the Forum, you are trading without your lender or your cache at your back.";
+}
+
+
+void apply_district_market_bias()
+{
+  if (current_district = 1)
+  {
+    prices[5] := prices[5] + 25;
+    prices[2] := prices[2] + 10;
+  }
+  else if (current_district = 2)
+  {
+    prices[3] := prices[3] + 15;
+    prices[1] := prices[1] - 5;
+  }
+  else if (current_district = 3)
+  {
+    prices[2] := prices[2] - 8;
+    prices[4] := prices[4] - 18;
+    prices[6] := prices[6] + 18;
+  }
+  else if (current_district = 4)
+  {
+    prices[1] := prices[1] + 12;
+    prices[4] := prices[4] + 12;
+  }
+  else if (current_district = 5)
+  {
+    prices[1] := prices[1] + 10;
+    prices[3] := prices[3] + 8;
+  }
+  else if (current_district = 6)
+  {
+    prices[4] := prices[4] + 20;
+    prices[5] := prices[5] + 18;
+  }
+
+  if (prices[1] < price_min(1)) prices[1] := price_min(1);
+  if (prices[2] < price_min(2)) prices[2] := price_min(2);
+  if (prices[3] < price_min(3)) prices[3] := price_min(3);
+  if (prices[4] < price_min(4)) prices[4] := price_min(4);
+  if (prices[5] < price_min(5)) prices[5] := price_min(5);
+  if (prices[6] < price_min(6)) prices[6] := price_min(6);
+}
+
+
+void pause_prompt()
+{
+  print("\n|08(press any key)|07");
+  getch();
+}
+
+
+int prompt_number(string: prompt, int: maxlen)
+{
+  int: captured;
+  string: entered;
+  struct ui_edit_field_style: ef_style;
+
+  entered := "";
+  captured := 0;
+  if (is_graphics())
+  {
+    if (gfx_capture_action_block("smuggle_num") = 0)
+    {
+      captured := 1;
+      ui_begin_update();
+      gfx_clear_action_area();
+      gfx_write_field(9, 33, 45, ui_make_attr(UI_YELLOW, UI_BLACK), "Enter amount");
+      gfx_write_field(10, 33, 34, ui_make_attr(UI_WHITE, UI_BLACK), prompt_text_line(prompt));
+      ui_end_update();
+    }
+
+    ui_edit_field_style_default(ef_style);
+    ef_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    ef_style.focus_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    ef_style.fill_ch := ' ';
+    ef_style.flags := UI_EDIT_FLAG_ALLOW_CANCEL;
+    entered := ui_edit_field(10, 79 - maxlen, maxlen, maxlen, "", ef_style);
+
+    if (captured)
+      gfx_restore_action_block("smuggle_num");
+  }
+  else
+    input_str(entered, INPUT_NLB_LINE, 0, maxlen, prompt);
+
+  if (strlen(entered) = 0)
+    return 0;
+
+  return strtoi(entered);
+}
+
+
+void init_game()
+{
+  int: i;
+
+  init_labels();
+
+  i := 1;
+  while (i <= GOODS_COUNT)
+  {
+    carried[i] := 0;
+    cached[i] := 0;
+    prices[i] := 0;
+    i := i + 1;
+  }
+
+  i := 1;
+  while (i <= TRADER_SLOTS)
+  {
+    trader_active[i] := 0;
+    trader_route_from[i] := 1;
+    trader_route_to[i] := 1;
+    trader_goods_mask[i] := 0;
+    trader_cut_pct[i] := 0;
+    trader_guards[i] := 0;
+    trader_carts[i] := 0;
+    trader_oxen[i] := 0;
+    trader_sword_tier[i] := SWORD_NONE;
+    trader_armor_tier[i] := ARMOR_NONE;
+    i := i + 1;
+  }
+
+  current_district := 1;
+  previous_district := 1;
+  day_number := 1;
+  days_left_on_note := 30;
+  health := 100;
+  suspicion := 8;
+  guards := 0;
+  capacity_total := 30;
+  purse := 500;
+  vault_balance := 0;
+  debt_to_varro := 750;
+  last_trade_value := 0;
+  last_trade_volume := 0;
+  game_over := 0;
+  quit_requested := 0;
+  retired := 0;
+  pending_resume_advance := 0;
+  prestige_points := 0;
+  influence_points := 0;
+  might_points := 0;
+  unlock_sellswords := 0;
+  unlock_cartwright := 0;
+  unlock_warehouse := 0;
+  unlock_property := 0;
+  unlock_traders := 0;
+  self_cart_count := 0;
+  self_oxen_count := 0;
+  self_sword_tier := SWORD_NONE;
+  self_armor_tier := ARMOR_NONE;
+  trader_slots_unlocked := 1;
+  resumed_game := 0;
+  set_event("You slip into the Forum after dark, hunting your first profitable whisper.");
+  sync_progress_state();
+}
+
+
+void randomize_market_prices()
+{
+  int: i;
+
+  i := 1;
+  while (i <= GOODS_COUNT)
+  {
+    prices[i] := price_min(i) + (rand() % price_span(i));
+    i := i + 1;
+  }
+
+  apply_district_market_bias();
+}
+
+
+void apply_market_event()
+{
+  int: roll, idx;
+
+  roll := rand() % 100;
+  idx := (rand() % GOODS_COUNT) + 1;
+
+  if (roll < 14)
+  {
+    prices[idx] := prices[idx] + ((prices[idx] / 2) + (rand() % prices[idx]));
+
+    if (idx = 1) append_event_warning("A patrician banquet empties half the wine cellars. Falernian prices surge.");
+    else if (idx = 2) append_event_warning("Temple wardens seize incense shipments. Syrian incense turns scarce.");
+    else if (idx = 3) append_event_warning("Too many apothecaries lost their nerve. Poppy resin jumps.");
+    else if (idx = 4) append_event_warning("An eastern caravan vanished on the road. Silk bolts are suddenly dear.");
+    else if (idx = 5) append_event_warning("A magistrate purge hits the clerks. Forged seals become dangerous and expensive.");
+    else append_event_warning("Legion quartermasters start asking questions. Legion steel spikes.");
+  }
+  else if (roll < 28)
+  {
+    prices[idx] := prices[idx] / 2;
+    if (prices[idx] < price_min(idx))
+      prices[idx] := price_min(idx);
+
+    if (idx = 1) append_event_gain("A river convoy arrives intact. Falernian wine floods the market.");
+    else if (idx = 2) append_event_gain("Smugglers dump fresh incense at the docks. Syrian incense softens.");
+    else if (idx = 3) append_event_gain("Back-alley brewers overcooked a batch. Poppy resin goes cheap.");
+    else if (idx = 4) append_event_gain("A Syrian broker panics and unloads silk. Prices crack.");
+    else if (idx = 5) append_event_gain("Half the district is selling forged papers. Seals bottom out.");
+    else append_event_gain("A crooked armorer unloads surplus blades. Legion steel turns common.");
+  }
+}
+
+
+void apply_watch_event()
+{
+  int: roll, loss;
+
+  roll := rand() % 100;
+
+  if (roll < 7 and suspicion > 15)
+  {
+    if (suspicion > 6)
+      suspicion := suspicion - 6;
+    append_event_gain("A magistrate's attention shifts to another fool for a few days. The heat eases.");
+  }
+  else if (roll < 13)
+  {
+    suspicion := suspicion + 6 + district_watch_modifier();
+    if (suspicion > 100)
+      suspicion := 100;
+    append_event_warning("A clerk sells a name, a route, or a face. The vigiles seem a little too interested tonight.");
+  }
+  else if (roll < 17 and purse > 120)
+  {
+    loss := 20 + (rand() % 31);
+    if (loss > purse)
+      loss := purse;
+    purse := purse - loss;
+    append_event_danger("A checkpoint tribute goes badly.");
+    append_event_warning("Paid " + itostr(loss) + " denarii.");
+  }
+}
+
+
+int apply_travel_event()
+{
+  int: roll;
+
+  roll := rand() % 100;
+
+  if (roll < 8)
+  {
+    health := health - ((rand() % 6) + 2);
+    if (health < 1)
+      health := 1;
+    append_event_danger("You arrive bruised after a street scuffle that should have stayed verbal.");
+    return 1;
+  }
+  else if (roll < 14)
+  {
+    purse := purse + 18 + (rand() % 18);
+    append_event_gain("A courier pays well for silence and a quick handoff made between checkpoints.");
+    return 1;
+  }
+
+  return 0;
+}
+
+
+void apply_district_event()
+{
+  int: roll, pick;
+
+  roll := rand() % 100;
+  if (roll >= 18)
+    return;
+
+  pick := rand() % 3;
+
+  if (current_district = 1)
+  {
+    if (pick = 0)
+      append_event_warning("A court clerk quietly needs forged seals before sunrise. Forum buyers pay like frightened senators.");
+    else if (pick = 1)
+      append_event_gain("A steward from the basilica is buying Falernian by the quiet jug. Respectability is thirsty tonight.");
+    else
+      append_event_warning("Temple accountants are arguing over incense levies again. Honest cargo suddenly looks less honest.");
+  }
+  else if (current_district = 2)
+  {
+    if (pick = 0)
+      append_event_gain("Subura's taverns burn through resin and wine faster than the watch can count cups.");
+    else if (pick = 1)
+      append_event_warning("A knife-boy gang is leaning on stallholders for tribute. Everybody's costs feel heavier.");
+    else
+      append_event_gain("A back-alley healer is desperate for poppy resin before dawn. Quiet buyers pay well in Subura.");
+  }
+  else if (current_district = 3)
+  {
+    if (pick = 0)
+      append_event_warning("Dock gossip says an eastern hull came in light. Silk and incense move strangely at Ostia tonight.");
+    else if (pick = 1)
+      append_event_gain("A barge-master is unloading wine too fast to ask careful questions. The docks smell like margin.");
+    else
+      append_event_warning("Harbor inspectors are sniffing around military cargo. Legion steel is suddenly a nervous trade.");
+  }
+  else if (current_district = 4)
+  {
+    if (pick = 0)
+      append_event_gain("Aventine households are buying luxury through servants again. Quiet buyers mean good margins.");
+    else if (pick = 1)
+      append_event_gain("A terrace feast is stripping cellars and scent cabinets at the same time. Wine and incense both feel lively.");
+    else
+      append_event_warning("A warehouse factor is fixing ledgers after dark. Forged seals suddenly matter more than charm.");
+  }
+  else if (current_district = 5)
+  {
+    if (pick = 0)
+      append_event_gain("Games and wagers pull crowds into Campus Martius. Quick coin follows noisy appetites.");
+    else if (pick = 1)
+      append_event_warning("Drill yards are short on proper steel and asking impolite questions. Legion cargo is hotter than usual.");
+    else
+      append_event_gain("Bruised bettors and fighters are paying for resin by the handful. Campus coin smells like sweat tonight.");
+  }
+  else if (current_district = 6)
+  {
+    if (pick = 0)
+      append_event_warning("Palatine doors stay shut, but sealed notes keep moving. Secrecy is buying secrecy tonight.");
+    else if (pick = 1)
+      append_event_gain("Curtained litters keep stopping at the same side entrance. Silk and incense are moving under noble silence.");
+    else
+      append_event_warning("A household purge is chewing through private ledgers. Forged seals are suddenly worth both more and less.");
+  }
+}
+
+
+void apply_personal_event()
+{
+  int: roll, idx, amount;
+
+  roll := rand() % 100;
+  idx := (rand() % GOODS_COUNT) + 1;
+  amount := (rand() % 4) + 1;
+
+  if (roll < 6 and purse > 80)
+  {
+    purse := purse - 40;
+    append_event_theft("A market ghost brushes past you in the crowd.");
+    append_event_warning("Lost 40 denarii.");
+  }
+  else if (roll < 12 and guards > 0)
+  {
+    guards := guards - 1;
+    if (suspicion < 95)
+      suspicion := suspicion + 5;
+    append_event_theft("One of your hired blades sells his loyalty for a cleaner purse.");
+    append_event_warning("Lost 1 hired blade.");
+  }
+  else if (roll < 18 and free_capacity() >= amount)
+  {
+    carried[idx] := carried[idx] + amount;
+    append_event_gain("A body in a side alley still grips a satchel strap. Rome has no use for the dead, but you do.");
+    append_event_gain("[+" + itostr(amount) + " lots of " + goods[idx] + "]");
+  }
+  else if (roll < 22 and cached_total() > 10 and current_district <> 1)
+  {
+    idx := 1;
+    while (idx <= GOODS_COUNT)
+    {
+      cached[idx] := cached[idx] / 2;
+      idx := idx + 1;
+    }
+    append_event_theft("Someone reached your cache through the wrong priest, the right bribe, or both.");
+    append_event_warning("Half your reserve disappears.");
+  }
+}
+
+
+void run_special_offer_event()
+{
+  int: roll, price, amount;
+
+  roll := rand() % 100;
+
+  if (roll >= 12)
+    return;
+
+  if (current_district = 1)
+  {
+    amount := 1 + (rand() % 2);
+    offer_goods_bargain(5, amount, 65,
+                        " Forum Packet ",
+                        "A basilica clerk slips you a waxed packet of forged seals",
+                        "A quiet exchange beneath the colonnades leaves you richer in seals and poorer in innocence.",
+                        "You leave the clerk with his packet and his panic.");
+    return;
+  }
+
+  if (current_district = 2)
+  {
+    price := 45 + (rand() % 26);
+    offer_guard_bargain(price,
+                        " Alley Steel ",
+                        "A scarred broker offers another hired blade for the night",
+                        "You add another hired blade to your shadow. He looks expensive because he is.",
+                        "You wave the broker off and keep your own shadow for company.");
+    return;
+  }
+
+  if (current_district = 3)
+  {
+    amount := 2 + (rand() % 2);
+    offer_goods_bargain(2, amount, 60,
+                        " Dockside Lot ",
+                        "A barge runner offers damp Syrian incense before customs counts the crates",
+                        "You buy the dockside lot before the tally sticks catch up with the missing cargo.",
+                        "You leave the damp incense to somebody hungrier than you.");
+    return;
+  }
+
+  if (current_district = 4)
+  {
+    price := 55 + (rand() % 31);
+    offer_capacity_bargain(price, 5,
+                           " Rigging Harness ",
+                           "A leatherworker offers reinforced satchel rigging",
+                           "A leatherworker toughens your rigging. You can carry five more lots now.",
+                           "You leave the extra straps and frame where they are.");
+    return;
+  }
+
+  if (current_district = 5)
+  {
+    amount := 1 + (rand() % 2);
+    offer_goods_bargain(6, amount, 70,
+                        " Quartermaster Scrap ",
+                        "A camp-follower offers dented legion steel from a wagon that never reached inventory",
+                        "You take the army steel and pretend not to hear where it came from.",
+                        "You decide not to be the fool holding army metal at the wrong hour.");
+    return;
+  }
+
+  amount := 1 + (rand() % 2);
+  offer_goods_bargain(4, amount, 68,
+                      " Quiet Delivery ",
+                      "A curtained servant offers silk bolts with the household marks already cut away",
+                      "You take the silk and leave the questions behind the curtain.",
+                      "You bow out of the noble household's quiet panic.");
+}
+
+
+void run_arrival_events()
+{
+  clear_event();
+  append_event(district_arrival_text(current_district));
+  apply_district_event();
+  apply_market_event();
+  apply_watch_event();
+  apply_personal_event();
+  run_special_offer_event();
+}
+
+
+void print_header()
+{
+  print("\f");
+  print("|11============================================================|07\n");
+  print("|14  Smuggler of Rome|07  |08Day |15", day_number, "|08  District: |15",
+        districts[current_district], "|07\n");
+  print("|11============================================================|07\n");
+  print("|03Purse: |15", purse,
+        "|03   Vault: |15", vault_balance,
+        "|03   Debt: |12", debt_to_varro, "|07\n");
+  print("|03Health: |15", health,
+        "|03   Suspicion: |15", suspicion,
+        "|03   Guards: |15", guards, "|07\n");
+  print("|03Capacity: |15", free_capacity(), "|03/", capacity_total,
+        "|03   Note due in: |15", days_left_on_note, " days|07\n");
+  print("|03Net worth: |15", net_worth_text(), "|07\n");
+  print("|08", district_tagline(current_district), "|07\n\n");
+}
+
+
+void print_prices()
+{
+  int: i;
+
+  print("|11Market Board|07\n");
+  i := 1;
+  while (i <= GOODS_COUNT)
+  {
+    print("|14", i, ". |15", goods[i], "|03 - |10", prices[i], " denarii",
+          "|03  carried: |15", carried[i],
+          "|03  cached: |15", cached[i], "|07\n");
+    i := i + 1;
+  }
+  print("\n");
+}
+
+
+void print_services()
+{
+  print("|11Actions|07\n");
+  print("|14B|07 Buy goods");
+  print("  |14S|07 Sell goods");
+  print("  |14T|07 Travel");
+  print("  |14V|07 Visit");
+  print("  |14O|07 Options\n");
+  print("|08Visit -> |15M|08 Mensa  |15V|08 Varro  |15C|08 Cache  |15S|08 Sellswords  |15W|08 Cartwright|07\n");
+  print("|08Options -> |15H|08 High scores  |15R|08 Redraw  |15Q|08 Quit|07\n");
+
+  print("|08", district_service_note(), "|07\n");
+
+  if (strlen(last_event) > 0)
+    print("\n|11Word on the street:|07 ", last_event, "\n");
+}
+
+
+void draw_screen()
+{
+  if (is_graphics())
+    gfx_redraw_all();
+  else
+  {
+    print_header();
+    print_prices();
+    print_services();
+  }
+}
+
+
+int prompt_good()
+{
+  int: idx;
+  int: captured;
+  struct ui_lightbar_style: lb_style;
+  array [1..GOODS_COUNT] of struct ui_lightbar_item: items;
+
+  if (is_graphics())
+  {
+    captured := 0;
+    idx := 1;
+    while (idx <= GOODS_COUNT)
+    {
+      items[idx].text := itostr(idx) + ". " + goods[idx];
+      if (idx % 2 = 1)
+        items[idx].x := 33;
+      else
+        items[idx].x := 56;
+
+      items[idx].y := 9 + ((idx - 1) / 2);
+      items[idx].width := 20;
+      items[idx].justify := UI_JUSTIFY_LEFT;
+      idx := idx + 1;
+    }
+
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.show_brackets := UI_BRACKET_NONE;
+    lb_style.enable_hotkeys := 1;
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+
+    if (gfx_capture_action_block("smuggle_goods") = 0)
+    {
+      captured := 1;
+      ui_begin_update();
+      gfx_clear_action_area();
+      ui_end_update();
+    }
+
+    idx := ui_lightbar_pos(items, GOODS_COUNT, lb_style);
+
+    if (captured)
+      gfx_restore_action_block("smuggle_goods");
+
+    if (idx < 1 or idx > GOODS_COUNT)
+      return 0;
+
+    return idx;
+  }
+
+  idx := prompt_number("\n|11Good number: |15", 2);
+
+  if (idx < 1 or idx > GOODS_COUNT)
+    return 0;
+
+  return idx;
+}
+
+
+void buy_goods()
+{
+  int: idx, amount;
+  long: cost;
+
+  idx := prompt_good();
+  if (idx = 0)
+  {
+    set_event("You let the offer pass. Not every whisper deserves coin.");
+    return;
+  }
+
+  if (is_graphics() = 0)
+  {
+    print("|03Buying |15", goods[idx], "|03 at |15", prices[idx], " denarii|07\n");
+    print("|03You can carry |15", free_capacity(), "|03 more.|07\n");
+  }
+  amount := prompt_number("|11How many? |15", 5);
+
+  if (amount <= 0)
+  {
+    set_event("No deal. The broker folds his hands and finds a less cautious fool.");
+    return;
+  }
+
+  if (amount > free_capacity())
+  {
+    set_event_warning("Your satchel and cart space will not take that much weight.");
+    return;
+  }
+
+  cost := prices[idx] * amount;
+  if (cost > purse)
+  {
+    set_event_danger("You count your denarii twice and still come up short.");
+    return;
+  }
+
+  carried[idx] := carried[idx] + amount;
+  purse := purse - cost;
+  last_trade_value := cost;
+  last_trade_volume := amount;
+  if (suspicion < 100)
+    suspicion := suspicion + (amount / 4) + 1;
+
+  set_event("You take delivery of " + itostr(amount) + " lots of " + goods[idx] + " and keep moving before anyone grows curious.");
+}
+
+
+void sell_goods()
+{
+  int: idx, amount;
+  long: revenue;
+
+  idx := prompt_good();
+  if (idx = 0)
+  {
+    set_event("You keep your cargo close and wait for a better whisper.");
+    return;
+  }
+
+  if (is_graphics() = 0)
+  {
+    print("|03Selling |15", goods[idx], "|03 at |15", prices[idx], " denarii|07\n");
+    print("|03You carry |15", carried[idx], "|03 lots.|07\n");
+  }
+  amount := prompt_number("|11How many? |15", 5);
+
+  if (amount <= 0)
+  {
+    set_event("No sale. Better to wait than sell like a frightened amateur.");
+    return;
+  }
+
+  if (amount > carried[idx])
+  {
+    set_event_warning("You cannot sell cargo that never made it into your satchel.");
+    return;
+  }
+
+  revenue := prices[idx] * amount;
+  carried[idx] := carried[idx] - amount;
+  purse := purse + revenue;
+  last_trade_value := revenue;
+  last_trade_volume := amount;
+  if (suspicion < 100)
+    suspicion := suspicion + (amount / 5) + 1;
+
+  set_event_gain("The buyer pays without haggling. " + itostr(amount) + " lots move for " + ltostr(revenue) + " denarii.");
+}
+
+
+void visit_counting_house()
+{
+  int: amount;
+
+  amount := prompt_number("\n|11Deposit how much? |15", 9);
+  if (amount > 0)
+  {
+    if (amount > purse)
+      set_event_warning("The counting-house clerks admire your confidence more than your arithmetic.");
+    else
+    {
+      purse := purse - amount;
+      vault_balance := vault_balance + amount;
+      set_event("The counting house swallows your deposit under wax, ledger dust, and selective memory.");
+    }
+  }
+
+  amount := prompt_number("|11Withdraw how much? |15", 9);
+  if (amount > 0)
+  {
+    if (amount > vault_balance)
+      set_event_warning("The counting house refuses to imagine money that is not on your line.");
+    else
+    {
+      vault_balance := vault_balance - amount;
+      purse := purse + amount;
+      set_event("A clerk slides a pouch across the counter and pretends not to know your trade.");
+    }
+  }
+}
+
+
+void visit_house_varro()
+{
+  int: amount;
+
+  if (home_services_available() = 0)
+  {
+    set_event_warning("House Varro keeps its table in the Forum and does not travel for small operators.");
+    return;
+  }
+
+  if (is_graphics() = 0)
+  {
+    print("\n|11House Varro|07\n");
+    print("|03Debt outstanding: |12", debt_to_varro, "|07\n");
+  }
+
+  amount := prompt_number("|11Pay how much? |15", 9);
+  if (amount > 0)
+  {
+    if (amount > purse)
+      set_event_danger("Varro's collector smiles like a butcher. Insolence is free; repayment is not.");
+    else
+    {
+      if (amount > debt_to_varro)
+        amount := debt_to_varro;
+
+      purse := purse - amount;
+      debt_to_varro := debt_to_varro - amount;
+
+      if (debt_to_varro = 0)
+        set_event_gain("House Varro marks your slate clean. In Rome, that kind of mercy is usually temporary.");
+      else
+        set_event("Varro takes your coin, updates the slate, and decides not to improve your face.");
+    }
+  }
+
+  if (debt_to_varro = 0)
+  {
+    amount := prompt_number("|11Borrow how much? |15", 9);
+    if (amount > 0)
+    {
+      debt_to_varro := debt_to_varro + amount;
+      purse := purse + amount;
+      days_left_on_note := 30;
+      set_event_warning("Varro extends fresh credit, which is just another word for a cleaner leash.");
+    }
+  }
+}
+
+
+void move_goods()
+{
+  int: idx, amount, action;
+  int: captured, choice;
+  struct ui_lightbar_style: lb_style;
+  array [1..2] of struct ui_lightbar_item: items;
+
+  if (home_services_available() = 0)
+  {
+    set_event_warning("Your hidden cache sits under Forum stone, not out here in borrowed shadows.");
+    return;
+  }
+
+  if (is_graphics())
+  {
+    captured := 0;
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.enable_hotkeys := 1;
+    lb_style.show_brackets := UI_BRACKET_NONE;
+
+    items[1].text := "1. Store goods";
+    items[1].x := 34; items[1].y := 9; items[1].width := 18; items[1].justify := UI_JUSTIFY_LEFT;
+    items[2].text := "2. Retrieve goods";
+    items[2].x := 55; items[2].y := 9; items[2].width := 20; items[2].justify := UI_JUSTIFY_LEFT;
+
+    if (gfx_capture_action_block("smuggle_move_mode") = 0)
+    {
+      captured := 1;
+      ui_begin_update();
+      gfx_clear_action_area();
+      gfx_write_field(10, 33, 45, ui_make_attr(UI_YELLOW, UI_BLACK), "Move goods in or out of cache");
+      ui_end_update();
+    }
+
+    choice := ui_lightbar_pos(items, 2, lb_style);
+
+    if (captured)
+      gfx_restore_action_block("smuggle_move_mode");
+
+    if (choice = 1)
+      action := 1;
+    else if (choice = 2)
+      action := 2;
+    else
+      action := 0;
+  }
+  else
+  {
+    print("\n|11Move Goods|07\n");
+    print("|141|07 Store goods in cache\n");
+    print("|142|07 Retrieve goods from cache\n");
+    action := prompt_number("|11Choice: |15", 1);
+  }
+
+  idx := prompt_good();
+  if (idx = 0)
+  {
+    set_event("You close the cache ledger and leave the stones undisturbed.");
+    return;
+  }
+
+  amount := prompt_number("|11How many? |15", 5);
+  if (amount <= 0)
+  {
+    set_event("Nothing moves. Silence is sometimes the better investment.");
+    return;
+  }
+
+  if (action = 1)
+  {
+    if (amount > carried[idx])
+    set_event_warning("You do not have that much on hand to hide.");
+    else
+    {
+      carried[idx] := carried[idx] - amount;
+      cached[idx] := cached[idx] + amount;
+      set_event("You bury " + itostr(amount) + " lots of " + goods[idx] + " in the hidden cache and trust stone more than men.");
+    }
+  }
+  else if (action = 2)
+  {
+    if (amount > cached[idx])
+      set_event_warning("Your cache does not hold that much of this cargo, no matter what the ledger says.");
+    else if (amount > free_capacity())
+      set_event_warning("Your satchel will not carry that much weight back into the street.");
+    else
+    {
+      cached[idx] := cached[idx] - amount;
+      carried[idx] := carried[idx] + amount;
+      set_event_gain("You recover " + itostr(amount) + " lots of " + goods[idx] + " from the cache and take them back into circulation.");
+    }
+  }
+  else
+    set_event("No goods move. The cache keeps its silence.");
+}
+
+
+void visit_sellswords()
+{
+  int: price;
+
+  if (home_services_available() = 0)
+  {
+    set_event_warning("The better blades keep their benches in the Forum, not out here in borrowed districts.");
+    return;
+  }
+
+  sync_progress_state();
+  if (unlock_sellswords = 0)
+  {
+    set_event_warning("The better sellsword houses still see you as a small operator. Build more standing first.");
+    return;
+  }
+
+  price := 80 + (guards * 20);
+
+  if (is_graphics() = 0)
+    print("\n|11Sellswords|07\n|03Another hired blade will cost |15", price, "|03 denarii.|07\n");
+
+  if (prompt_offer_accept(" Sellswords ", "A scarred broker offers one more hired blade to your private shadow", price))
+  {
+    if (purse < price)
+    {
+      set_event_danger("The broker listens to your offer, then listens to the weight of your purse and loses interest.");
+      return;
+    }
+
+    purse := purse - price;
+    guards := guards + 1;
+    might_points := might_points + 1;
+    unlock_sellswords := 1;
+    sync_progress_state();
+    set_event_gain("A new hired blade falls in behind you and waits to be pointed at the next problem.");
+    append_event_gain("[+1 hired blade]");
+  }
+  else
+    set_event("You leave the broker to sell his steel to someone less cautious.");
+}
+
+
+void visit_cartwright()
+{
+  int: choice, cart_cost, ox_cost;
+  int: captured;
+  struct ui_lightbar_style: lb_style;
+  array [1..3] of struct ui_lightbar_item: items;
+
+  if (home_services_available() = 0)
+  {
+    set_event_warning("The cartwright keeps his yard in the Forum, where wheels and gossip both travel farther.");
+    return;
+  }
+
+  sync_progress_state();
+  if (unlock_cartwright = 0)
+  {
+    set_event_warning("No cartwright will extend you serious credit or timber until your name weighs more than your debt.");
+    return;
+  }
+
+  cart_cost := 140 + (self_cart_count * 90);
+  ox_cost := 220 + (self_oxen_count * 120);
+  choice := 0;
+
+  if (is_graphics())
+  {
+    captured := 0;
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.enable_hotkeys := 1;
+    lb_style.show_brackets := UI_BRACKET_NONE;
+
+    items[1].text := "1. Handcart  " + ltostr(cart_cost);
+    items[1].x := 34; items[1].y := 9; items[1].width := 20; items[1].justify := UI_JUSTIFY_LEFT;
+    items[2].text := "2. Ox team   " + ltostr(ox_cost);
+    items[2].x := 55; items[2].y := 9; items[2].width := 20; items[2].justify := UI_JUSTIFY_LEFT;
+    items[3].text := "3. Leave";
+    items[3].x := 44; items[3].y := 10; items[3].width := 14; items[3].justify := UI_JUSTIFY_LEFT;
+
+    if (gfx_capture_action_block("smuggle_cartwright") = 0)
+    {
+      captured := 1;
+      ui_begin_update();
+      gfx_clear_action_area();
+      gfx_write_field(9, 33, 45, ui_make_attr(UI_YELLOW, UI_BLACK), "Handcarts and ox teams make weight move.");
+      gfx_write_field(11, 33, 45, ui_make_attr(UI_GRAY, UI_BLACK), "Cart +5 capacity, ox team +3 capacity.");
+      ui_end_update();
+    }
+
+    choice := ui_lightbar_pos(items, 3, lb_style);
+
+    if (captured)
+      gfx_restore_action_block("smuggle_cartwright");
+  }
+  else
+  {
+    print("\n|11Cartwright|07\n");
+    print("|141|07 Handcart (+5 capacity)  |15", cart_cost, "|07 denarii\n");
+    print("|142|07 Ox team (+3 capacity)   |15", ox_cost, "|07 denarii\n");
+    print("|143|07 Leave\n");
+    choice := prompt_number("|11Choice: |15", 1);
+  }
+
+  if (choice = 1)
+  {
+    if (purse < cart_cost)
+      set_event_danger("The cartwright taps the timber and waits for coin you do not quite have.");
+    else
+    {
+      purse := purse - cart_cost;
+      self_cart_count := self_cart_count + 1;
+      capacity_total := capacity_total + 5;
+      prestige_points := prestige_points + 1;
+      unlock_cartwright := 1;
+      sync_progress_state();
+      set_event_gain("A new handcart joins your operation, and suddenly Rome feels a little smaller.");
+      append_event_gain("[+1 cart, +5 capacity]");
+    }
+  }
+  else if (choice = 2)
+  {
+    if (self_cart_count <= self_oxen_count)
+      set_event_warning("An ox team is pointless without another cart to yoke it to.");
+    else if (purse < ox_cost)
+      set_event_danger("The drover smiles sadly. Feed, rope, and muscle all cost more than your purse allows.");
+    else
+    {
+      purse := purse - ox_cost;
+      self_oxen_count := self_oxen_count + 1;
+      capacity_total := capacity_total + 3;
+      prestige_points := prestige_points + 1;
+      might_points := might_points + 1;
+      sync_progress_state();
+      set_event_gain("A fresh ox team takes the strain out of your next haul.");
+      append_event_gain("[+1 ox team, +3 capacity]");
+    }
+  }
+  else
+    set_event("You leave the yard with the same wheels you came in with.");
+}
+
+
+int travel_to_district()
+{
+  int: dest, had_event, choice;
+  struct ui_lightbar_style: lb_style;
+  array [1..DISTRICT_COUNT] of struct ui_lightbar_item: lb_items;
+  int: left, top, right, bottom;
+
+  if (is_graphics())
+  {
+    dest := 1;
+    while (dest <= DISTRICT_COUNT)
+    {
+      lb_items[dest].text := itostr(dest) + ". " + districts[dest];
+      dest := dest + 1;
+    }
+
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.show_brackets := UI_BRACKET_NONE;
+    lb_style.enable_hotkeys := 1;
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+
+    left := 31;
+    top := 8;
+    right := 79;
+    bottom := 12;
+
+    if (gfx_begin_modal("smuggle_travel", left, top, right, bottom) <> 0)
+      return 0;
+
+    ui_begin_update();
+    ui_fill_rect(top, left, right - left + 1, bottom - top + 1, ' ', ui_make_attr(UI_WHITE, UI_BLACK));
+    ui_box(top, left, right - left + 1, bottom - top + 1, ui_make_attr(UI_BLACK, UI_CYAN), " Travel ");
+    lb_items[1].x := 34; lb_items[1].y := 9;  lb_items[1].width := 18; lb_items[1].justify := UI_JUSTIFY_LEFT;
+    lb_items[2].x := 55; lb_items[2].y := 9;  lb_items[2].width := 18; lb_items[2].justify := UI_JUSTIFY_LEFT;
+    lb_items[3].x := 34; lb_items[3].y := 10; lb_items[3].width := 18; lb_items[3].justify := UI_JUSTIFY_LEFT;
+    lb_items[4].x := 55; lb_items[4].y := 10; lb_items[4].width := 18; lb_items[4].justify := UI_JUSTIFY_LEFT;
+    lb_items[5].x := 34; lb_items[5].y := 11; lb_items[5].width := 18; lb_items[5].justify := UI_JUSTIFY_LEFT;
+    lb_items[6].x := 55; lb_items[6].y := 11; lb_items[6].width := 18; lb_items[6].justify := UI_JUSTIFY_LEFT;
+    ui_end_update();
+
+    choice := ui_lightbar_pos(lb_items, DISTRICT_COUNT, lb_style);
+    gfx_end_modal("smuggle_travel", left, top, right, bottom);
+
+    if (choice < 1 or choice > DISTRICT_COUNT)
+    {
+      set_event("You linger where you are and let the district keep talking around you.");
+      return 0;
+    }
+
+    dest := choice;
+  }
+  else
+  {
+    print("\n|11Travel|07\n");
+    print("|08A move to another district ends the current market day.|07\n");
+
+    dest := 1;
+    while (dest <= DISTRICT_COUNT)
+    {
+      print("|14", dest, ". |15", districts[dest], "|07\n");
+      dest := dest + 1;
+    }
+
+    dest := prompt_number("|11Destination: |15", 1);
+  }
+
+  if (dest < 1 or dest > DISTRICT_COUNT)
+  {
+    set_event("You linger where you are and let the district keep talking around you.");
+    return 0;
+  }
+
+  if (dest = current_district)
+  {
+    set_event_warning("You are already there, and Rome is not known for rewarding indecision.");
+    return 0;
+  }
+
+  previous_district := current_district;
+  current_district := dest;
+  clear_event();
+  purse := purse - 3;
+  if (purse < 0)
+    purse := 0;
+  append_event_warning("Travel costs you 3 denarii in fares, palms, and inconvenience.");
+  had_event := apply_travel_event();
+  if (had_event = 0)
+    append_event(travel_line(current_district));
+  return 1;
+}
+
+
+void apply_turn_upkeep()
+{
+  long: fee;
+
+  day_number := day_number + 1;
+
+  if (debt_to_varro > 0)
+  {
+    days_left_on_note := days_left_on_note - 1;
+    fee := note_daily_fee();
+    debt_to_varro := debt_to_varro + fee;
+  }
+
+  if (vault_balance > 0)
+    vault_balance := vault_balance + (vault_balance / 50);
+
+  if (health < 100)
+    health := health + 1;
+
+  if (day_number % 7 = 0)
+  {
+    if (purse >= 40)
+    {
+      purse := purse - 40;
+      append_event_warning("Stall fees, bribes, and bad wine eat forty denarii before you can argue with the ledger.");
+    }
+    else
+    {
+      debt_to_varro := debt_to_varro + 50;
+      append_event_danger("You cannot cover the week's expenses. House Varro notices faster than prayer.");
+    }
+  }
+
+  if (days_left_on_note <= 0 and debt_to_varro > 0)
+    game_over := 1;
+}
+
+
+void apply_capture_penalty()
+{
+  int: lost_days;
+  int: i;
+  int: d;
+  int: seized_goods;
+  long: seized_purse;
+
+  lost_days := (rand() % 4) + 2;
+  seized_goods := carried_total();
+  seized_purse := purse / 2;
+  day_number := day_number + lost_days;
+  days_left_on_note := days_left_on_note - lost_days;
+  d := 0;
+  while (d < lost_days)
+  {
+    if (debt_to_varro > 0)
+      debt_to_varro := debt_to_varro + note_daily_fee();
+    d := d + 1;
+  }
+  suspicion := suspicion + 8;
+  if (suspicion > 100)
+    suspicion := 100;
+
+  purse := seized_purse;
+  guards := 0;
+
+  i := 1;
+  while (i <= GOODS_COUNT)
+  {
+    carried[i] := 0;
+    i := i + 1;
+  }
+
+  set_event_danger("The prefect's men catch you and throw you back into the street.");
+  append_event_warning("Lost " + itostr(lost_days) + " days, " + ltostr(seized_purse) +
+                       " denarii, and " + itostr(seized_goods) + " lots of cargo.");
+}
+
+
+void watch_encounter()
+{
+  int: captured;
+  int: choice;
+  int: watchmen, player_roll, watch_roll, bribe;
+  struct ui_lightbar_style: lb_style;
+  array [1..3] of struct ui_lightbar_item: items;
+  char: ch;
+
+  watchmen := (rand() % 4) + 2 + district_watch_modifier();
+
+  if (is_graphics())
+  {
+    captured := 0;
+    set_event_warning("The vigiles close in near the colonnade. There are " + itostr(watchmen) +
+              " of them deciding whether you look expensive.");
+    gfx_draw_event();
+
+    if (gfx_capture_action_block("smuggle_watch") = 0)
+    {
+      captured := 1;
+      ui_begin_update();
+      gfx_clear_action_area();
+      gfx_write_field(9, 33, 45, ui_make_attr(UI_YELLOW, UI_BLACK), "Fight, run, or bribe?");
+      ui_end_update();
+    }
+
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.enable_hotkeys := 1;
+    lb_style.show_brackets := UI_BRACKET_SQUARE;
+
+    items[1].text := "Fight";
+    items[1].x := 38; items[1].y := 10; items[1].width := 10; items[1].justify := UI_JUSTIFY_LEFT;
+    items[2].text := "Run";
+    items[2].x := 50; items[2].y := 10; items[2].width := 10; items[2].justify := UI_JUSTIFY_LEFT;
+    items[3].text := "Bribe";
+    items[3].x := 62; items[3].y := 10; items[3].width := 10; items[3].justify := UI_JUSTIFY_LEFT;
+
+    choice := ui_lightbar_pos(items, 3, lb_style);
+
+    if (captured)
+      gfx_restore_action_block("smuggle_watch");
+
+    if (choice = 1)
+      ch := 'F';
+    else if (choice = 3)
+      ch := 'B';
+    else
+      ch := 'R';
+  }
+  else
+  {
+    print("\n|12The vigiles close in near the colonnade.|07\n");
+    print("|03There are |15", watchmen, "|03 of them. Fight, run, or bribe? |14[F/R/B]|07 ");
+
+    ch := upper_key(getch());
+    print(ch, "\n");
+  }
+
+  if (ch <> 'F' and ch <> 'B')
+    ch := 'R';
+
+  if (ch = 'B')
+  {
+    bribe := (watchmen * 18) + (suspicion / 2) + (rand() % 25);
+
+    if (purse < bribe)
+    {
+      set_event_danger("You reach for a bribe pouch, but " + ltostr(bribe) + " denarii buys more silence than you can afford.");
+      ch := 'R';
+    }
+    else
+    {
+      purse := purse - bribe;
+      if (suspicion > 5)
+        suspicion := suspicion - 5;
+      set_event_warning("A purse of " + ltostr(bribe) + " denarii changes hands. The vigiles rediscover their love of looking elsewhere.");
+      return;
+    }
+  }
+
+  if (ch = 'R')
+  {
+    player_roll := (rand() % 20) + 1 + guards + (health / 20);
+    watch_roll := (rand() % 20) + 1 + watchmen + district_watch_modifier() + (suspicion / 15);
+
+    if (player_roll >= watch_roll)
+    {
+      if (suspicion > 3)
+        suspicion := suspicion - 3;
+      set_event_gain("You vanish into torchlight, steam, and curses. The watch loses you in the confusion and your suspicion eases a little.");
+    }
+    else
+      apply_capture_penalty();
+
+    return;
+  }
+
+  player_roll := (rand() % 20) + 1 + guards + (health / 18);
+  watch_roll := (rand() % 20) + 1 + watchmen + 3 + district_watch_modifier();
+
+  if (player_roll >= watch_roll)
+  {
+    if (watchmen > 1)
+      suspicion := suspicion + 10;
+    else
+      suspicion := suspicion + 6;
+
+    if (suspicion > 100)
+      suspicion := 100;
+
+    set_event_gain("Steel flashes, sandals scrape stone, and somehow you are the one still walking.");
+  }
+  else
+  {
+    health := health - ((rand() % 18) + 8);
+    if (health <= 0)
+    {
+      health := 0;
+      game_over := 1;
+      set_event_danger("The watch leaves you bleeding under a shrine wall. Rome keeps the profit and spends none of it on mercy.");
+    }
+    else
+      apply_capture_penalty();
+  }
+}
+
+
+int maybe_watch_encounter()
+{
+  int: trigger, chance, threshold;
+
+  trigger := 0;
+
+  if (last_trade_value >= 700)
+    trigger := 1;
+  if (last_trade_volume >= 10)
+    trigger := 1;
+  if (purse >= 2500)
+    trigger := 1;
+  if (carried_total() >= 40)
+    trigger := 1;
+  if (suspicion >= 45)
+    trigger := 1;
+
+  if (trigger = 0)
+    return 0;
+
+  chance := (rand() % 100) + 1;
+  threshold := 8 + district_watch_modifier() + (suspicion / 3);
+  if (threshold > 60)
+    threshold := 60;
+
+  if (chance <= threshold)
+  {
+    watch_encounter();
+    return 1;
+  }
+
+  last_trade_value := 0;
+  last_trade_volume := 0;
+  return 0;
+}
+
+
+int prompt_action()
+{
+  char: ch;
+  struct ui_lightbar_style: lb_style;
+  array [1..5] of struct ui_lightbar_item: items;
+  int: choice;
+
+  if (is_graphics())
+  {
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.enable_hotkeys := 1;
+    lb_style.show_brackets := UI_BRACKET_SQUARE;
+
+    items[1].text := "Buy";
+    items[1].x := 34; items[1].y := 9; items[1].width := 12; items[1].justify := UI_JUSTIFY_LEFT;
+    items[2].text := "Sell";
+    items[2].x := 47; items[2].y := 9; items[2].width := 12; items[2].justify := UI_JUSTIFY_LEFT;
+    items[3].text := "Travel";
+    items[3].x := 60; items[3].y := 9; items[3].width := 14; items[3].justify := UI_JUSTIFY_LEFT;
+    items[4].text := "Visit";
+    items[4].x := 37; items[4].y := 10; items[4].width := 16; items[4].justify := UI_JUSTIFY_LEFT;
+    items[5].text := "Options";
+    items[5].x := 56; items[5].y := 10; items[5].width := 16; items[5].justify := UI_JUSTIFY_LEFT;
+
+    ui_begin_update();
+    gfx_draw_action_header(0);
+    gfx_clear_action_area();
+    gfx_write_field(11, 33, 45, ui_make_attr(UI_GRAY, UI_BLACK), "Trade directly or open a submenu.");
+    ui_end_update();
+    choice := ui_lightbar_pos(items, 5, lb_style);
+
+    if (choice = 1) return ACTION_BUY;
+    if (choice = 2) return ACTION_SELL;
+    if (choice = 3) return ACTION_TRAVEL;
+    if (choice = 4) return prompt_visit_action();
+    if (choice = 5) return prompt_options_action();
+
+    set_event_warning("Pick one of the listed actions, gorgeous criminal.");
+    return ACTION_NONE;
+  }
+  else
+    print("\n|11Your move: |15[B]uy |15[S]ell |15[T]ravel |15[V]isit |15[O]ptions|07\n|11Choice: |15");
+  ch := upper_key(getch());
+  print(ch, "\n");
+
+  if (ch = 'B') return ACTION_BUY;
+  if (ch = 'S') return ACTION_SELL;
+  if (ch = 'T') return ACTION_TRAVEL;
+  if (ch = 'V') return prompt_visit_action();
+  if (ch = 'O') return prompt_options_action();
+
+  set_event_warning("That is not one of your real options, no matter how confidently you pressed it.");
+  return ACTION_NONE;
+}
+
+
+int prompt_visit_action()
+{
+  char: ch;
+  struct ui_lightbar_style: lb_style;
+  array [1..5] of struct ui_lightbar_item: items;
+  int: choice;
+
+  if (is_graphics())
+  {
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.enable_hotkeys := 1;
+    lb_style.show_brackets := UI_BRACKET_SQUARE;
+
+    items[1].text := "Mensa";
+    items[1].x := 34; items[1].y := 9; items[1].width := 12; items[1].justify := UI_JUSTIFY_LEFT;
+    items[2].text := "Varro";
+    items[2].x := 47; items[2].y := 9; items[2].width := 12; items[2].justify := UI_JUSTIFY_LEFT;
+    items[3].text := "Cache";
+    items[3].x := 60; items[3].y := 9; items[3].width := 14; items[3].justify := UI_JUSTIFY_LEFT;
+    items[4].text := "Sellswords";
+    items[4].x := 37; items[4].y := 10; items[4].width := 16; items[4].justify := UI_JUSTIFY_LEFT;
+    items[5].text := "Cartwright";
+    items[5].x := 56; items[5].y := 10; items[5].width := 16; items[5].justify := UI_JUSTIFY_LEFT;
+
+    ui_begin_update();
+    gfx_draw_action_header(1);
+    gfx_clear_action_area();
+    gfx_write_field(11, 33, 45, ui_make_attr(UI_GRAY, UI_BLACK), "Finance, storage, blades, and transport.");
+    ui_end_update();
+
+    choice := ui_lightbar_pos(items, 5, lb_style);
+
+    ui_begin_update();
+    gfx_draw_action_header(0);
+    ui_end_update();
+
+    if (choice = 1) return ACTION_VAULT;
+    if (choice = 2) return ACTION_LENDER;
+    if (choice = 3) return ACTION_CACHE;
+    if (choice = 4) return ACTION_SELLSWORDS;
+    if (choice = 5) return ACTION_CARTWRIGHT;
+    return ACTION_NONE;
+  }
+
+  print("\n|11Visit|07\n");
+  print("|14M|07 Mensa / counting house\n");
+  print("|14V|07 House Varro\n");
+  print("|14C|07 Hidden cache\n");
+  print("|14S|07 Sellswords\n");
+  print("|14W|07 Cartwright\n");
+  print("|11Choice: |15");
+  ch := upper_key(getch());
+  print(ch, "\n");
+
+  if (ch = 'M') return ACTION_VAULT;
+  if (ch = 'V') return ACTION_LENDER;
+  if (ch = 'C') return ACTION_CACHE;
+  if (ch = 'S') return ACTION_SELLSWORDS;
+  if (ch = 'W') return ACTION_CARTWRIGHT;
+
+  set_event_warning("That visit goes nowhere useful.");
+  return ACTION_NONE;
+}
+
+
+int prompt_options_action()
+{
+  char: ch;
+  struct ui_lightbar_style: lb_style;
+  array [1..3] of struct ui_lightbar_item: items;
+  int: choice;
+
+  if (is_graphics())
+  {
+    ui_lightbar_style_default(lb_style);
+    lb_style.normal_attr := ui_make_attr(UI_WHITE, UI_BLACK);
+    lb_style.selected_attr := ui_make_attr(UI_BLACK, UI_CYAN);
+    lb_style.hotkey_attr := ui_make_attr(UI_YELLOW, UI_BLACK);
+    lb_style.hotkey_highlight_attr := ui_make_attr(UI_YELLOW, UI_CYAN);
+    lb_style.wrap := 1;
+    lb_style.enable_hotkeys := 1;
+    lb_style.show_brackets := UI_BRACKET_SQUARE;
+
+    items[1].text := "High Scores";
+    items[1].x := 34; items[1].y := 9; items[1].width := 15; items[1].justify := UI_JUSTIFY_LEFT;
+    items[2].text := "Redraw";
+    items[2].x := 50; items[2].y := 9; items[2].width := 14; items[2].justify := UI_JUSTIFY_LEFT;
+    items[3].text := "Quit";
+    items[3].x := 65; items[3].y := 9; items[3].width := 9; items[3].justify := UI_JUSTIFY_LEFT;
+
+    ui_begin_update();
+    gfx_draw_action_header(1);
+    gfx_clear_action_area();
+    gfx_write_field(10, 33, 45, ui_make_attr(UI_YELLOW, UI_BLACK), "Utilities, score table, and graceful exits");
+    gfx_write_field(11, 33, 45, ui_make_attr(UI_GRAY, UI_BLACK), "Nothing dramatic. Mostly bookkeeping.");
+    ui_end_update();
+
+    choice := ui_lightbar_pos(items, 3, lb_style);
+
+    ui_begin_update();
+    gfx_draw_action_header(0);
+    ui_end_update();
+
+    if (choice = 1) return ACTION_SCORES;
+    if (choice = 2) return ACTION_REDRAW;
+    if (choice = 3) return ACTION_QUIT;
+    return ACTION_NONE;
+  }
+
+  print("\n|11Options|07\n");
+  print("|14H|07 High scores\n");
+  print("|14R|07 Redraw screen\n");
+  print("|14Q|07 Quit game\n");
+  print("|11Choice: |15");
+  ch := upper_key(getch());
+  print(ch, "\n");
+
+  if (ch = 'H') return ACTION_SCORES;
+  if (ch = 'R') return ACTION_REDRAW;
+  if (ch = 'Q') return ACTION_QUIT;
+
+  set_event_warning("Those options remain stubbornly imaginary.");
+  return ACTION_NONE;
+}
+
+
+void show_intro()
+{
+  char: nonstop;
+  int: shown;
+
+  gfx_screen_loaded := 0;
+  shown := 0;
+
+  if (is_graphics())
+  {
+    nonstop := 0;
+    reset_more(nonstop);
+    shown := display_file(INTRO_SCREEN, nonstop) <> -1;
+  }
+
+  if (shown = 0)
+  {
+    print("\f");
+    print("|11============================================================|07\n");
+    print("|14  Smuggler of Rome|07\n");
+    print("|11============================================================|07\n\n");
+  }
+
+  print("|03Welcome, |15", user_display_name(), "|03.\n\n");
+
+  if (resumed_game)
+  {
+    print("Your ledger opens where you left it. The streets still know\n");
+    print("your routes, your debts, and the weight of your last choices.\n\n");
+  }
+  else
+  {
+    print("You are a small-time broker in the shadow markets of the\n");
+    print("Maximus Imperium. Move contraband between districts, work\n");
+    print("the price swings, keep House Varro satisfied, and try not\n");
+    print("to end up as a cautionary tale told over bad Falernian.\n\n");
+    print("|08Forum District is home. Your cache and House Varro both live there.\n");
+    print("Travel advances the day. The note grows. The vigiles grow curious.|07\n\n");
+  }
+
+  show_scores();
+  print("|08(press any key to begin)|07");
+  getch();
+}
+
+
+void show_game_over()
+{
+  print("\f");
+  print("|11============================================================|07\n");
+  print("|14  Smuggler of Rome - Reckoning|07\n");
+  print("|11============================================================|07\n\n");
+
+  if (health <= 0)
+  {
+    print("|12Rome finally caught up with you.\n");
+    print("The colonnades forget your name before sunrise.|07\n\n");
+  }
+  else if (quit_requested)
+  {
+    print("|11You fold the ledger shut and step back into the night.\n");
+    print("Some smugglers call that wisdom. Others call it survival with better branding.|07\n\n");
+  }
+  else if (days_left_on_note <= 0 and debt_to_varro > 0)
+  {
+    print("|12Your note comes due and House Varro does not believe in grace.\n");
+    print("Rome remains exactly where it was. You simply stop being profitable.|07\n\n");
+  }
+  else
+  {
+    print("|11The road goes dark for reasons of its own.|07\n\n");
+  }
+
+  print("|03Final day: |15", day_number, "|07\n");
+  print("|03Purse: |15", purse, "|07\n");
+  print("|03Vault: |15", vault_balance, "|07\n");
+  print("|03Debt: |12", debt_to_varro, "|07\n");
+  print("|03Net worth: |15", net_worth_text(), "|07\n");
+  print("|03Final district: |15", districts[current_district], "|07\n\n");
+}
+
+
+int main()
+{
+  int: moved;
+  int: action;
+  int: encountered;
+
+  srand(time());
+
+  init_game();
+  load_game_state();
+  show_intro();
+
+  if (resumed_game = 0)
+  {
+    randomize_market_prices();
+    run_arrival_events();
+    save_game_state();
+  }
+
+  if (is_graphics())
+    gfx_redraw_all();
+
+  while (game_over = 0 and quit_requested = 0)
+  {
+    moved := 0;
+
+    while (moved = 0 and game_over = 0 and quit_requested = 0)
+    {
+      if (is_graphics() = 0)
+        draw_screen();
+
+      encountered := maybe_watch_encounter();
+
+      if (encountered = 1 and game_over = 0 and quit_requested = 0)
+      {
+        save_game_state();
+        if (is_graphics())
+          gfx_refresh_status_cargo_event();
+        else
+          draw_screen();
+      }
+
+      if (game_over = 0 and quit_requested = 0)
+      {
+        action := prompt_action();
+
+        if (action = ACTION_BUY)
+        {
+          buy_goods();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_cargo_event();
+        }
+        else if (action = ACTION_SELL)
+        {
+          sell_goods();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_cargo_event();
+        }
+        else if (action = ACTION_TRAVEL)
+        {
+          moved := travel_to_district();
+          if (is_graphics() and moved = 0 and game_over = 0 and quit_requested = 0)
+            gfx_refresh_event_only();
+        }
+        else if (action = ACTION_VAULT)
+        {
+          visit_counting_house();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_event();
+        }
+        else if (action = ACTION_LENDER)
+        {
+          visit_house_varro();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_event();
+        }
+        else if (action = ACTION_CACHE)
+        {
+          move_goods();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_cargo_event();
+        }
+        else if (action = ACTION_SELLSWORDS)
+        {
+          visit_sellswords();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_event();
+        }
+        else if (action = ACTION_CARTWRIGHT)
+        {
+          visit_cartwright();
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_status_event();
+        }
+        else if (action = ACTION_SCORES)
+        {
+          if (is_graphics())
+            gfx_show_scores_popup();
+          else
+          {
+            print("\f");
+            show_scores();
+            pause_prompt();
+          }
+        }
+        else if (action = ACTION_REDRAW)
+        {
+          if (is_graphics())
+          {
+            gfx_screen_loaded := 0;
+            gfx_redraw_all();
+          }
+          else
+            draw_screen();
+        }
+        else if (action = ACTION_NONE)
+        {
+          if (is_graphics() and game_over = 0 and quit_requested = 0)
+            gfx_refresh_event_only();
+        }
+        else if (action = ACTION_QUIT)
+          quit_requested := 1;
+
+        if (game_over = 0 and quit_requested = 0 and action <> ACTION_NONE
+            and action <> ACTION_SCORES and action <> ACTION_REDRAW
+            and action <> ACTION_TRAVEL)
+          save_game_state();
+      }
+    }
+
+    if (moved = 1 and game_over = 0 and quit_requested = 0)
+    {
+      apply_turn_upkeep();
+      if (game_over = 0)
+      {
+        randomize_market_prices();
+        run_arrival_events();
+        save_game_state();
+        if (is_graphics())
+          gfx_refresh_day_rollover();
+      }
+    }
+  }
+
+  if (quit_requested)
+  {
+    pending_resume_advance := 1;
+    save_game_state();
+    print("\f|11Ledger sealed for the night.|07\n\n");
+    print("|08Your routes, debts, and cargo remain where you left them.\n");
+    print("Come back when Rome is worth cheating again.|07\n\n");
+    pause_prompt();
+    return 0;
+  }
+
+  clear_game_state_save();
+  update_scores();
+
+  show_game_over();
+  pause_prompt();
+  return 0;
+}

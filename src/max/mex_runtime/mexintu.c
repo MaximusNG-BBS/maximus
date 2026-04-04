@@ -143,7 +143,9 @@ static char rcs_id[]="$Id: mexintu.c,v 1.4 2004/01/28 06:38:11 paltas Exp $";
     memcpy(rc, pcData, wLen);
     rc[wLen]=0;
 
-    /* Release memory for a pass-by-value string */
+    /* Release memory for a pass-by-value string.  kill_str() now silently
+     * skips non-global (temp/expression) segments, so this is always safe.
+     */
 
     if (!fPassByRef)
       MexKillString(&ia);
@@ -276,4 +278,3 @@ static char rcs_id[]="$Id: mexintu.c,v 1.4 2004/01/28 06:38:11 paltas Exp $";
   }
 
 #endif
-

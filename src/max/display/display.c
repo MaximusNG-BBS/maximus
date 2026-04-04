@@ -1131,7 +1131,7 @@ word near DCCls(DSTK *d)
 
 word near DCCKOff(DSTK *d) { d->ck_abort=FALSE; return FALSE; }
 word near DCCKOn(DSTK *d)  { d->ck_abort=TRUE;  return FALSE; }
-word near DCMoreOn(DSTK *d)    { d->automore=TRUE; return FALSE;  }
+word near DCMoreOn(DSTK *d)    { d->automore=TRUE; display_line=1; if (d->nonstop) *d->nonstop=FALSE; return FALSE; }
 word near DCParseData(DSTK *d) { DisplayDatacode(d); return FALSE; }
 word near DCMoreOff(DSTK *d)   { d->automore=FALSE; return FALSE;}
 word near DCNul(DSTK *d)   { DCNormal(d, 0); return FALSE;}

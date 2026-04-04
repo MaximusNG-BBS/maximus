@@ -32,8 +32,8 @@ Download the latest release for your platform from [GitHub Releases](https://git
 
 ```bash
 # Example for macOS ARM64
-tar -xzvf maximus-3.04a-r2-macos-arm64.tar.gz
-cd maximus-3.04a-r2-macos-arm64
+tar -xzvf maximus-4.0-macos-arm64.tar.gz
+cd maximus-4.0-macos-arm64
 ```
 
 ### 2. Run the Install Script

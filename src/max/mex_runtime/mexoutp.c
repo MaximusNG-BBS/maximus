@@ -23,6 +23,15 @@
 
 #ifdef MEX
 
+  static int near mex_output_should_flush(void)
+  {
+    if (!pmisThis || !pmisThis->pmid)
+      return 0;
+
+    return (pmisThis->pmid->instant_video &&
+            pmisThis->pmid->ui_update_depth == 0);
+  }
+
   /* Display a string to the user */
 
   word EXPENTRY intrin_printstring(void)
@@ -38,7 +47,7 @@
       free(s);
     }
 
-    if (pmisThis->pmid->instant_video)
+    if (mex_output_should_flush())
       vbuf_flush();
 
     return MexArgEnd(&ma);
@@ -55,7 +64,7 @@
 
     Printf("%lu", (unsigned long)(dword)MexArgGetDword(&ma));
 
-    if (pmisThis->pmid->instant_video)
+    if (mex_output_should_flush())
       vbuf_flush();
 
     return MexArgEnd(&ma);
@@ -69,7 +78,7 @@
 
     Printf("%ld", (long)(sdword)MexArgGetDword(&ma));
 
-    if (pmisThis->pmid->instant_video)
+    if (mex_output_should_flush())
       vbuf_flush();
 
     return MexArgEnd(&ma);
@@ -86,7 +95,7 @@
 
     Printf("%u", (unsigned int)(word)MexArgGetWord(&ma));
 
-    if (pmisThis->pmid->instant_video)
+    if (mex_output_should_flush())
       vbuf_flush();
 
     return MexArgEnd(&ma);
@@ -100,7 +109,7 @@
 
     Printf("%d", (int)(sword)MexArgGetWord(&ma));
 
-    if (pmisThis->pmid->instant_video)
+    if (mex_output_should_flush())
       vbuf_flush();
 
     return MexArgEnd(&ma);
@@ -117,7 +126,7 @@
 
     Printf("%c", MexArgGetByte(&ma));
 
-    if (pmisThis->pmid->instant_video)
+    if (mex_output_should_flush())
       vbuf_flush();
 
     return MexArgEnd(&ma);

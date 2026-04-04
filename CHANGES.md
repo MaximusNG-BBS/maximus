@@ -2,11 +2,11 @@
 
 ---
 
-## Summary of Changes (Nov 30, 2025 – Mar 23, 2026)
+## Summary of Changes (Jan 30, 2026 - Apr 4, 2026)
 
-It’s been a minute since the November 30th baseline, but the engine has seen a massive overhaul. Here’s the "Sysop’s Guide" to what’s new:
+This stretch is the MaximusNG 4.0 development run from the Jan 30 baseline through the current release-prep work. Here’s the short sysop-facing rundown:
 
-**The Tree got a Trim.** The entire source tree was reorganized into a clean `src/` hierarchy, with runtime assets moved to `resources/`. All that DOS/OS2-era cruft that hasn't been touched in 20 years is officially gone. The build system was updated to match, giving us a solid foundation for everything else.
+**The Tree got a Trim.** The source tree was reorganized into a clean `src/` hierarchy, runtime assets moved to `resources/`, and the build/install/release flow was reshaped around `build/` as the staged deployment root.
 
 **TOML-First Configuration.** We’ve moved away from the old binary language files (`.mad`/`.ltf`/`.lth`) and towards human-readable TOML. All 1,300+ display strings now live in `english.toml`, editable with any text editor. There's a full converter for migrating legacy language packs, a delta overlay system for theme colors, and positional parameters (`|!1` through `|!F`) replacing the old `printf`-style `%s`/`%d` codes. MEX scripts can even query these strings at runtime via new `lang_get()` intrinsics.
 
@@ -18,13 +18,42 @@ It’s been a minute since the November 30th baseline, but the engine has seen a
 
 **MEX Scripting Gets Serious.** MEX can now spawn other MEX scripts (`mex_spawn`), allowing for modular designs and nested execution. We've also added intrinsics for JSON DOM manipulation, raw socket I/O, and OpenSSL-backed TLS for HTTPS requests. To help you get started, there's a new library of 10+ tutorial scripts based on the wiki.
 
-**115 Pages of Documentation.** We've launched a massive Jekyll-powered wiki with over 115 pages of guides, references, and screenshots. From first-time setup to advanced MEX networking, it's all in there.
+**Docs and Deployment got Real.** The wiki, release notes, install tree, and packaging scripts were all brought forward together so the 4.0 docs match the way the thing actually deploys.
 
-Full details for each change are in the dated entries below.
+Full details for each 4.0-era change are in the dated entries below.
 
 ---
 
-## Thu Mar 19 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Sat Apr 4 2026 - MaximusNG 4.0 [release prep]
+
+*Release Packaging, Door32 Follow-Through, and MEX/UI Runtime Cleanup*
+
+**Final 4.0 staging pass across deployment, door support, and menu/runtime plumbing**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### Improved: Deployment and Packaging
+- Removed redundant `maxtel_install` calls from platform build/release wrappers now that `make install` already handles MAXTEL deployment.
+- `buildclean` now removes staged libraries, root-level launcher/log artifacts, and loose generated `.bbs` files from `build/`.
+- Install/release doc packaging now carries forward `maxtel.md`, `maxtel.txt`, `maxcfg-cli-usage.md`, `maximus-ngconfig-docs.md`, `squish.doc`, and `max_mast` docs.
+- Added `data/mex/smuggler-saves` to staged install/release layouts.
+
+### Improved: Door and Runtime Integration
+- Door32 dropfile output now writes the expected numeric ANSI capability flag instead of string literals.
+- Door32 child launches now clear `FD_CLOEXEC` on the preserved session descriptor so exec-chained doors keep their live socket handle.
+- `DCMoreOn()` resets line/more state more cleanly when automore is re-enabled mid-display.
+
+### Improved: MEX UI Runtime
+- Expanded `maxui.mh` with screen region, window, overlay, box, and begin/end-update helpers needed by richer MEX UI flows.
+- Added live-edit form mode constants and option metadata support for form fields.
+- Removed checked-in generated `mex_tab.c`/`mex_tab.h` parser artifacts from the source tree.
+
+### Improved: 4.0 Content Staging
+- Refreshed games menu copy (`q quit to main`) in both canonical config and install tree mirrors.
+- Added MaxNG welcome screen assets and Smuggler door/runtime content to the staged resource set for deployment.
+
+---
+
+## Thu Mar 19 2026 - MaximusNG 4.0 [development]
 
 *Reliability and Connectivity Polish*
 
@@ -42,7 +71,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Wed Mar 18 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Wed Mar 18 2026 - MaximusNG 4.0 [development]
 
 *UI Hardening and Themed Navigation*
 
@@ -64,7 +93,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Tue Mar 17 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Tue Mar 17 2026 - MaximusNG 4.0 [development]
 
 *The Theme Engine (Phases 1-5)*
 
@@ -83,7 +112,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Mon Mar 16 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Mon Mar 16 2026 - MaximusNG 4.0 [development]
 
 *UI Refinements and New-User Experience*
 
@@ -113,7 +142,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Wed Mar 11 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Wed Mar 11 2026 - MaximusNG 4.0 [development]
 
 *Foundation Rewrite*
 
@@ -127,7 +156,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Sun Mar 8 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Sun Mar 8 2026 - MaximusNG 4.0 [development]
 
 *Feature Polish and Code Standards*
 
@@ -145,7 +174,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Sat Mar 7 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Sat Mar 7 2026 - MaximusNG 4.0 [development]
 
 *MEX Power-Ups*
 
@@ -159,7 +188,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Mon Mar 2 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Mon Mar 2 2026 - MaximusNG 4.0 [development]
 
 *Documentation and Content*
 
@@ -177,7 +206,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Thu Feb 26 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Thu Feb 26 2026 - MaximusNG 4.0 [development]
 
 *Modern Messaging and Theming*
 
@@ -199,7 +228,7 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Sun Feb 22 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Sun Feb 22 2026 - MaximusNG 4.0 [development]
 
 *Connectivity and Interoperability*
 
@@ -217,9 +246,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Fri Feb 21 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Fri Feb 21 2026 - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **Deferred MCI Params, Input Hardening, MEC Path Cleanup**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
@@ -274,9 +303,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Tue Feb 18 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Tue Feb 18 2026 - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **File-Area Lightbar, MaxCFG Hardening, Install Tree Cleanup**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
@@ -317,9 +346,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Tue Feb 18 2026 (evening) - Maximus/UNIX 3.04a-r2 [alpha]
+## Tue Feb 18 2026 (evening) - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **Message-Area Lightbar (Phase 2), Rendering Fixes, and Config Sync**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
@@ -345,9 +374,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Sun Feb 16 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Sun Feb 16 2026 - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **TOML Language Delta Architecture + MCI/Theme Polish**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
@@ -388,9 +417,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Thu Feb 13 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Thu Feb 13 2026 - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **TOML Language System — Full Migration from Legacy Binary**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
@@ -457,9 +486,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Sat Feb 8 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Sat Feb 8 2026 - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **Bounded Canned Menus + Lightbar Layout Controls**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
@@ -491,9 +520,9 @@ Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
 
 ---
 
-## Fri Feb 7 2026 - Maximus/UNIX 3.04a-r2 [alpha]
+## Fri Feb 7 2026 - MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **MaxUI Field/Input + Forms + Lightbar Menus**  
 Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja

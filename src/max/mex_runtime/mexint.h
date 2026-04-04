@@ -189,11 +189,26 @@
   word EXPENTRY intrin_userfindseek(void);
 
   word EXPENTRY intrin_ui_goto(void);
+  word EXPENTRY intrin_ui_begin_update(void);
+  word EXPENTRY intrin_ui_end_update(void);
   word EXPENTRY intrin_ui_make_attr(void);
   word EXPENTRY intrin_mci2attr(void);
   word EXPENTRY intrin_ui_set_attr(void);
+  word EXPENTRY intrin_ui_box(void);
   word EXPENTRY intrin_ui_fill_rect(void);
   word EXPENTRY intrin_ui_write_padded(void);
+  word EXPENTRY intrin_ui_region_get(void);
+  word EXPENTRY intrin_ui_region_put(void);
+  word EXPENTRY intrin_ui_region_drop(void);
+  word EXPENTRY intrin_ui_region_width(void);
+  word EXPENTRY intrin_ui_region_height(void);
+  word EXPENTRY intrin_ui_paint_region(void);
+  word EXPENTRY intrin_ui_save_screen(void);
+  word EXPENTRY intrin_ui_restore_screen(void);
+  word EXPENTRY intrin_ui_drop_screen(void);
+  word EXPENTRY intrin_ui_window_push(void);
+  word EXPENTRY intrin_ui_window_pop(void);
+  word EXPENTRY intrin_ui_window_drop(void);
   word EXPENTRY intrin_ui_prompt_field(void);
   word EXPENTRY intrin_ui_edit_field(void);
   word EXPENTRY intrin_ui_edit_field_style_default(void);
@@ -224,6 +239,9 @@
   word EXPENTRY intrin_ui_text_viewer_render(void);
   word EXPENTRY intrin_ui_text_viewer_handle_key(void);
   word EXPENTRY intrin_ui_text_viewer_read_key(void);
+  word EXPENTRY intrin_ui_overlay_push(void);
+  word EXPENTRY intrin_ui_overlay_pop(void);
+  word EXPENTRY intrin_ui_overlay_drop(void);
 
   /* JSON lifecycle */
   word EXPENTRY intrin_json_open(void);

@@ -113,10 +113,6 @@ build_for_arch() {
     make ARCH="$arch" build
     make ARCH="$arch" install
     
-    # Build maxtel supervisor
-    log_info "Building maxtel..."
-    make ARCH="$arch" maxtel_install
-    
     # Codesign on macOS
     if [ "$(detect_os)" = "macos" ]; then
         log_info "Codesigning binaries..."
@@ -167,6 +163,7 @@ create_release_package() {
     # Copy SQLite userdb init resources (schema + wrapper)
     mkdir -p "$release_path/data/db"
     mkdir -p "$release_path/data/mex"
+    mkdir -p "$release_path/data/mex/smuggler-saves"
     mkdir -p "$release_path/data/users"
     cp -f "${PROJECT_ROOT}/scripts/db/userdb_schema.sql" "$release_path/data/db/userdb_schema.sql" 2>/dev/null || true
     cp -f "${PROJECT_ROOT}/scripts/db/init-userdb.sh" "$release_path/bin/init-userdb.sh" 2>/dev/null || true
@@ -226,9 +223,11 @@ create_release_package() {
     mkdir -p "$release_path/docs"
     cp -f "${PROJECT_ROOT}/docs/"*.md "$release_path/docs/" 2>/dev/null || true
     cp -f "${PROJECT_ROOT}/docs/"*.txt "$release_path/docs/" 2>/dev/null || true
+    cp -f "${PROJECT_ROOT}/docs/"*.doc "$release_path/docs/" 2>/dev/null || true
     cp -f "${PROJECT_ROOT}/README"* "$release_path/docs/" 2>/dev/null || true
     cp -f "${PROJECT_ROOT}/LICENSE"* "$release_path/docs/" 2>/dev/null || true
     cp -f "${PROJECT_ROOT}/COPYING"* "$release_path/docs/" 2>/dev/null || true
+    cp -f "${PROJECT_ROOT}/docs/max_mast_utf8.txt" "$release_path/docs/max_mast.txt" 2>/dev/null || true
     
     # Create run script at root level
     cat > "$release_path/runbbs.sh" << 'EOF'

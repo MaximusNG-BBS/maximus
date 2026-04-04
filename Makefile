@@ -96,8 +96,9 @@ clean: buildclean
 # buildclean: Clean the build folder for fresh install
 buildclean:
 	@echo "Cleaning build folder $(PREFIX)..."
-	-rm -rf $(PREFIX)/bin $(PREFIX)/libexec
+	-rm -rf $(PREFIX)/bin $(PREFIX)/lib $(PREFIX)/libexec
 	-rm -rf $(PREFIX)/config $(PREFIX)/display $(PREFIX)/scripts $(PREFIX)/data $(PREFIX)/run $(PREFIX)/doors $(PREFIX)/docs $(PREFIX)/log
+	-rm -f $(PREFIX)/runbbs.sh $(PREFIX)/*.log $(PREFIX)/*.bbs
 	@echo "Build folder cleaned. Next 'make build' will be fresh."
 
 # archclean: Also clean build/lib for cross-architecture builds

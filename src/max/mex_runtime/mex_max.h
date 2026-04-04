@@ -43,6 +43,7 @@ struct mex_instancedata
     word  ask_phone;
     word  use_umsgid;
     dword newuser_answered_mask;
+    word  ui_update_depth;
 } __attribute__((packed));
 
 struct mex_cstat
@@ -371,4 +372,3 @@ struct mex_ui_lightbar_item
 
 
 #endif /* __MEX_MAX_H_DEFINED */
-

@@ -1,0 +1,167 @@
+{
+  "cached": {
+    "incense": 0,
+    "resin": 0,
+    "seals": 0,
+    "silk": 0,
+    "steel": 0,
+    "wine": 0
+  },
+  "capacity_total": 46,
+  "carried": {
+    "incense": 0,
+    "resin": 0,
+    "seals": 0,
+    "silk": 0,
+    "steel": 0,
+    "wine": 0
+  },
+  "current_district": 1,
+  "day_number": 43,
+  "days_left_on_note": -1,
+  "debt_to_varro": 0,
+  "event_log": {
+    "entries": [
+      {
+        "level": "warning",
+        "message": "A purse of 121 denarii changes hands. The vigiles rediscover their love of looking elsewhere."
+      }
+    ],
+    "headline": "A purse of 121 denarii changes hands. The vigiles rediscover their love of looking elsewhere."
+  },
+  "guards": 47,
+  "health": 25,
+  "identity": {
+    "active_nickname": "Knife Prince",
+    "active_pretitle": "Liber",
+    "active_title": "Prefect of Blood",
+    "dominant_axis": "wealth",
+    "inventory": {
+      "nicknames": {
+        "might": [
+          "Knife Prince"
+        ],
+        "prestige": [
+          "Forumensis"
+        ],
+        "wealth": [
+          "Golden Scale",
+          "Black Ledger",
+          "Coin-Hand"
+        ]
+      },
+      "pretitles": {
+        "prestige": [
+          "Liber",
+          "Debitor"
+        ]
+      },
+      "titles": {
+        "might": [
+          "Master of Wagons"
+        ],
+        "prestige": [
+          "the Carrier"
+        ],
+        "wealth": [
+          "Prefect of Blood",
+          "Master of Wagons",
+          "Captain of Blades"
+        ]
+      }
+    },
+    "notoriety": {
+      "guard_fights": 0,
+      "kills": 0,
+      "rackets": 0,
+      "silencing_actions": 0
+    },
+    "pending_bestowals": []
+  },
+  "influence_points": 0,
+  "last_trade_value": 0,
+  "last_trade_volume": 0,
+  "might_points": 70,
+  "pending_offers": [],
+  "pending_resume_advance": true,
+  "prestige_points": 4,
+  "previous_district": 6,
+  "prices": {
+    "incense": 82,
+    "resin": 34,
+    "seals": 182,
+    "silk": 179,
+    "steel": 170,
+    "wine": 43
+  },
+  "purse": 170,
+  "quit_requested": true,
+  "resumed_game": true,
+  "retired": false,
+  "self_armor_tier": 0,
+  "self_cart_count": 2,
+  "self_oxen_count": 2,
+  "self_sword_tier": 0,
+  "suspicion": 95,
+  "trader_slots_unlocked": 1,
+  "traders": [
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    },
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    },
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    },
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    }
+  ],
+  "unlocks": {
+    "cartwright": true,
+    "property": false,
+    "sellswords": true,
+    "traders": false,
+    "warehouse": false
+  },
+  "username": "LIMPING NINJA",
+  "vault_balance": 470566,
+  "version": 1
+}

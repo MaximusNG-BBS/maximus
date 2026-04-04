@@ -1,0 +1,148 @@
+{
+  "cached": {
+    "incense": 0,
+    "resin": 0,
+    "seals": 0,
+    "silk": 0,
+    "steel": 0,
+    "wine": 0
+  },
+  "capacity_total": 30,
+  "carried": {
+    "incense": 0,
+    "resin": 0,
+    "seals": 0,
+    "silk": 0,
+    "steel": 0,
+    "wine": 0
+  },
+  "current_district": 1,
+  "day_number": 1,
+  "days_left_on_note": 30,
+  "debt_to_varro": 750,
+  "event_log": {
+    "entries": [
+      {
+        "level": "info",
+        "message": "The Forum pretends to sleep, but ledgers and whispers still trade hands."
+      }
+    ],
+    "headline": "The Forum pretends to sleep, but ledgers and whispers still trade hands."
+  },
+  "guards": 0,
+  "health": 100,
+  "identity": {
+    "active_nickname": "Forumensis",
+    "active_pretitle": "Debitor",
+    "active_title": "the Carrier",
+    "dominant_axis": "prestige",
+    "inventory": {
+      "nicknames": {
+        "prestige": [
+          "Forumensis"
+        ]
+      },
+      "pretitles": {
+        "prestige": [
+          "Debitor"
+        ]
+      },
+      "titles": {
+        "prestige": [
+          "the Carrier"
+        ]
+      }
+    },
+    "notoriety": {
+      "guard_fights": 0,
+      "kills": 0,
+      "rackets": 0,
+      "silencing_actions": 0
+    },
+    "pending_bestowals": []
+  },
+  "influence_points": 0,
+  "might_points": 0,
+  "pending_offers": [],
+  "pending_resume_advance": false,
+  "prestige_points": 0,
+  "previous_district": 1,
+  "prices": {
+    "incense": 52,
+    "resin": 28,
+    "seals": 220,
+    "silk": 203,
+    "steel": 129,
+    "wine": 45
+  },
+  "purse": 500,
+  "quit_requested": false,
+  "resumed_game": false,
+  "retired": false,
+  "self_armor_tier": 0,
+  "self_cart_count": 0,
+  "self_oxen_count": 0,
+  "self_sword_tier": 0,
+  "suspicion": 8,
+  "trader_slots_unlocked": 1,
+  "traders": [
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    },
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    },
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    },
+    {
+      "active": false,
+      "armor_tier": 0,
+      "carts": 0,
+      "cut_pct": 0,
+      "goods_mask": 0,
+      "guards": 0,
+      "oxen": 0,
+      "route_from": 1,
+      "route_to": 1,
+      "sword_tier": 0
+    }
+  ],
+  "unlocks": {
+    "cartwright": false,
+    "property": false,
+    "sellswords": false,
+    "traders": false,
+    "warehouse": false
+  },
+  "username": "DOOR32 ALIAS",
+  "vault_balance": 0,
+  "version": 1
+}

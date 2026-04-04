@@ -171,8 +171,12 @@ void kill_str(IADDR *strptr, IADDR *ptrptr)
 {
   IADDR new;
 
+  /* Temp/expression strings live in non-global segments and are VM-managed;
+   * only global heap strings should be freed here.
+   */
+
   if (strptr->segment != SEG_GLOBAL)
-    vm_err("kill_str: non-global segment");
+    return;
 
   /* If the offset is zero, then it's just a blank string, so we can quit */
 

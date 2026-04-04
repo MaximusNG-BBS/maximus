@@ -315,6 +315,20 @@ int xxspawnvp(int mode, const char *Cfile, char *const argv[], int is_door32)
       /* Door32: preserve session_fd, door will use it directly via door32.sys */
       /* Do NOT redirect stdio, do NOT close session_fd */
       /* The door reads the fd number from door32.sys and uses it for I/O */
+
+      /* Clear FD_CLOEXEC so the session fd survives the exec chain
+       * (fork → exec sh → exec python3). Without this, the fd is closed
+       * at the first exec() and the door gets EBADF on the handle. */
+      if (session_fd >= 0)
+      {
+        int fdflags = fcntl(session_fd, F_GETFD);
+        if (fdflags >= 0 && (fdflags & FD_CLOEXEC))
+        {
+          logit("@xxspawnvp: Door32 clearing FD_CLOEXEC on session_fd=%d", session_fd);
+          fcntl(session_fd, F_SETFD, fdflags & ~FD_CLOEXEC);
+        }
+      }
+
       logit("@xxspawnvp: Door32 mode - preserving session_fd=%d", session_fd);
     }
     else if (slave_fd >= 0)

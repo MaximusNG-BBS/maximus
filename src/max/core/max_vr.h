@@ -1,5 +1,5 @@
 /*
- * Maximus Version 3.02
+ * Maximus Version 4.0
  * Copyright 1989, 2002 by Lanius Corporation.  All rights reserved.
  *
  * Modifications Copyright (C) 2025 Kevin Morgan (Limping Ninja)
@@ -60,10 +60,10 @@
     #define stringize2(x) #x
     #define stringize(x) stringize2(x)
 
-    #define MAX_VER_INT 3
-    #define VER_MAJ     "3"
-    #define VER_MIN     "04"
-    #define VER_SUFFIX  "a-r2"   /* "a"=alpha, "b"=beta, "rc1"=release candidate, ""=stable */
+    #define MAX_VER_INT 4
+    #define VER_MAJ     "4"
+    #define VER_MIN     "0"
+    #define VER_SUFFIX  ""   /* "a"=alpha, "b"=beta, "rc1"=release candidate, ""=stable */
 
     #define VER         VER_MAJ "." VER_MIN VER_SUFFIX
 
@@ -89,5 +89,3 @@
    lucky/7, crazy/8, cloud/9, warp/10, xyyzy/11, plugh/12, stalag/14,
    final/15, final/15+, sweet/16, sweet/16+, omega/17, omega/17+
 */
-
-

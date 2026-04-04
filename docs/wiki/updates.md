@@ -46,9 +46,9 @@ version of what changed.
 
 ---
 
-## Summary of Changes (Jan 30 – Feb 21, 2026)
+## Summary of Changes (Jan 30 - Apr 4, 2026)
 
-A lot has happened since the 4.0 baseline landed. Here's the short version:
+A lot has happened since the 4.0 baseline landed. This whole stretch is still the 4.0 release train, just spread across multiple feature passes.
 
 **The entire source tree got reorganized.** Code now lives in a clean `src/`
 hierarchy, runtime assets in `resources/`, and all the DOS/OS2-era cruft that
@@ -99,9 +99,21 @@ of native C dropfile support.
 
 ---
 
-## Fri Feb 21 2026 — Maximus/UNIX 3.04a-r2 [alpha]
+## Sat Apr 4 2026 — MaximusNG 4.0 [release prep]
 
-*Preparation for MaximusNG 4.0*
+**Deployment cleanup, Door32 follow-through, and MEX/UI runtime staging**
+
+- Removed redundant `maxtel_install` calls from wrapper scripts because `make install` already deploys MAXTEL.
+- Build cleanup now removes staged libs, root-level launcher/log leftovers, and generated `.bbs` cruft from `build/`.
+- Install/release docs now include the MaxTel manuals, MaxCFG CLI docs, NG config docs, `squish.doc`, and `max_mast.txt`.
+- Door32 now preserves its live session descriptor across exec chains, and the dropfile writes a numeric ANSI capability flag.
+- Staged 4.0 content now includes updated games menu text, MaxNG welcome assets, and Smuggler runtime data.
+
+---
+
+## Fri Feb 21 2026 — MaximusNG 4.0 [development]
+
+*Part of the MaximusNG 4.0 release train*
 
 **Deferred MCI Params, Input Hardening, MEC Path Cleanup**
 
@@ -155,9 +167,9 @@ of native C dropfile support.
 
 ---
 
-## Tue Feb 18 2026 — Maximus/UNIX 3.04a-r2 [alpha]
+## Tue Feb 18 2026 — MaximusNG 4.0 [development]
 
-*Preparation for MaximusNG 4.0*
+*Part of the MaximusNG 4.0 release train*
 
 **File-Area Lightbar, MaxCFG Hardening, Install Tree Cleanup**
 

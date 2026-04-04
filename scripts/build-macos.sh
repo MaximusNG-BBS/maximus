@@ -138,11 +138,9 @@ log_info "Building for $ARCH..."
 if [ "$CROSS_COMPILE" = true ] && [ "$ARCH" = "x86_64" ]; then
     /usr/bin/arch -x86_64 /bin/bash -c "make ARCH=$ARCH build"
     /usr/bin/arch -x86_64 /bin/bash -c "make ARCH=$ARCH install"
-    /usr/bin/arch -x86_64 /bin/bash -c "make ARCH=$ARCH maxtel_install"
 else
     make ARCH="$ARCH" build
     make ARCH="$ARCH" install
-    make ARCH="$ARCH" maxtel_install
 fi
 
 # Codesign binaries (ad-hoc signing for local use)

@@ -344,7 +344,7 @@ int Write_Door32Sys(void)
   fprintf(f, "%s\n", usrname);  /* Handle/alias */
   fprintf(f, "%u\n", usr.priv);
   fprintf(f, "%d\n", timeleft());
-  fprintf(f, "%s\n", usr.video == GRAPH_TTY ? "ASCII" : "ANSI");
+  fprintf(f, "%d\n", usr.video == GRAPH_TTY ? 0 : 1);
   fprintf(f, "%d\n", task_num);
   
   fclose(f);

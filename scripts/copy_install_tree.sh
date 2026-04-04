@@ -30,7 +30,7 @@ export PREFIX
 [ -d "${PREFIX}/docs" ] || mkdir -p "${PREFIX}/docs"
 
 # Create runtime directories required by max at startup
-for dir in data/mex data/msgbase data/filebase data/nodelist data/mail/outbound data/mail/inbound run/tmp run/node run/stage log; do
+for dir in data/mex data/mex/smuggler-saves data/msgbase data/filebase data/nodelist data/mail/outbound data/mail/inbound run/tmp run/node run/stage log; do
   [ -d "${PREFIX}/${dir}" ] || mkdir -p "${PREFIX}/${dir}"
 done
 
@@ -70,6 +70,12 @@ else
   cp build/runbbs.sh "${PREFIX}/runbbs.sh" 2>/dev/null || true
 fi
 
-cp docs/max_mast.txt "${PREFIX}/docs" 2>/dev/null || true
+cp docs/maxtel.md "${PREFIX}/docs" 2>/dev/null || true
+cp docs/maxtel.txt "${PREFIX}/docs" 2>/dev/null || true
+cp docs/maxcfg-cli-usage.md "${PREFIX}/docs" 2>/dev/null || true
+cp docs/maximus-ngconfig-docs.md "${PREFIX}/docs" 2>/dev/null || true
+cp docs/squish.doc "${PREFIX}/docs" 2>/dev/null || true
+cp docs/max_mast.doc "${PREFIX}/docs" 2>/dev/null || true
+cp docs/max_mast_utf8.txt "${PREFIX}/docs/max_mast.txt" 2>/dev/null || true
 
 exit 0

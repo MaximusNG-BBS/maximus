@@ -1,0 +1,38 @@
+[moreoff][cls][locate 1 1][gray][red]ллллллллллллллллллллллллллллллллллллллппппллллллллллллллллллллллллллллллллллллллллллллллллллл[
+]ппп лн[repeatseq 2 right 5]н  оппллллллл[repeatseq 2 right 6]олллллллплп  н[repeatseq 2 right 5]л опп[
+]лллллллллллллллллллллллп[repeatseq 2 right 6]он    о   н   пплллл[repeatseq 2 right 6]нллллпп  ол[repeatseq 2 right 8][
+]н[repeatseq 2 right 6]плллллллллллллллллн[repeatseq 2 right 10]н[repeatseq 2 right 7]о[repeatseq 2 right 6][
+]олл н    о олл[repeatseq 2 right 6]о[repeatseq 2 right 8]н[repeatseq 2 right 8]пллллллллллллллн[repeatseq 2 right 25][
+]мпол о    о онпп[repeatseq 2 right 13]п[repeatseq 2 right 11]мллллллллллп[repeatseq 2 right 29]ол  н   н[
+] лп[repeatseq 2 right 25]мп  плллллллн[repeatseq 2 right 30]ол[repeatseq 2 right 8]л[repeatseq 2 right 31][
+]плллллн[repeatseq 2 right 24]пм   ммлпм[repeatseq 2 right 6]мллмм    мп[repeatseq 2 right 24]ллллмм[repeatseq 2 right 25][
+]пмлп[repeatseq 2 right 14]плммп[repeatseq 2 right 26]оллн[repeatseq 2 right 27]ол[repeatseq 2 right 18]он[repeatseq 2 right 28][
+]ол[repeatseq 2 right 11]опп[repeatseq 2 right 14]о[repeatseq 2 right 20]л[repeatseq 2 right 15]ом
+ллллллллмммпп[repeatseq 2 right 16]л[repeatseq 2 right 20]лн[repeatseq 2 right 15]он мллллллллмллллллллллл[black][
+]л[repeatseq 2 right 17][red]л[repeatseq 2 right 20]лн[repeatseq 2 right 16]плллллл[black on red]lN.[red on red][
+]ллллллллллллл[black on red]л[black][repeatseq 2 right 16][red]ол[repeatseq 2 right 20]он[repeatseq 2 right 17][
+]оллллллллллллллллллллл[repeatseq 2 right 7]мп[repeatseq 2 right 8]ол омм[repeatseq 2 right 12]ммн он[repeatseq 2 right 8][
+]ом[repeatseq 2 right 7]ллллллллллллллллллллллн    млн[repeatseq 2 right 9]ол  плллмм    мммллл  он[repeatseq 2 right 9][
+]плм[repeatseq 2 right 5]ллллллллл[red on red]  лллллллллллл[red] омлпп[repeatseq 2 right 10]ол    плллн   [
+]лллпп   он н[repeatseq 2 right 9]лллм оллллллллл[red on red]  лллллллллллл[red]нолп[repeatseq 2 right 11][
+]нол[repeatseq 2 right 6]плл  оллп[repeatseq 2 right 5]он н[repeatseq 2 right 10]плл лллллллллллллллллллллллл[
+]н н[repeatseq 2 right 11]мнмл[repeatseq 2 right 7]лл  олл[repeatseq 2 right 6]онон[repeatseq 2 right 11][
+]ол ллллллллллллллллллллллллл л[repeatseq 2 right 11]лллл[repeatseq 2 right 7]олммлл[repeatseq 2 right 7][
+]оллл[repeatseq 2 right 11]онолллллллллллллллллллллллллмлн[repeatseq 2 right 9]мллллм[repeatseq 2 right 6][
+]оллллн[repeatseq 2 right 7]ллллн[repeatseq 2 right 10]ллллллллллллллллллллллллллллллл[repeatseq 2 right 8][
+]млллллллм[repeatseq 2 right 5]ллллн[repeatseq 2 right 5]мллллллл[repeatseq 2 right 8]оллллллллллллллллллллллллллллллл[
+]н[repeatseq 2 right 5]млллллллллллм   оллл    мллллллллллн[repeatseq 2 right 6]лллллллллллллллллллллллллллллллл[
+]н   мллллллллллллллл  оллл  мллллллллллллллмн  олллллллллллллллллллллллллллллллллнмллллллллллллллллллл[
+]оллнмллллллллллллллллллмолллллллллллллллллллллллллллллллллллллллн   ппплллллллллллллллллппппппппппппп[
+]лллллллллллллллллллллллллллллллп опппппппппн  о[repeatseq 2 right 38]ппплллллллллллллллллллллл[repeatseq 2 right 16][
+]омммммммммммммммммммммммммммммммммм[repeatseq 2 right 9]пплллллллллллллллллл[repeatseq 2 right 16]о[repeatseq 2 right 41][
+]ммллллллллллллллллллллл  нмммммммммн  о    мммммммммммммммм[repeatseq 2 right 13]ммммммллллллллллллллллллллллллллллллллллллл[
+]н    ллл[red on red]                 лллллллллллллллллллллллллллллллллллллллллллллллллллллллл[red]мммлллллллллллллллллллллллллллллллллллллллллллллллллллллл
+
+[yellow]Thank you for calling [sys_name], [first].
+[lightcyan]You are the [syscall] caller, and this is your [usercall] call.
+[lightgreen]You have uploaded [ul]K.  You have downloaded [dl]K. (UL:DL=[ratio].)
+
+[white enter][moreon]
+[mex]scripts/weather
+[mex]scripts/oneliner

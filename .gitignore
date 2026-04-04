@@ -70,9 +70,13 @@ src/libs/btree/trackexp
 *.swp
 *.swo
 *~
+.!*
 .idea/
 .vscode/
 *.DS_Store
+
+# Static site cache
+docs/wiki/.jekyll-cache/
 
 # Test files
 *.i00
@@ -89,7 +93,19 @@ __pycache__/
 # Extensions
 .windsurf/
 .roo/
+.kilo/
 .kilocode/
+.claude/
+.cursor/
+.zed/
+
+# AI agent/project steering
+kilo.json
+CLAUDE.md
+GEMINI.md
+CURSOR.md
+CODEX.md
+agents.md
 
 # Local agent steering
 AGENTS.md
