@@ -152,6 +152,9 @@ static int load_toml_config(const char *sys_path)
     char language_path[MAX_PATH_LEN];
     char protocol_path[MAX_PATH_LEN];
     char colors_path[MAX_PATH_LEN];
+    char mex_path[MAX_PATH_LEN];
+    char theme_path[MAX_PATH_LEN];
+    char display_path[MAX_PATH_LEN];
 
     if (maxcfg_join_path(g_maxcfg, "config/maximus.toml", maximus_path, sizeof(maximus_path)) != MAXCFG_OK) {
         fprintf(stderr, "Error: failed to resolve config/maximus.toml under: %s\n", sys_path);
@@ -196,6 +199,21 @@ static int load_toml_config(const char *sys_path)
     }
     if (maxcfg_join_path(g_maxcfg, "config/general/colors.toml", colors_path, sizeof(colors_path)) != MAXCFG_OK) {
         fprintf(stderr, "Error: failed to resolve config/general/colors.toml under: %s\n", sys_path);
+        maxcfg_toml_cleanup();
+        return 0;
+    }
+    if (maxcfg_join_path(g_maxcfg, "config/general/mex.toml", mex_path, sizeof(mex_path)) != MAXCFG_OK) {
+        fprintf(stderr, "Error: failed to resolve config/general/mex.toml under: %s\n", sys_path);
+        maxcfg_toml_cleanup();
+        return 0;
+    }
+    if (maxcfg_join_path(g_maxcfg, "config/general/theme.toml", theme_path, sizeof(theme_path)) != MAXCFG_OK) {
+        fprintf(stderr, "Error: failed to resolve config/general/theme.toml under: %s\n", sys_path);
+        maxcfg_toml_cleanup();
+        return 0;
+    }
+    if (maxcfg_join_path(g_maxcfg, "config/general/display.toml", display_path, sizeof(display_path)) != MAXCFG_OK) {
+        fprintf(stderr, "Error: failed to resolve config/general/display.toml under: %s\n", sys_path);
         maxcfg_toml_cleanup();
         return 0;
     }
@@ -255,6 +273,24 @@ static int load_toml_config(const char *sys_path)
     if (st != MAXCFG_OK) {
         fprintf(stderr, "Warning: failed to load colors TOML: %s (%s) - using defaults\n",
                 colors_path, maxcfg_status_string(st));
+        /* Non-fatal: fall through with defaults */
+    }
+    st = maxcfg_toml_load_file(g_maxcfg_toml, mex_path, "mex");
+    if (st != MAXCFG_OK) {
+        fprintf(stderr, "Warning: failed to load MEX TOML: %s (%s) - using defaults\n",
+                mex_path, maxcfg_status_string(st));
+        /* Non-fatal: fall through with defaults */
+    }
+    st = maxcfg_toml_load_file(g_maxcfg_toml, theme_path, "general.theme");
+    if (st != MAXCFG_OK) {
+        fprintf(stderr, "Warning: failed to load theme TOML: %s (%s) - using defaults\n",
+                theme_path, maxcfg_status_string(st));
+        /* Non-fatal: fall through with defaults */
+    }
+    st = maxcfg_toml_load_file(g_maxcfg_toml, display_path, "general.display");
+    if (st != MAXCFG_OK) {
+        fprintf(stderr, "Warning: failed to load display TOML: %s (%s) - using defaults\n",
+                display_path, maxcfg_status_string(st));
         /* Non-fatal: fall through with defaults */
     }
 

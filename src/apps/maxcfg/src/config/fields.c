@@ -938,6 +938,34 @@ const FieldDef display_files_fields[] = {
         .can_disable = true,
         .supports_mex = false
     },
+    /* ---- MEX/Theme Files ---- */
+    {
+        .keyword = "Uses NewuserMex",
+        .label = "New User MEX",
+        .help = "MEX script for new-user registration questionnaire. "
+                "Runs a form-based registration UI instead of the default "
+                "sequential prompts. Leave empty to use standard registration.",
+        .type = FIELD_FILE,
+        .max_length = 80,
+        .default_value = "scripts/newuser-val",
+        .file_filter = "*.mex",
+        .file_base_path = "scripts",
+        .can_disable = true,
+        .supports_mex = true
+    },
+    {
+        .keyword = "Uses ThemeSel",
+        .label = "Theme Selection",
+        .help = "Display file shown before the theme chooser menu. "
+                "Use this to show a preview or description of available themes.",
+        .type = FIELD_FILE,
+        .max_length = 80,
+        .default_value = "display/screens/theme_sel",
+        .file_filter = "*.bbs",
+        .file_base_path = "display/screens",
+        .can_disable = true,
+        .supports_mex = true
+    },
 };
 
 const int display_files_field_count = sizeof(display_files_fields) / sizeof(display_files_fields[0]);
@@ -2546,3 +2574,596 @@ const FieldDef reader_settings_fields[] = {
 };
 
 const int reader_settings_field_count = sizeof(reader_settings_fields) / sizeof(reader_settings_fields[0]);
+
+/* ============================================================================
+ * MEX Socket Settings (mex.toml [sockets])
+ * ============================================================================ */
+
+const FieldDef mex_socket_fields[] = {
+    {
+        .keyword = "SocketsEnabled",
+        .label = "Sockets Enabled",
+        .help = "Master switch for all outgoing socket/HTTP calls from MEX scripts. "
+                "Set to No to completely disable networking.",
+        .type = FIELD_TOGGLE,
+        .max_length = 2,
+        .default_value = "Yes",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "MaxConnections",
+        .label = "Max Connections",
+        .help = "Maximum concurrent socket connections per MEX session.",
+        .type = FIELD_NUMBER,
+        .max_length = 3,
+        .default_value = "8"
+    },
+    {
+        .keyword = "ConnectTimeout",
+        .label = "Connect Timeout (ms)",
+        .help = "Default connect timeout in milliseconds when the script passes 0.",
+        .type = FIELD_NUMBER,
+        .max_length = 6,
+        .default_value = "500"
+    },
+    {
+        .keyword = "TlsHandshakeTimeout",
+        .label = "TLS Handshake Timeout (ms)",
+        .help = "Hard cap on TLS handshake duration in milliseconds. "
+                "Typical handshake is 50-150ms.",
+        .type = FIELD_NUMBER,
+        .max_length = 6,
+        .default_value = "500"
+    },
+    {
+        .keyword = "MaxRecvSize",
+        .label = "Max Recv Size",
+        .help = "Maximum bytes per sock_recv call.",
+        .type = FIELD_NUMBER,
+        .max_length = 8,
+        .default_value = "131072"
+    },
+};
+
+const int mex_socket_field_count = sizeof(mex_socket_fields) / sizeof(mex_socket_fields[0]);
+
+/* ============================================================================
+ * Theme Registry — General Settings (theme.toml [general])
+ * ============================================================================ */
+
+const FieldDef theme_general_fields[] = {
+    {
+        .keyword = "DefaultTheme",
+        .label = "Default Theme",
+        .help = "Short name of the default theme applied to new users and users with theme=0.",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = "max"
+    },
+    {
+        .keyword = "DefaultLang",
+        .label = "Default Language",
+        .help = "System default language file basename (without .toml extension).",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = "english"
+    },
+};
+
+const int theme_general_field_count = sizeof(theme_general_fields) / sizeof(theme_general_fields[0]);
+
+/* ============================================================================
+ * Theme Registry — Per-Theme Entry (theme.toml [[theme]])
+ * ============================================================================ */
+
+const FieldDef theme_entry_fields[] = {
+    {
+        .keyword = "Index",
+        .label = "Index",
+        .help = "Theme slot index (1-15). Index 0 is reserved for BBS default.",
+        .type = FIELD_NUMBER,
+        .max_length = 3,
+        .default_value = "1"
+    },
+    {
+        .keyword = "ShortName",
+        .label = "Short Name",
+        .help = "Filesystem-safe identifier used for themed config/display file lookup (e.g. maxng).",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = ""
+    },
+    {
+        .keyword = "Name",
+        .label = "Display Name",
+        .help = "Display name shown in the theme chooser menu.",
+        .type = FIELD_TEXT,
+        .max_length = 40,
+        .default_value = ""
+    },
+    {
+        .keyword = "Lang",
+        .label = "Language Override",
+        .help = "Language file override. Leave empty to inherit the system default language.",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = ""
+    },
+};
+
+const int theme_entry_field_count = sizeof(theme_entry_fields) / sizeof(theme_entry_fields[0]);
+
+/* ============================================================================
+ * Display Settings (display.toml)
+ * ============================================================================ */
+
+const char *bracket_options[] = { "", "square", "rounded", NULL };
+const char *lightbar_what_options[] = { "row", "full", "name", NULL };
+
+/* ---------- General ---------- */
+
+const FieldDef display_general_fields[] = {
+    {
+        .keyword = "LightbarPrompts",
+        .label = "Lightbar Prompts",
+        .help = "Master switch for lightbar-style inline prompts on graphical terminals.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "LightbarPromptsPadding",
+        .label = "Lightbar Padding",
+        .help = "Padding spaces on either side of each lightbar prompt option.",
+        .type = FIELD_NUMBER,
+        .max_length = 3,
+        .default_value = "1"
+    },
+    {
+        .keyword = "LightbarPromptsVerbose",
+        .label = "Lightbar Verbose",
+        .help = "When enabled, shows 'or' between the last two prompt options.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "LightbarPromptsBrackets",
+        .label = "Lightbar Brackets",
+        .help = "Bracket style around prompt options: none, [X] square, or (X) rounded.",
+        .type = FIELD_SELECT,
+        .max_length = 10,
+        .default_value = "",
+        .toggle_options = bracket_options
+    },
+    {
+        .keyword = "TimeFormat",
+        .label = "Time Format",
+        .help = "Time display format (strftime-style).",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = "%H:%M:%S"
+    },
+    {
+        .keyword = "DateFormat",
+        .label = "Date Format",
+        .help = "Date display format (strftime-style).",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = "%C-%D-%Y"
+    },
+    {
+        .keyword = "BoundedInputLogin",
+        .label = "Bounded Input: Login",
+        .help = "Use bounded (fixed-position) input fields for login name and password entry.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "BoundedInputNewuser",
+        .label = "Bounded Input: New User",
+        .help = "Use bounded input fields for new user registration flow.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "BoundedInputQuest",
+        .label = "Bounded Input: Questionnaire",
+        .help = "Use bounded input fields for MECCA questionnaire token fields.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "BoundedInputMex",
+        .label = "Bounded Input: MEX",
+        .help = "Use bounded input fields for MEX ui_prompt_field / ui_edit_field intrinsics.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+};
+
+const int display_general_field_count = sizeof(display_general_fields) / sizeof(display_general_fields[0]);
+
+/* ---------- File Area Display ---------- */
+
+const FieldDef display_file_areas_fields[] = {
+    {
+        .keyword = "LightbarArea",
+        .label = "Lightbar Area Select",
+        .help = "Enable interactive lightbar mode for file area selection.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "ReduceArea",
+        .label = "Reduce Area Rows",
+        .help = "Reduce area list height by this many rows for header/footer space.",
+        .type = FIELD_NUMBER,
+        .max_length = 3,
+        .default_value = "5"
+    },
+    {
+        .keyword = "LightbarWhat",
+        .label = "Highlight Mode",
+        .help = "Highlight mode: row (full row), full (full width), name (name only).",
+        .type = FIELD_SELECT,
+        .max_length = 10,
+        .default_value = "row",
+        .toggle_options = lightbar_what_options
+    },
+    {
+        .keyword = "LightbarFore",
+        .label = "Lightbar Foreground",
+        .help = "Selected row foreground color override (name or hex nibble). Empty inherits.",
+        .type = FIELD_TEXT,
+        .max_length = 10,
+        .default_value = ""
+    },
+    {
+        .keyword = "LightbarBack",
+        .label = "Lightbar Background",
+        .help = "Selected row background color override (name or hex nibble). Empty uses theme default.",
+        .type = FIELD_TEXT,
+        .max_length = 10,
+        .default_value = ""
+    },
+    { .type = FIELD_SEPARATOR },
+    {
+        .keyword = "TopRow",
+        .label = "Top Boundary Row",
+        .help = "Top boundary row (1-based). Set both top and bottom to enable bounded display.",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "TopCol",
+        .label = "Top Boundary Col",
+        .help = "Top boundary column (1-based).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "BottomRow",
+        .label = "Bottom Boundary Row",
+        .help = "Bottom boundary row (1-based, inclusive).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "BottomCol",
+        .label = "Bottom Boundary Col",
+        .help = "Bottom boundary column (1-based, inclusive).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "HeaderRow",
+        .label = "Header Row",
+        .help = "Header anchor row (1-based). 0 = inline.",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "HeaderCol",
+        .label = "Header Col",
+        .help = "Header anchor column (1-based).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "FooterRow",
+        .label = "Footer Row",
+        .help = "Footer anchor row (1-based). 0 = inline.",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "FooterCol",
+        .label = "Footer Col",
+        .help = "Footer anchor column (1-based).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    { .type = FIELD_SEPARATOR },
+    {
+        .keyword = "CustomScreen",
+        .label = "Custom Screen",
+        .help = "Custom display file shown before the area list.",
+        .type = FIELD_FILE,
+        .max_length = 80,
+        .default_value = "",
+        .file_filter = "*.bbs",
+        .file_base_path = "display/screens"
+    },
+    {
+        .keyword = "FileAreaList",
+        .label = "Area List File",
+        .help = "Custom area list display file (overrides built-in list).",
+        .type = FIELD_FILE,
+        .max_length = 80,
+        .default_value = "",
+        .file_filter = "*.bbs",
+        .file_base_path = "display/screens"
+    },
+    {
+        .keyword = "FileHeader",
+        .label = "Header Format",
+        .help = "Header format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+    {
+        .keyword = "FileFormat",
+        .label = "Area Line Format",
+        .help = "Area line format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+    {
+        .keyword = "FileFormatDiv",
+        .label = "Division Line Format",
+        .help = "Division line format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+    {
+        .keyword = "FileFooter",
+        .label = "Footer Format",
+        .help = "Footer format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+};
+
+const int display_file_areas_field_count = sizeof(display_file_areas_fields) / sizeof(display_file_areas_fields[0]);
+
+/* ---------- Message Area Display ---------- */
+
+const FieldDef display_msg_areas_fields[] = {
+    {
+        .keyword = "LightbarArea",
+        .label = "Lightbar Area Select",
+        .help = "Enable interactive lightbar mode for message area selection.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "ReduceArea",
+        .label = "Reduce Area Rows",
+        .help = "Reduce area list height by this many rows for header/footer space.",
+        .type = FIELD_NUMBER,
+        .max_length = 3,
+        .default_value = "5"
+    },
+    {
+        .keyword = "LightbarWhat",
+        .label = "Highlight Mode",
+        .help = "Highlight mode: row (full row), full (full width), name (name only).",
+        .type = FIELD_SELECT,
+        .max_length = 10,
+        .default_value = "row",
+        .toggle_options = lightbar_what_options
+    },
+    {
+        .keyword = "LightbarFore",
+        .label = "Lightbar Foreground",
+        .help = "Selected row foreground color override (name or hex nibble). Empty inherits.",
+        .type = FIELD_TEXT,
+        .max_length = 10,
+        .default_value = ""
+    },
+    {
+        .keyword = "LightbarBack",
+        .label = "Lightbar Background",
+        .help = "Selected row background color override (name or hex nibble). Empty uses theme default.",
+        .type = FIELD_TEXT,
+        .max_length = 10,
+        .default_value = ""
+    },
+    { .type = FIELD_SEPARATOR },
+    {
+        .keyword = "TopRow",
+        .label = "Top Boundary Row",
+        .help = "Top boundary row (1-based). Set both top and bottom to enable bounded display.",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "TopCol",
+        .label = "Top Boundary Col",
+        .help = "Top boundary column (1-based).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "BottomRow",
+        .label = "Bottom Boundary Row",
+        .help = "Bottom boundary row (1-based, inclusive).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "BottomCol",
+        .label = "Bottom Boundary Col",
+        .help = "Bottom boundary column (1-based, inclusive).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "HeaderRow",
+        .label = "Header Row",
+        .help = "Header anchor row (1-based). 0 = inline.",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "HeaderCol",
+        .label = "Header Col",
+        .help = "Header anchor column (1-based).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "FooterRow",
+        .label = "Footer Row",
+        .help = "Footer anchor row (1-based). 0 = inline.",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    {
+        .keyword = "FooterCol",
+        .label = "Footer Col",
+        .help = "Footer anchor column (1-based).",
+        .type = FIELD_NUMBER,
+        .max_length = 5,
+        .default_value = "0"
+    },
+    { .type = FIELD_SEPARATOR },
+    {
+        .keyword = "CustomScreen",
+        .label = "Custom Screen",
+        .help = "Custom display file shown before the area list.",
+        .type = FIELD_FILE,
+        .max_length = 80,
+        .default_value = "",
+        .file_filter = "*.bbs",
+        .file_base_path = "display/screens"
+    },
+    {
+        .keyword = "MsgAreaList",
+        .label = "Area List File",
+        .help = "Custom area list display file (overrides built-in list).",
+        .type = FIELD_FILE,
+        .max_length = 80,
+        .default_value = "",
+        .file_filter = "*.bbs",
+        .file_base_path = "display/screens"
+    },
+    {
+        .keyword = "MsgHeader",
+        .label = "Header Format",
+        .help = "Header format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+    {
+        .keyword = "MsgFormat",
+        .label = "Area Line Format",
+        .help = "Area line format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+    {
+        .keyword = "MsgFormatDiv",
+        .label = "Division Line Format",
+        .help = "Division line format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+    {
+        .keyword = "MsgFooter",
+        .label = "Footer Format",
+        .help = "Footer format string with MCI codes.",
+        .type = FIELD_TEXT,
+        .max_length = 200,
+        .default_value = ""
+    },
+};
+
+const int display_msg_areas_field_count = sizeof(display_msg_areas_fields) / sizeof(display_msg_areas_fields[0]);
+
+/* ---------- Message Reader ---------- */
+
+const FieldDef display_msg_reader_fields[] = {
+    {
+        .keyword = "LightbarArea",
+        .label = "Lightbar Area Select",
+        .help = "Enable interactive lightbar mode for message reader area selection.",
+        .type = FIELD_TOGGLE,
+        .default_value = "No",
+        .toggle_options = toggle_yes_no
+    },
+    {
+        .keyword = "ReduceArea",
+        .label = "Reduce Area Rows",
+        .help = "Reduce area list height by this many rows for header/footer space.",
+        .type = FIELD_NUMBER,
+        .max_length = 3,
+        .default_value = "5"
+    },
+    {
+        .keyword = "LightbarWhat",
+        .label = "Highlight Mode",
+        .help = "Highlight mode: row (full row), full (full width), name (name only).",
+        .type = FIELD_SELECT,
+        .max_length = 10,
+        .default_value = "full",
+        .toggle_options = lightbar_what_options
+    },
+    {
+        .keyword = "LightbarFore",
+        .label = "Lightbar Foreground",
+        .help = "Selected row foreground color override. Empty lets MCI colors bleed through.",
+        .type = FIELD_TEXT,
+        .max_length = 10,
+        .default_value = ""
+    },
+    {
+        .keyword = "LightbarBack",
+        .label = "Lightbar Background",
+        .help = "Selected row background color override. Empty defaults to blue (|17).",
+        .type = FIELD_TEXT,
+        .max_length = 10,
+        .default_value = ""
+    },
+};
+
+const int display_msg_reader_field_count = sizeof(display_msg_reader_fields) / sizeof(display_msg_reader_fields[0]);

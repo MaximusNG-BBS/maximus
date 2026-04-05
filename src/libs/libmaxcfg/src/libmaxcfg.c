@@ -4073,6 +4073,34 @@ MaxCfgStatus maxcfg_toml_override_set_string_array(MaxCfgToml *toml, const char 
     return st;
 }
 
+/** @brief Set a 2-element integer array override (e.g. [row, col] boundaries). */
+MaxCfgStatus maxcfg_toml_override_set_int_array_2(MaxCfgToml *toml, const char *path, int a, int b)
+{
+    if (toml == NULL || toml->overrides == NULL || path == NULL) {
+        return MAXCFG_ERR_INVALID_ARGUMENT;
+    }
+
+    TomlNode *n = toml_node_new(MAXCFG_VAR_INT_ARRAY);
+    if (n == NULL) {
+        return MAXCFG_ERR_OOM;
+    }
+
+    n->v.intv.items = (int *)calloc(2, sizeof(int));
+    if (n->v.intv.items == NULL) {
+        toml_node_free(n);
+        return MAXCFG_ERR_OOM;
+    }
+    n->v.intv.count = 2;
+    n->v.intv.items[0] = a;
+    n->v.intv.items[1] = b;
+
+    MaxCfgStatus st = toml_table_set_node(toml->overrides, path, n);
+    if (st != MAXCFG_OK) {
+        toml_node_free(n);
+    }
+    return st;
+}
+
 /** @brief Set an empty table array override in the TOML store. */
 MaxCfgStatus maxcfg_toml_override_set_table_array_empty(MaxCfgToml *toml, const char *path)
 {

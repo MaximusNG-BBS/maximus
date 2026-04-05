@@ -68,6 +68,9 @@ static void action_languages(void);
 static void action_protocols(void);
 static void action_events(void);
 static void action_reader_settings(void);
+static void action_mex_settings(void);
+static void action_theme_registry(void);
+static void action_display_settings(void);
 static void action_protocol_list(void *unused);
 static void action_edit_compress_cfg(void *unused);
 
@@ -149,9 +152,12 @@ static MenuItem setup_matrix_items[] = {
 static MenuItem setup_items[] = {
     { "Global",           "G", setup_global_items, 8, NULL, true },
     { "Security Levels",  "S", NULL, 0, action_security_levels, true },
+    { "Display Settings", "i", NULL, 0, action_display_settings, true },
     { "Reader Settings",  "R", NULL, 0, action_reader_settings, true },
+    { "MEX Settings",     "X", NULL, 0, action_mex_settings, true },
     { "Protocols",        "P", NULL, 0, action_protocols, true },
     { "Languages",        "L", NULL, 0, action_languages, true },
+    { "Theme Registry",   "T", NULL, 0, action_theme_registry, true },
     { "Matrix/Echomail",  "M", setup_matrix_items, 5, NULL, true },
 };
 
@@ -217,7 +223,7 @@ static MenuItem tools_items[] = {
 
 /* Top-level menus */
 static TopMenu top_menus[] = {
-    { "Setup",       setup_items,       6 },
+    { "Setup",       setup_items,       9 },
     { "Content",     content_items,     4 },
     { "Messages",    messages_items,    5 },
     { "Files",       files_items,       3 },
@@ -1417,6 +1423,10 @@ static void action_display_files(void)
         "general.display_files.protocol_dump",
         "general.display_files.fname_format",
         "general.display_files.tune",
+        "general.display_files.file_area_list",
+        "general.display_files.msg_area_list",
+        "general.display_files.newuser_mex",
+        "general.display_files.theme_sel",
     };
 
     if (g_maxcfg_toml == NULL) {
@@ -2527,6 +2537,299 @@ static void action_protocol_list(void *unused)
     }
 }
 
+/* ============================================================================
+ * Theme Registry Editor
+ * ============================================================================ */
+
+typedef struct {
+    int   index;
+    char *short_name;
+    char *name;
+    char *lang;
+} ThemeEntry;
+
+static void theme_entry_free(ThemeEntry *t)
+{
+    if (!t) return;
+    free(t->short_name);
+    free(t->name);
+    free(t->lang);
+    memset(t, 0, sizeof(*t));
+}
+
+static bool theme_entry_load(int idx, ThemeEntry *out)
+{
+    if (!out || idx < 0) return false;
+    char path[256];
+
+    /* Probe for existence via short_name — if missing, this entry doesn't exist */
+    snprintf(path, sizeof(path), "general.theme.theme[%d].short_name", idx);
+    const char *sn = toml_get_string_or_empty(path);
+    if (sn[0] == '\0') {
+        /* Also check index to handle entries with empty short_name */
+        snprintf(path, sizeof(path), "general.theme.theme[%d].index", idx);
+        MaxCfgVar v;
+        if (maxcfg_toml_get(g_maxcfg_toml, path, &v) != MAXCFG_OK) return false;
+    }
+
+    snprintf(path, sizeof(path), "general.theme.theme[%d].index", idx);
+    out->index = toml_get_int_or_default(path, 0);
+
+    snprintf(path, sizeof(path), "general.theme.theme[%d].short_name", idx);
+    out->short_name = strdup(toml_get_string_or_empty(path));
+
+    snprintf(path, sizeof(path), "general.theme.theme[%d].name", idx);
+    out->name = strdup(toml_get_string_or_empty(path));
+
+    snprintf(path, sizeof(path), "general.theme.theme[%d].lang", idx);
+    out->lang = strdup(toml_get_string_or_empty(path));
+
+    return true;
+}
+
+static void theme_entry_write_all(ThemeEntry *arr, int count)
+{
+    (void)maxcfg_toml_override_set_table_array_empty(g_maxcfg_toml, "general.theme.theme");
+
+    for (int i = 0; i < count; i++) {
+        char path[256];
+
+        snprintf(path, sizeof(path), "general.theme.theme[%d].index", i);
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, path, arr[i].index);
+
+        snprintf(path, sizeof(path), "general.theme.theme[%d].short_name", i);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, path, arr[i].short_name ? arr[i].short_name : "");
+
+        snprintf(path, sizeof(path), "general.theme.theme[%d].name", i);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, path, arr[i].name ? arr[i].name : "");
+
+        snprintf(path, sizeof(path), "general.theme.theme[%d].lang", i);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, path, arr[i].lang ? arr[i].lang : "");
+    }
+}
+
+static void theme_rebuild_items(ListItem *items, int max_items, ThemeEntry *themes, int theme_count)
+{
+    if (!items || !themes || max_items <= 0) return;
+
+    for (int i = 0; i < max_items; i++) {
+        free(items[i].name);
+        free(items[i].extra);
+        items[i].name = NULL;
+        items[i].extra = NULL;
+        items[i].enabled = true;
+        items[i].data = NULL;
+    }
+    for (int i = 0; i < theme_count && i < max_items; i++) {
+        char label[96];
+        snprintf(label, sizeof(label), "%2d: %-20s %s",
+                 themes[i].index,
+                 themes[i].short_name ? themes[i].short_name : "",
+                 themes[i].name ? themes[i].name : "");
+        items[i].name = strdup(label);
+        items[i].extra = strdup((themes[i].lang && themes[i].lang[0]) ? themes[i].lang : "(default)");
+        items[i].enabled = true;
+        items[i].data = (void *)(intptr_t)i;
+    }
+}
+
+static void action_theme_list(void *unused)
+{
+    (void)unused;
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    const int MAX_THEMES = 16;
+    ThemeEntry themes[16];
+    memset(themes, 0, sizeof(themes));
+
+    int theme_count = 0;
+    for (int i = 0; i < MAX_THEMES; i++) {
+        if (!theme_entry_load(i, &themes[theme_count])) {
+            break;
+        }
+        theme_count++;
+    }
+
+    ListItem items[16];
+    memset(items, 0, sizeof(items));
+    theme_rebuild_items(items, MAX_THEMES, themes, theme_count);
+
+    int selected = 0;
+    ListPickResult result;
+
+    do {
+        result = listpicker_show("Theme Entries", items, theme_count, &selected);
+
+        if (result == LISTPICK_EDIT && selected >= 0 && selected < theme_count) {
+            int idx = (int)(intptr_t)items[selected].data;
+            if (idx < 0 || idx >= theme_count) continue;
+
+            char **values = calloc((size_t)theme_entry_field_count, sizeof(char *));
+            if (!values) {
+                dialog_message("Out of Memory", "Unable to allocate theme form values.");
+                continue;
+            }
+
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%d", themes[idx].index);
+            values[0] = strdup(buf);
+            values[1] = strdup(themes[idx].short_name ? themes[idx].short_name : "");
+            values[2] = strdup(themes[idx].name ? themes[idx].name : "");
+            values[3] = strdup(themes[idx].lang ? themes[idx].lang : "");
+
+            if (form_edit("Edit Theme", theme_entry_fields, theme_entry_field_count, values, NULL, NULL)) {
+                free(themes[idx].short_name);
+                free(themes[idx].name);
+                free(themes[idx].lang);
+
+                themes[idx].index = values[0] ? atoi(values[0]) : 1;
+                themes[idx].short_name = strdup(values[1] ? values[1] : "");
+                themes[idx].name = strdup(values[2] ? values[2] : "");
+                themes[idx].lang = strdup(values[3] ? values[3] : "");
+
+                theme_entry_write_all(themes, theme_count);
+                g_state.dirty = true;
+                theme_rebuild_items(items, MAX_THEMES, themes, theme_count);
+            }
+
+            for (int i = 0; i < theme_entry_field_count; i++) {
+                free(values[i]);
+            }
+            free(values);
+        } else if ((result == LISTPICK_INSERT || result == LISTPICK_ADD) && theme_count < MAX_THEMES) {
+            int insert_at = (result == LISTPICK_INSERT && selected >= 0 && selected <= theme_count) ? selected : theme_count;
+
+            char **values = calloc((size_t)theme_entry_field_count, sizeof(char *));
+            if (!values) {
+                dialog_message("Out of Memory", "Unable to allocate theme form values.");
+                continue;
+            }
+
+            char buf[64];
+            snprintf(buf, sizeof(buf), "%d", theme_count + 1);
+            values[0] = strdup(buf);
+            values[1] = strdup("");
+            values[2] = strdup("");
+            values[3] = strdup("");
+
+            if (form_edit("New Theme", theme_entry_fields, theme_entry_field_count, values, NULL, NULL)) {
+                if (values[1] && values[1][0]) {
+                    for (int i = theme_count; i > insert_at; i--) {
+                        themes[i] = themes[i - 1];
+                        memset(&themes[i - 1], 0, sizeof(themes[i - 1]));
+                    }
+
+                    ThemeEntry *t = &themes[insert_at];
+                    t->index = values[0] ? atoi(values[0]) : (theme_count + 1);
+                    t->short_name = strdup(values[1] ? values[1] : "");
+                    t->name = strdup(values[2] ? values[2] : "");
+                    t->lang = strdup(values[3] ? values[3] : "");
+
+                    theme_count++;
+                    theme_entry_write_all(themes, theme_count);
+                    g_state.dirty = true;
+                    theme_rebuild_items(items, MAX_THEMES, themes, theme_count);
+                    selected = insert_at;
+                }
+            }
+
+            for (int i = 0; i < theme_entry_field_count; i++) {
+                free(values[i]);
+            }
+            free(values);
+        } else if (result == LISTPICK_DELETE && selected >= 0 && selected < theme_count) {
+            int del = selected;
+            theme_entry_free(&themes[del]);
+            for (int i = del; i < theme_count - 1; i++) {
+                themes[i] = themes[i + 1];
+                memset(&themes[i + 1], 0, sizeof(themes[i + 1]));
+            }
+            theme_count--;
+            theme_entry_write_all(themes, theme_count);
+            g_state.dirty = true;
+            theme_rebuild_items(items, MAX_THEMES, themes, theme_count);
+            if (selected >= theme_count && theme_count > 0) selected = theme_count - 1;
+        }
+
+    } while (result != LISTPICK_EXIT);
+
+    for (int i = 0; i < theme_count; i++) {
+        theme_entry_free(&themes[i]);
+    }
+    for (int i = 0; i < MAX_THEMES; i++) {
+        free(items[i].name);
+        free(items[i].extra);
+    }
+}
+
+static char *theme_settings_values[3] = { NULL };
+
+static const FieldDef theme_settings_with_list[] = {
+    {
+        .keyword = "default_theme",
+        .label = "Default Theme",
+        .help = "Short name of the default theme applied to new users and users with theme=0.",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = "max"
+    },
+    {
+        .keyword = "default_lang",
+        .label = "Default Language",
+        .help = "System default language file basename (without .toml extension).",
+        .type = FIELD_TEXT,
+        .max_length = 20,
+        .default_value = "english"
+    },
+    {
+        .keyword = NULL,
+        .label = "Edit Theme Definitions...",
+        .help = "Edit theme registry entries (insert/edit/delete).",
+        .type = FIELD_ACTION,
+        .max_length = 0,
+        .default_value = "[Press Enter to edit]",
+        .action = action_theme_list,
+        .action_ctx = NULL
+    },
+};
+
+static void action_theme_registry(void)
+{
+    for (int i = 0; i < 3; i++) free(theme_settings_values[i]);
+
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    theme_settings_values[0] = strdup(toml_get_string_or_empty("general.theme.general.default_theme"));
+    if (theme_settings_values[0][0] == '\0') {
+        free(theme_settings_values[0]);
+        theme_settings_values[0] = strdup("max");
+    }
+    theme_settings_values[1] = strdup(toml_get_string_or_empty("general.theme.general.default_lang"));
+    if (theme_settings_values[1][0] == '\0') {
+        free(theme_settings_values[1]);
+        theme_settings_values[1] = strdup("english");
+    }
+    theme_settings_values[2] = strdup("[Press Enter to edit]");
+
+    int dirty_fields[32];
+    int dirty_count = 0;
+    bool saved = form_edit("Theme Registry", theme_settings_with_list, 3, theme_settings_values, dirty_fields, &dirty_count);
+
+    if (saved) {
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.theme.general.default_theme",
+                                               theme_settings_values[0] ? theme_settings_values[0] : "max");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.theme.general.default_lang",
+                                               theme_settings_values[1] ? theme_settings_values[1] : "english");
+        g_state.dirty = true;
+    }
+}
+
 static char *matrix_events_values[3] = { NULL };
 
 static void action_events(void)
@@ -2660,6 +2963,406 @@ static void action_reader_settings(void)
         
         g_state.dirty = true;
     }
+}
+
+/* ============================================================================
+ * MEX Settings
+ * ============================================================================ */
+
+static void action_mex_settings(void)
+{
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    char *values[5];
+    char buf[32];
+
+    /* Load current values from TOML */
+    values[0] = strdup(toml_get_bool_or_default("mex.sockets.enabled", true) ? "Yes" : "No");
+
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default("mex.sockets.max_connections", 8));
+    values[1] = strdup(buf);
+
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default("mex.sockets.connect_timeout_ms", 500));
+    values[2] = strdup(buf);
+
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default("mex.sockets.tls_handshake_timeout_ms", 500));
+    values[3] = strdup(buf);
+
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default("mex.sockets.max_recv_size", 131072));
+    values[4] = strdup(buf);
+
+    int dirty_fields[32];
+    int dirty_count = 0;
+    bool saved = form_edit("MEX Settings", mex_socket_fields, mex_socket_field_count,
+                           values, dirty_fields, &dirty_count);
+
+    if (saved) {
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "mex.sockets.enabled",
+                                            strcmp(values[0], "Yes") == 0);
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, "mex.sockets.max_connections",
+                                           atoi(values[1]));
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, "mex.sockets.connect_timeout_ms",
+                                           atoi(values[2]));
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, "mex.sockets.tls_handshake_timeout_ms",
+                                           atoi(values[3]));
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, "mex.sockets.max_recv_size",
+                                           atoi(values[4]));
+        g_state.dirty = true;
+    }
+
+    for (int i = 0; i < 5; i++) free(values[i]);
+}
+
+/* ============================================================================
+ * Display Settings (display.toml)
+ * ============================================================================ */
+
+/**
+ * @brief Read a 2-element int array from TOML, returning elements via out params.
+ *
+ * If the key is absent or not an int array, a and b are left unchanged.
+ */
+static void toml_get_int_array_2(const char *path, int *a, int *b)
+{
+    MaxCfgVar v;
+    if (maxcfg_toml_get(g_maxcfg_toml, path, &v) == MAXCFG_OK &&
+        v.type == MAXCFG_VAR_INT_ARRAY && v.v.intv.count >= 2) {
+        *a = v.v.intv.items[0];
+        *b = v.v.intv.items[1];
+    }
+}
+
+static void action_display_general(void)
+{
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    char **values = calloc((size_t)display_general_field_count, sizeof(char *));
+    if (values == NULL) {
+        dialog_message("Out of Memory", "Unable to allocate form values.");
+        return;
+    }
+
+    char buf[32];
+
+    values[0] = strdup(toml_get_bool_or_default("general.display.general.lightbar_prompts", false) ? "Yes" : "No");
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default("general.display.general.lightbar_prompts_padding", 1));
+    values[1] = strdup(buf);
+    values[2] = strdup(toml_get_bool_or_default("general.display.general.lightbar_prompts_verbose", false) ? "Yes" : "No");
+    values[3] = strdup(toml_get_string_or_empty("general.display.general.lightbar_prompts_brackets"));
+    values[4] = strdup(toml_get_string_or_empty("general.display.general.time_format"));
+    if (values[4][0] == '\0') { free(values[4]); values[4] = strdup("%H:%M:%S"); }
+    values[5] = strdup(toml_get_string_or_empty("general.display.general.date_format"));
+    if (values[5][0] == '\0') { free(values[5]); values[5] = strdup("%C-%D-%Y"); }
+    values[6] = strdup(toml_get_bool_or_default("general.display.general.bounded_input_login", false) ? "Yes" : "No");
+    values[7] = strdup(toml_get_bool_or_default("general.display.general.bounded_input_newuser", false) ? "Yes" : "No");
+    values[8] = strdup(toml_get_bool_or_default("general.display.general.bounded_input_quest", false) ? "Yes" : "No");
+    values[9] = strdup(toml_get_bool_or_default("general.display.general.bounded_input_mex", false) ? "Yes" : "No");
+
+    int dirty_fields[32];
+    int dirty_count = 0;
+    bool saved = form_edit("Display: General Settings", display_general_fields, display_general_field_count, values, dirty_fields, &dirty_count);
+
+    if (saved) {
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.general.lightbar_prompts", strcmp(values[0] ? values[0] : "No", "Yes") == 0);
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, "general.display.general.lightbar_prompts_padding", atoi(values[1] ? values[1] : "1"));
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.general.lightbar_prompts_verbose", strcmp(values[2] ? values[2] : "No", "Yes") == 0);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.display.general.lightbar_prompts_brackets", values[3] ? values[3] : "");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.display.general.time_format", values[4] ? values[4] : "%H:%M:%S");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.display.general.date_format", values[5] ? values[5] : "%C-%D-%Y");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.general.bounded_input_login", strcmp(values[6] ? values[6] : "No", "Yes") == 0);
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.general.bounded_input_newuser", strcmp(values[7] ? values[7] : "No", "Yes") == 0);
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.general.bounded_input_quest", strcmp(values[8] ? values[8] : "No", "Yes") == 0);
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.general.bounded_input_mex", strcmp(values[9] ? values[9] : "No", "Yes") == 0);
+        g_state.dirty = true;
+    }
+
+    for (int i = 0; i < display_general_field_count; i++) free(values[i]);
+    free(values);
+}
+
+/**
+ * @brief Shared load/edit/save for file_areas and msg_areas display sections.
+ *
+ * @param title       Form title.
+ * @param section     TOML section name ("file_areas" or "msg_areas").
+ * @param fields      Field definition array.
+ * @param field_count Number of fields.
+ * @param list_key    TOML key for the area list file ("file_area_list" or "msg_area_list").
+ * @param hdr_key     TOML key for header format.
+ * @param fmt_key     TOML key for area line format.
+ * @param div_key     TOML key for division line format.
+ * @param ftr_key     TOML key for footer format.
+ */
+static void action_display_area_section(const char *title, const char *section,
+                                        const FieldDef *fields, int field_count,
+                                        const char *list_key, const char *hdr_key,
+                                        const char *fmt_key, const char *div_key,
+                                        const char *ftr_key)
+{
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    char **values = calloc((size_t)field_count, sizeof(char *));
+    if (values == NULL) {
+        dialog_message("Out of Memory", "Unable to allocate form values.");
+        return;
+    }
+
+    char prefix[128];
+    snprintf(prefix, sizeof(prefix), "general.display.%s", section);
+
+    char key[192];
+    char buf[32];
+
+    /* idx 0: lightbar_area (bool) */
+    snprintf(key, sizeof(key), "%s.lightbar_area", prefix);
+    values[0] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+
+    /* idx 1: reduce_area (int) */
+    snprintf(key, sizeof(key), "%s.reduce_area", prefix);
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default(key, 5));
+    values[1] = strdup(buf);
+
+    /* idx 2: lightbar_what (string) */
+    snprintf(key, sizeof(key), "%s.lightbar_what", prefix);
+    const char *lw = toml_get_string_or_empty(key);
+    values[2] = strdup(lw[0] ? lw : "row");
+
+    /* idx 3: lightbar_fore (string) */
+    snprintf(key, sizeof(key), "%s.lightbar_fore", prefix);
+    values[3] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 4: lightbar_back (string) */
+    snprintf(key, sizeof(key), "%s.lightbar_back", prefix);
+    values[4] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 5: SEPARATOR — NULL */
+    values[5] = strdup("");
+
+    /* idx 6-9: top_boundary [row,col], bottom_boundary [row,col] */
+    int top_row = 0, top_col = 0, bot_row = 0, bot_col = 0;
+    snprintf(key, sizeof(key), "%s.top_boundary", prefix);
+    toml_get_int_array_2(key, &top_row, &top_col);
+    snprintf(key, sizeof(key), "%s.bottom_boundary", prefix);
+    toml_get_int_array_2(key, &bot_row, &bot_col);
+
+    snprintf(buf, sizeof(buf), "%d", top_row); values[6] = strdup(buf);
+    snprintf(buf, sizeof(buf), "%d", top_col); values[7] = strdup(buf);
+    snprintf(buf, sizeof(buf), "%d", bot_row); values[8] = strdup(buf);
+    snprintf(buf, sizeof(buf), "%d", bot_col); values[9] = strdup(buf);
+
+    /* idx 10-13: header_location [row,col], footer_location [row,col] */
+    int hdr_row = 0, hdr_col = 0, ftr_row = 0, ftr_col = 0;
+    snprintf(key, sizeof(key), "%s.header_location", prefix);
+    toml_get_int_array_2(key, &hdr_row, &hdr_col);
+    snprintf(key, sizeof(key), "%s.footer_location", prefix);
+    toml_get_int_array_2(key, &ftr_row, &ftr_col);
+
+    snprintf(buf, sizeof(buf), "%d", hdr_row); values[10] = strdup(buf);
+    snprintf(buf, sizeof(buf), "%d", hdr_col); values[11] = strdup(buf);
+    snprintf(buf, sizeof(buf), "%d", ftr_row); values[12] = strdup(buf);
+    snprintf(buf, sizeof(buf), "%d", ftr_col); values[13] = strdup(buf);
+
+    /* idx 14: SEPARATOR — NULL */
+    values[14] = strdup("");
+
+    /* idx 15: custom_screen (string) */
+    snprintf(key, sizeof(key), "%s.custom_screen", prefix);
+    values[15] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 16: area list file (string) */
+    snprintf(key, sizeof(key), "%s.%s", prefix, list_key);
+    values[16] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 17: header format */
+    snprintf(key, sizeof(key), "%s.%s", prefix, hdr_key);
+    values[17] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 18: area line format */
+    snprintf(key, sizeof(key), "%s.%s", prefix, fmt_key);
+    values[18] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 19: division line format */
+    snprintf(key, sizeof(key), "%s.%s", prefix, div_key);
+    values[19] = strdup(toml_get_string_or_empty(key));
+
+    /* idx 20: footer format */
+    snprintf(key, sizeof(key), "%s.%s", prefix, ftr_key);
+    values[20] = strdup(toml_get_string_or_empty(key));
+
+    int dirty_fields[64];
+    int dirty_count = 0;
+    bool saved = form_edit(title, fields, field_count, values, dirty_fields, &dirty_count);
+
+    if (saved) {
+        snprintf(key, sizeof(key), "%s.lightbar_area", prefix);
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[0] ? values[0] : "No", "Yes") == 0);
+
+        snprintf(key, sizeof(key), "%s.reduce_area", prefix);
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, key, atoi(values[1] ? values[1] : "5"));
+
+        snprintf(key, sizeof(key), "%s.lightbar_what", prefix);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[2] ? values[2] : "row");
+
+        snprintf(key, sizeof(key), "%s.lightbar_fore", prefix);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[3] ? values[3] : "");
+
+        snprintf(key, sizeof(key), "%s.lightbar_back", prefix);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[4] ? values[4] : "");
+
+        /* Boundary arrays: only write if non-zero */
+        int tr = atoi(values[6] ? values[6] : "0");
+        int tc = atoi(values[7] ? values[7] : "0");
+        int br = atoi(values[8] ? values[8] : "0");
+        int bc = atoi(values[9] ? values[9] : "0");
+
+        snprintf(key, sizeof(key), "%s.top_boundary", prefix);
+        if (tr > 0 || tc > 0)
+            (void)maxcfg_toml_override_set_int_array_2(g_maxcfg_toml, key, tr, tc);
+        else
+            (void)maxcfg_toml_override_unset(g_maxcfg_toml, key);
+
+        snprintf(key, sizeof(key), "%s.bottom_boundary", prefix);
+        if (br > 0 || bc > 0)
+            (void)maxcfg_toml_override_set_int_array_2(g_maxcfg_toml, key, br, bc);
+        else
+            (void)maxcfg_toml_override_unset(g_maxcfg_toml, key);
+
+        int hr = atoi(values[10] ? values[10] : "0");
+        int hc = atoi(values[11] ? values[11] : "0");
+        int fr = atoi(values[12] ? values[12] : "0");
+        int fc = atoi(values[13] ? values[13] : "0");
+
+        snprintf(key, sizeof(key), "%s.header_location", prefix);
+        if (hr > 0 || hc > 0)
+            (void)maxcfg_toml_override_set_int_array_2(g_maxcfg_toml, key, hr, hc);
+        else
+            (void)maxcfg_toml_override_unset(g_maxcfg_toml, key);
+
+        snprintf(key, sizeof(key), "%s.footer_location", prefix);
+        if (fr > 0 || fc > 0)
+            (void)maxcfg_toml_override_set_int_array_2(g_maxcfg_toml, key, fr, fc);
+        else
+            (void)maxcfg_toml_override_unset(g_maxcfg_toml, key);
+
+        snprintf(key, sizeof(key), "%s.custom_screen", prefix);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[15] ? values[15] : "");
+
+        snprintf(key, sizeof(key), "%s.%s", prefix, list_key);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[16] ? values[16] : "");
+
+        snprintf(key, sizeof(key), "%s.%s", prefix, hdr_key);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[17] ? values[17] : "");
+
+        snprintf(key, sizeof(key), "%s.%s", prefix, fmt_key);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[18] ? values[18] : "");
+
+        snprintf(key, sizeof(key), "%s.%s", prefix, div_key);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[19] ? values[19] : "");
+
+        snprintf(key, sizeof(key), "%s.%s", prefix, ftr_key);
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[20] ? values[20] : "");
+
+        g_state.dirty = true;
+    }
+
+    for (int i = 0; i < field_count; i++) free(values[i]);
+    free(values);
+}
+
+static void action_display_file_areas(void)
+{
+    action_display_area_section(
+        "Display: File Area Settings", "file_areas",
+        display_file_areas_fields, display_file_areas_field_count,
+        "file_area_list", "file_header", "file_format", "file_format_div", "file_footer");
+}
+
+static void action_display_msg_areas(void)
+{
+    action_display_area_section(
+        "Display: Message Area Settings", "msg_areas",
+        display_msg_areas_fields, display_msg_areas_field_count,
+        "msg_area_list", "msg_header", "msg_format", "msg_format_div", "msg_footer");
+}
+
+static void action_display_msg_reader(void)
+{
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    char **values = calloc((size_t)display_msg_reader_field_count, sizeof(char *));
+    if (values == NULL) {
+        dialog_message("Out of Memory", "Unable to allocate form values.");
+        return;
+    }
+
+    char buf[32];
+
+    values[0] = strdup(toml_get_bool_or_default("general.display.msg_reader.lightbar_area", false) ? "Yes" : "No");
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default("general.display.msg_reader.reduce_area", 5));
+    values[1] = strdup(buf);
+    const char *lw = toml_get_string_or_empty("general.display.msg_reader.lightbar_what");
+    values[2] = strdup(lw[0] ? lw : "full");
+    values[3] = strdup(toml_get_string_or_empty("general.display.msg_reader.lightbar_fore"));
+    values[4] = strdup(toml_get_string_or_empty("general.display.msg_reader.lightbar_back"));
+
+    int dirty_fields[32];
+    int dirty_count = 0;
+    bool saved = form_edit("Display: Message Reader", display_msg_reader_fields, display_msg_reader_field_count, values, dirty_fields, &dirty_count);
+
+    if (saved) {
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, "general.display.msg_reader.lightbar_area", strcmp(values[0] ? values[0] : "No", "Yes") == 0);
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, "general.display.msg_reader.reduce_area", atoi(values[1] ? values[1] : "5"));
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.display.msg_reader.lightbar_what", values[2] ? values[2] : "full");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.display.msg_reader.lightbar_fore", values[3] ? values[3] : "");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, "general.display.msg_reader.lightbar_back", values[4] ? values[4] : "");
+        g_state.dirty = true;
+    }
+
+    for (int i = 0; i < display_msg_reader_field_count; i++) free(values[i]);
+    free(values);
+}
+
+static void action_display_settings(void)
+{
+    ListItem items[4];
+    memset(items, 0, sizeof(items));
+    items[0].name = strdup("General Settings");
+    items[0].enabled = true;
+    items[1].name = strdup("File Area Display");
+    items[1].enabled = true;
+    items[2].name = strdup("Message Area Display");
+    items[2].enabled = true;
+    items[3].name = strdup("Message Reader");
+    items[3].enabled = true;
+
+    int selected = 0;
+    for (;;) {
+        ListPickResult result = listpicker_show("Display Settings", items, 4, &selected);
+        if (result == LISTPICK_EXIT || result == LISTPICK_NONE) break;
+        if (result == LISTPICK_EDIT) {
+            switch (selected) {
+                case 0: action_display_general(); break;
+                case 1: action_display_file_areas(); break;
+                case 2: action_display_msg_areas(); break;
+                case 3: action_display_msg_reader(); break;
+                default: break;
+            }
+        }
+    }
+
+    for (int i = 0; i < 4; i++) free(items[i].name);
 }
 
 static void action_edit_compress_cfg(void *unused)

@@ -760,6 +760,9 @@ MaxCfgStatus maxcfg_toml_override_set_string(MaxCfgToml *toml, const char *path,
 /** @brief Set a string array override in the TOML store. */
 MaxCfgStatus maxcfg_toml_override_set_string_array(MaxCfgToml *toml, const char *path, const char **items, size_t count);
 
+/** @brief Set a 2-element integer array override (e.g. [row, col] boundaries). */
+MaxCfgStatus maxcfg_toml_override_set_int_array_2(MaxCfgToml *toml, const char *path, int a, int b);
+
 /** @brief Set an empty table array override in the TOML store. */
 MaxCfgStatus maxcfg_toml_override_set_table_array_empty(MaxCfgToml *toml, const char *path);
 

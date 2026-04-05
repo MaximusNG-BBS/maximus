@@ -188,4 +188,33 @@ extern const int matrix_events_field_count;
 extern const FieldDef reader_settings_fields[];
 extern const int reader_settings_field_count;
 
+extern const FieldDef mex_socket_fields[];
+extern const int mex_socket_field_count;
+
+extern const FieldDef theme_general_fields[];
+extern const int theme_general_field_count;
+
+extern const FieldDef theme_entry_fields[];
+extern const int theme_entry_field_count;
+
+/* ============================================================================
+ * Display Settings (display.toml)
+ * ============================================================================ */
+
+extern const FieldDef display_general_fields[];
+extern const int display_general_field_count;
+
+extern const FieldDef display_file_areas_fields[];
+extern const int display_file_areas_field_count;
+
+extern const FieldDef display_msg_areas_fields[];
+extern const int display_msg_areas_field_count;
+
+extern const FieldDef display_msg_reader_fields[];
+extern const int display_msg_reader_field_count;
+
+/* Select options for display settings */
+extern const char *bracket_options[];
+extern const char *lightbar_what_options[];
+
 #endif /* FIELDS_H */
