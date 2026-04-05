@@ -429,6 +429,492 @@ static void draw_list_picker(ListPickerState *state, int y, int x, int height, i
  * Helper functions for managing list items
  */
 
+/* ============================================================================
+ * Tabbed list picker — listpicker_show_tabbed()
+ * ============================================================================ */
+
+typedef struct {
+    const char *title;
+    ListItem *items;
+    int item_count;
+    int selected;
+    int scroll_offset;
+    int visible_rows;
+    const char **tabs;
+    int tab_count;
+    int active_tab;
+} TabbedListState;
+
+static int tabbed_list_total_width(const TabbedListState *state)
+{
+    int total = 0;
+
+    if (state == NULL || state->tabs == NULL || state->tab_count <= 0) {
+        return 0;
+    }
+
+    for (int i = 0; i < state->tab_count; i++) {
+        int len = (int)strlen(state->tabs[i] ? state->tabs[i] : "");
+        total += len + 4; /* "[name] " */
+    }
+
+    if (total > 0) {
+        total -= 1; /* trim trailing inter-tab space */
+    }
+
+    return total;
+}
+
+static void draw_tabbed_list_picker(TabbedListState *state, int y, int x, int height, int width)
+{
+    /* Draw border */
+    attron(COLOR_PAIR(CP_DIALOG_BORDER));
+
+    /* Top border with title */
+    mvaddch(y, x, ACS_ULCORNER);
+    for (int i = 1; i < width - 1; i++) {
+        mvaddch(y, x + i, ACS_HLINE);
+    }
+    mvaddch(y, x + width - 1, ACS_URCORNER);
+
+    /* Title centered */
+    if (state->title) {
+        int title_len = strlen(state->title);
+        int title_x = x + (width - title_len - 2) / 2;
+        mvaddch(y, title_x - 1, ' ');
+        attron(COLOR_PAIR(CP_DIALOG_TITLE) | A_BOLD);
+        mvprintw(y, title_x, "%s", state->title);
+        attroff(COLOR_PAIR(CP_DIALOG_TITLE) | A_BOLD);
+        attron(COLOR_PAIR(CP_DIALOG_BORDER));
+        mvaddch(y, title_x + title_len, ' ');
+    }
+
+    /* Tab bar row (y+1) */
+    int tab_y = y + 1;
+    mvaddch(tab_y, x, ACS_VLINE);
+    mvaddch(tab_y, x + width - 1, ACS_VLINE);
+
+    attron(COLOR_PAIR(CP_DIALOG_TEXT));
+    for (int i = 1; i < width - 1; i++) {
+        mvaddch(tab_y, x + i, ' ');
+    }
+    attroff(COLOR_PAIR(CP_DIALOG_TEXT));
+
+    if (state->tab_count > 1) {
+        /* Find the active tab's position for centering */
+        int total_tab_width = tabbed_list_total_width(state);
+
+        int tab_start_x = x + (width - total_tab_width) / 2;
+        if (tab_start_x < x + 4) tab_start_x = x + 4;
+
+        int cur_x = tab_start_x;
+        for (int i = 0; i < state->tab_count; i++) {
+            int tab_len = (int)strlen(state->tabs[i]);
+            if (cur_x + tab_len + 1 > x + width - 4) break;
+
+            if (i == state->active_tab) {
+                attron(COLOR_PAIR(CP_MENU_HIGHLIGHT) | A_BOLD);
+                mvprintw(tab_y, cur_x, "[%s]", state->tabs[i]);
+                attroff(COLOR_PAIR(CP_MENU_HIGHLIGHT) | A_BOLD);
+            } else {
+                attron(COLOR_PAIR(CP_MENU_BAR));
+                mvprintw(tab_y, cur_x, "[%s]", state->tabs[i]);
+                attroff(COLOR_PAIR(CP_MENU_BAR));
+            }
+            cur_x += tab_len + 4;
+        }
+
+        /* Navigation arrows — isolated single-character controls */
+        if (state->active_tab > 0) {
+            attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+            mvaddch(tab_y, x + 2, ACS_LARROW);
+            attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        }
+        if (state->active_tab < state->tab_count - 1) {
+            attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+            mvaddch(tab_y, x + width - 3, ACS_RARROW);
+            attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        }
+    }
+
+    /* Separator between tab bar and content */
+    int sep_y = tab_y + 1;
+    attron(COLOR_PAIR(CP_DIALOG_BORDER));
+    mvaddch(sep_y, x, ACS_LTEE);
+    for (int i = 1; i < width - 1; i++) {
+        mvaddch(sep_y, x + i, ACS_HLINE);
+    }
+    mvaddch(sep_y, x + width - 1, ACS_RTEE);
+    attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+
+    /* Side borders and content area */
+    int content_start = sep_y + 1;
+    for (int i = 0; i < state->visible_rows; i++) {
+        int row = content_start + i;
+        if (row >= y + height - 1) break;
+        mvaddch(row, x, ACS_VLINE);
+
+        /* Clear content area */
+        attron(COLOR_PAIR(CP_DIALOG_TEXT));
+        for (int j = 1; j < width - 1; j++) {
+            mvaddch(row, x + j, ' ');
+        }
+        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+
+        mvaddch(row, x + width - 1, ACS_VLINE);
+    }
+
+    /* Bottom border */
+    int bottom_y = y + height - 1;
+    attron(COLOR_PAIR(CP_DIALOG_BORDER));
+    mvaddch(bottom_y, x, ACS_LLCORNER);
+    for (int i = 1; i < width - 1; i++) {
+        mvaddch(bottom_y, x + i, ACS_HLINE);
+    }
+    mvaddch(bottom_y, x + width - 1, ACS_LRCORNER);
+    attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+
+    /* Draw list items */
+    for (int i = 0; i < state->visible_rows && (i + state->scroll_offset) < state->item_count; i++) {
+        int item_idx = i + state->scroll_offset;
+        ListItem *item = &state->items[item_idx];
+        int row = content_start + i;
+        if (row >= y + height - 1) break;
+
+        /* Build display string */
+        char display[256];
+        if (item->extra && item->extra[0]) {
+            snprintf(display, sizeof(display), "%d: %s (%s)", item_idx, item->name, item->extra);
+        } else {
+            snprintf(display, sizeof(display), "%d: %s", item_idx, item->name);
+        }
+
+        /* Truncate if too long */
+        int max_len = width - 4;
+        if ((int)strlen(display) > max_len) {
+            display[max_len] = '\0';
+        }
+
+        if (item_idx == state->selected) {
+            attron(COLOR_PAIR(CP_MENU_HIGHLIGHT) | A_BOLD);
+            mvprintw(row, x + 2, "%-*s", width - 4, display);
+            attroff(COLOR_PAIR(CP_MENU_HIGHLIGHT) | A_BOLD);
+        } else {
+            if (!item->enabled) {
+                attron(COLOR_PAIR(CP_DIALOG_TEXT) | A_DIM);
+            } else {
+                attron(COLOR_PAIR(CP_DIALOG_TEXT));
+            }
+            mvprintw(row, x + 2, "%s", display);
+            if (!item->enabled) {
+                attroff(COLOR_PAIR(CP_DIALOG_TEXT) | A_DIM);
+            } else {
+                attroff(COLOR_PAIR(CP_DIALOG_TEXT));
+            }
+        }
+    }
+
+    /* Scroll indicator if needed */
+    if (state->item_count > state->visible_rows) {
+        if (state->scroll_offset > 0) {
+            attron(COLOR_PAIR(CP_DIALOG_BORDER));
+            mvaddch(content_start, x + width - 2, ACS_UARROW);
+            attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+        }
+        if (state->scroll_offset + state->visible_rows < state->item_count) {
+            attron(COLOR_PAIR(CP_DIALOG_BORDER));
+            mvaddch(content_start + state->visible_rows - 1, x + width - 2, ACS_DARROW);
+            attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+        }
+    }
+
+    /* Help separator and two-line help text (inside dialog, above bottom border) */
+    int help_sep_y = content_start + state->visible_rows;
+    int help_y1 = help_sep_y + 1;
+    int help_y2 = help_sep_y + 2;
+    if (help_y2 < bottom_y) {
+        mvaddch(help_sep_y, x, ACS_LTEE);
+        addch(ACS_HLINE);
+        addch(' ');
+
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw("Help");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+
+        attron(COLOR_PAIR(CP_DIALOG_BORDER));
+        printw(" - ");
+        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("INS");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw("=(");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("I");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw(")nsert  ");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("A");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw("=Add  ");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("DEL");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw("=(");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("D");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw(")isable  ");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("←→");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw("=Tabs  ");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+
+        attron(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        printw("ESC");
+        attroff(COLOR_PAIR(CP_MENU_HOTKEY) | A_BOLD);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        printw("=Exit");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+
+        attron(COLOR_PAIR(CP_DIALOG_BORDER));
+        for (int c = getcurx(stdscr); c < x + width - 1; c++) addch(ACS_HLINE);
+        mvaddch(help_sep_y, x + width - 1, ACS_RTEE);
+        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+
+        mvaddch(help_y1, x, ACS_VLINE);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        mvprintw(help_y1, x + 2, "%-*.*s", width - 4, width - 4,
+                 "This tab shows one concrete theme. Bright items already have a variant file.");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+        attron(COLOR_PAIR(CP_DIALOG_BORDER));
+        mvaddch(help_y1, x + width - 1, ACS_VLINE);
+        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+
+        mvaddch(help_y2, x, ACS_VLINE);
+        attron(COLOR_PAIR(CP_MENU_BAR));
+        mvprintw(help_y2, x + 2, "%-*.*s", width - 4, width - 4,
+                 "If an item is dim, it is inherited. Press Enter to create a theme-specific copy.");
+        attroff(COLOR_PAIR(CP_MENU_BAR));
+        attron(COLOR_PAIR(CP_DIALOG_BORDER));
+        mvaddch(help_y2, x + width - 1, ACS_VLINE);
+        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+    }
+
+    wnoutrefresh(stdscr);
+}
+
+ListPickResult listpicker_show_tabbed(const char *title, ListItem *items, int item_count, int *selected,
+                                       const char **tabs, int tab_count, int *active_tab)
+{
+    int max_rows, max_cols;
+    getmaxyx(stdscr, max_rows, max_cols);
+
+    /* Calculate dialog dimensions — one extra row for tab bar */
+    int width = max_cols - 8;
+    if (width > 76) width = 76;
+    if (width < 50) width = 50;
+
+    int height = max_rows - 6;
+    if (height > 22) height = 22;
+    if (height < 14) height = 14;
+
+    int x = (max_cols - width) / 2;
+    int y = (max_rows - height) / 2;
+
+    /* top border, tab row, separator, help separator, two help lines, bottom border */
+    int visible_rows = height - 7;
+    if (visible_rows < 1) visible_rows = 1;
+
+    /* Initialize state */
+    TabbedListState state = {
+        .title = title,
+        .items = items,
+        .item_count = item_count,
+        .selected = *selected,
+        .scroll_offset = 0,
+        .visible_rows = visible_rows,
+        .tabs = tabs,
+        .tab_count = tab_count,
+        .active_tab = *active_tab
+    };
+
+    /* Adjust scroll if needed */
+    if (state.selected >= state.visible_rows) {
+        state.scroll_offset = state.selected - state.visible_rows + 1;
+    }
+
+    ListPickResult result = LISTPICK_NONE;
+    bool done = false;
+
+    keypad(stdscr, TRUE);
+    curs_set(0);
+
+    while (!done) {
+        draw_tabbed_list_picker(&state, y, x, height, width);
+        doupdate();
+
+        int ch = getch();
+
+        switch (ch) {
+            case KEY_UP:
+            case 'k':
+                if (state.selected > 0) {
+                    state.selected--;
+                    if (state.selected < state.scroll_offset) {
+                        state.scroll_offset = state.selected;
+                    }
+                }
+                break;
+
+            case KEY_DOWN:
+            case 'j':
+                if (state.selected < state.item_count - 1) {
+                    state.selected++;
+                    if (state.selected >= state.scroll_offset + state.visible_rows) {
+                        state.scroll_offset = state.selected - state.visible_rows + 1;
+                    }
+                }
+                break;
+
+            case KEY_PPAGE:
+                state.selected -= state.visible_rows;
+                if (state.selected < 0) state.selected = 0;
+                state.scroll_offset = state.selected;
+                break;
+
+            case KEY_NPAGE:
+                state.selected += state.visible_rows;
+                if (state.selected >= state.item_count) {
+                    state.selected = state.item_count - 1;
+                }
+                if (state.selected >= state.scroll_offset + state.visible_rows) {
+                    state.scroll_offset = state.selected - state.visible_rows + 1;
+                }
+                break;
+
+            case KEY_HOME:
+                state.selected = 0;
+                state.scroll_offset = 0;
+                break;
+
+            case KEY_END:
+                state.selected = state.item_count - 1;
+                if (state.selected >= state.visible_rows) {
+                    state.scroll_offset = state.selected - state.visible_rows + 1;
+                }
+                break;
+
+            case '\n':
+            case '\r':
+            case KEY_ENTER:
+                result = LISTPICK_EDIT;
+                done = true;
+                break;
+
+            case KEY_IC:
+            case 'i':
+            case 'I':
+                result = LISTPICK_INSERT;
+                done = true;
+                break;
+
+            case 'a':
+            case 'A':
+                result = LISTPICK_ADD;
+                done = true;
+                break;
+
+            case KEY_DC:
+                if (state.item_count > 0) {
+                    result = LISTPICK_DELETE;
+                    done = true;
+                }
+                break;
+
+            case 'd':
+            case 'D':
+                if (state.item_count > 0) {
+                    result = LISTPICK_DELETE;
+                    done = true;
+                }
+                break;
+
+            case KEY_LEFT:
+                if (state.tab_count > 1 && state.active_tab > 0) {
+                    state.active_tab--;
+                    result = LISTPICK_TAB_LEFT;
+                    done = true;
+                }
+                break;
+
+            case KEY_RIGHT:
+                if (state.tab_count > 1 && state.active_tab < state.tab_count - 1) {
+                    state.active_tab++;
+                    result = LISTPICK_TAB_RIGHT;
+                    done = true;
+                }
+                break;
+
+            case 27:
+                result = LISTPICK_EXIT;
+                done = true;
+                break;
+
+            case KEY_F(10):
+                result = LISTPICK_EXIT;
+                done = true;
+                break;
+
+            case ' ':
+                state.selected = state.item_count - 1;
+                if (state.selected >= state.visible_rows) {
+                    state.scroll_offset = state.selected - state.visible_rows + 1;
+                }
+                break;
+
+            default:
+                if (ch >= '0' && ch <= '9') {
+                    int target = ch - '0';
+                    if (target < state.item_count) {
+                        state.selected = target;
+                        if (state.selected < state.scroll_offset) {
+                            state.scroll_offset = state.selected;
+                        } else if (state.selected >= state.scroll_offset + state.visible_rows) {
+                            state.scroll_offset = state.selected - state.visible_rows + 1;
+                        }
+                    }
+                }
+                break;
+        }
+    }
+
+    *selected = state.selected;
+    *active_tab = state.active_tab;
+    curs_set(1);
+
+    return result;
+}
+
+/*
+ * Helper functions for managing list items
+ */
+
 ListItem *listitem_create(const char *name, const char *extra, void *data)
 {
     ListItem *item = malloc(sizeof(ListItem));

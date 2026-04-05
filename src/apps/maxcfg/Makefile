@@ -61,8 +61,9 @@ SOURCES = $(SRCDIR)/main.c \
           $(SRCDIR)/config/area_toml.c \
           $(SRCDIR)/config/nextgen_export.c \
           $(SRCDIR)/config/menu_parse.c \
-          $(SRCDIR)/config/lang_convert.c \
-          $(SRCDIR)/config/lang_browse.c
+           $(SRCDIR)/config/lang_convert.c \
+           $(SRCDIR)/config/lang_browse.c \
+           $(SRCDIR)/ui/theme_tabs.c
 
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 
@@ -136,3 +137,4 @@ $(OBJDIR)/config/nextgen_export.o: $(SRCDIR)/config/nextgen_export.c include/nex
 $(OBJDIR)/config/menu_parse.o: $(SRCDIR)/config/menu_parse.c include/menu_data.h include/ctl_parse.h
 $(OBJDIR)/config/lang_convert.o: $(SRCDIR)/config/lang_convert.c include/lang_convert.h
 $(OBJDIR)/config/lang_browse.o: $(SRCDIR)/config/lang_browse.c include/lang_browse.h include/maxcfg.h include/ui.h include/menu_preview.h include/mci_preview.h include/mci_helper.h
+$(OBJDIR)/ui/theme_tabs.o: $(SRCDIR)/ui/theme_tabs.c include/maxcfg.h include/theme_tabs.h

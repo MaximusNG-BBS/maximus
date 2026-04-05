@@ -47,6 +47,7 @@
 #include "lang_convert.h"
 #include "lang_browse.h"
 #include "texteditor.h"
+#include "theme_tabs.h"
 
 /* Forward declarations for menu actions */
 static void action_placeholder(void);
@@ -73,6 +74,8 @@ static void action_theme_registry(void);
 static void action_display_settings(void);
 static void action_protocol_list(void *unused);
 static void action_edit_compress_cfg(void *unused);
+
+static char g_display_prefix_override[128] = "";
 
 static void action_user_editor(void);
 static void action_bad_users(void);
@@ -3035,6 +3038,62 @@ static void toml_get_int_array_2(const char *path, int *a, int *b)
     }
 }
 
+static bool load_theme_variant_toml(const char *relative_path, const char *prefix)
+{
+    char full_path[MAX_PATH_LEN];
+
+    if (g_maxcfg == NULL || g_maxcfg_toml == NULL || relative_path == NULL || prefix == NULL) {
+        return false;
+    }
+    if (maxcfg_join_path(g_maxcfg, relative_path, full_path, sizeof(full_path)) != MAXCFG_OK) {
+        return false;
+    }
+    if (!path_exists(full_path)) {
+        return false;
+    }
+
+    return maxcfg_toml_load_file(g_maxcfg_toml, full_path, prefix) == MAXCFG_OK;
+}
+
+static const char *display_prefix_for_tab(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    static char prefix[128];
+
+    if (tabs == NULL || active_tab <= 0 || active_tab >= tab_count ||
+        tabs[active_tab].short_name == NULL || tabs[active_tab].short_name[0] == '\0') {
+        return "general.display";
+    }
+
+    snprintf(prefix, sizeof(prefix), "general.display.%s", tabs[active_tab].short_name);
+    return prefix;
+}
+
+static void display_make_key(char *out, size_t out_sz, const ThemeTab *tabs, int tab_count,
+                             int active_tab, const char *suffix)
+{
+    const char *prefix = display_prefix_for_tab(tabs, tab_count, active_tab);
+    if (suffix == NULL || suffix[0] == '\0') {
+        snprintf(out, out_sz, "%s", prefix);
+    } else {
+        snprintf(out, out_sz, "%s.%s", prefix, suffix);
+    }
+}
+
+static void ensure_display_theme_loaded(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    char relative[MAX_PATH_LEN];
+    char prefix[128];
+
+    if (tabs == NULL || active_tab <= 0 || active_tab >= tab_count ||
+        tabs[active_tab].short_name == NULL || tabs[active_tab].short_name[0] == '\0') {
+        return;
+    }
+
+    snprintf(relative, sizeof(relative), "config/general/display.%s.toml", tabs[active_tab].short_name);
+    snprintf(prefix, sizeof(prefix), "general.display.%s", tabs[active_tab].short_name);
+    (void)load_theme_variant_toml(relative, prefix);
+}
+
 static void action_display_general(void)
 {
     if (g_maxcfg_toml == NULL) {
@@ -3086,6 +3145,81 @@ static void action_display_general(void)
     free(values);
 }
 
+static void action_display_general_for_tab(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    if (active_tab <= 0) {
+        action_display_general();
+        return;
+    }
+
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    ensure_display_theme_loaded(tabs, tab_count, active_tab);
+
+    char **values = calloc((size_t)display_general_field_count, sizeof(char *));
+    if (values == NULL) {
+        dialog_message("Out of Memory", "Unable to allocate form values.");
+        return;
+    }
+
+    char key[160];
+    char buf[32];
+
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts");
+    values[0] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts_padding");
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default(key, 1));
+    values[1] = strdup(buf);
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts_verbose");
+    values[2] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts_brackets");
+    values[3] = strdup(toml_get_string_or_empty(key));
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.time_format");
+    values[4] = strdup(toml_get_string_or_empty(key));
+    if (values[4][0] == '\0') { free(values[4]); values[4] = strdup("%H:%M:%S"); }
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.date_format");
+    values[5] = strdup(toml_get_string_or_empty(key));
+    if (values[5][0] == '\0') { free(values[5]); values[5] = strdup("%C-%D-%Y"); }
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_login");
+    values[6] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_newuser");
+    values[7] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_quest");
+    values[8] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_mex");
+    values[9] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+
+    if (form_edit("Display: General Settings", display_general_fields, display_general_field_count, values, NULL, NULL)) {
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[0] ? values[0] : "No", "Yes") == 0);
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts_padding");
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, key, atoi(values[1] ? values[1] : "1"));
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts_verbose");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[2] ? values[2] : "No", "Yes") == 0);
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.lightbar_prompts_brackets");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[3] ? values[3] : "");
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.time_format");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[4] ? values[4] : "%H:%M:%S");
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.date_format");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[5] ? values[5] : "%C-%D-%Y");
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_login");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[6] ? values[6] : "No", "Yes") == 0);
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_newuser");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[7] ? values[7] : "No", "Yes") == 0);
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_quest");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[8] ? values[8] : "No", "Yes") == 0);
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "general.bounded_input_mex");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[9] ? values[9] : "No", "Yes") == 0);
+        g_state.dirty = true;
+    }
+
+    for (int i = 0; i < display_general_field_count; i++) free(values[i]);
+    free(values);
+}
+
 /**
  * @brief Shared load/edit/save for file_areas and msg_areas display sections.
  *
@@ -3117,7 +3251,11 @@ static void action_display_area_section(const char *title, const char *section,
     }
 
     char prefix[128];
-    snprintf(prefix, sizeof(prefix), "general.display.%s", section);
+    if (g_display_prefix_override[0] != '\0') {
+        snprintf(prefix, sizeof(prefix), "%s.%s", g_display_prefix_override, section);
+    } else {
+        snprintf(prefix, sizeof(prefix), "general.display.%s", section);
+    }
 
     char key[192];
     char buf[32];
@@ -3286,12 +3424,46 @@ static void action_display_file_areas(void)
         "file_area_list", "file_header", "file_format", "file_format_div", "file_footer");
 }
 
+static void action_display_file_areas_for_tab(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    if (active_tab <= 0) {
+        action_display_file_areas();
+        return;
+    }
+
+    ensure_display_theme_loaded(tabs, tab_count, active_tab);
+    snprintf(g_display_prefix_override, sizeof(g_display_prefix_override), "%s",
+             display_prefix_for_tab(tabs, tab_count, active_tab));
+    action_display_area_section(
+        "Display: File Area Settings", "file_areas",
+        display_file_areas_fields, display_file_areas_field_count,
+        "file_area_list", "file_header", "file_format", "file_format_div", "file_footer");
+    g_display_prefix_override[0] = '\0';
+}
+
 static void action_display_msg_areas(void)
 {
     action_display_area_section(
         "Display: Message Area Settings", "msg_areas",
         display_msg_areas_fields, display_msg_areas_field_count,
         "msg_area_list", "msg_header", "msg_format", "msg_format_div", "msg_footer");
+}
+
+static void action_display_msg_areas_for_tab(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    if (active_tab <= 0) {
+        action_display_msg_areas();
+        return;
+    }
+
+    ensure_display_theme_loaded(tabs, tab_count, active_tab);
+    snprintf(g_display_prefix_override, sizeof(g_display_prefix_override), "%s",
+             display_prefix_for_tab(tabs, tab_count, active_tab));
+    action_display_area_section(
+        "Display: Message Area Settings", "msg_areas",
+        display_msg_areas_fields, display_msg_areas_field_count,
+        "msg_area_list", "msg_header", "msg_format", "msg_format_div", "msg_footer");
+    g_display_prefix_override[0] = '\0';
 }
 
 static void action_display_msg_reader(void)
@@ -3334,35 +3506,132 @@ static void action_display_msg_reader(void)
     free(values);
 }
 
+static void action_display_msg_reader_for_tab(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    if (active_tab <= 0) {
+        action_display_msg_reader();
+        return;
+    }
+
+    if (g_maxcfg_toml == NULL) {
+        dialog_message("Configuration Not Loaded", "TOML configuration is not loaded.");
+        return;
+    }
+
+    ensure_display_theme_loaded(tabs, tab_count, active_tab);
+
+    char **values = calloc((size_t)display_msg_reader_field_count, sizeof(char *));
+    if (values == NULL) {
+        dialog_message("Out of Memory", "Unable to allocate form values.");
+        return;
+    }
+
+    char key[160];
+    char buf[32];
+
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_area");
+    values[0] = strdup(toml_get_bool_or_default(key, false) ? "Yes" : "No");
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.reduce_area");
+    snprintf(buf, sizeof(buf), "%d", toml_get_int_or_default(key, 5));
+    values[1] = strdup(buf);
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_what");
+    { const char *lw = toml_get_string_or_empty(key); values[2] = strdup(lw[0] ? lw : "full"); }
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_fore");
+    values[3] = strdup(toml_get_string_or_empty(key));
+    display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_back");
+    values[4] = strdup(toml_get_string_or_empty(key));
+
+    if (form_edit("Display: Message Reader", display_msg_reader_fields, display_msg_reader_field_count, values, NULL, NULL)) {
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_area");
+        (void)maxcfg_toml_override_set_bool(g_maxcfg_toml, key, strcmp(values[0] ? values[0] : "No", "Yes") == 0);
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.reduce_area");
+        (void)maxcfg_toml_override_set_int(g_maxcfg_toml, key, atoi(values[1] ? values[1] : "5"));
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_what");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[2] ? values[2] : "full");
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_fore");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[3] ? values[3] : "");
+        display_make_key(key, sizeof(key), tabs, tab_count, active_tab, "msg_reader.lightbar_back");
+        (void)maxcfg_toml_override_set_string(g_maxcfg_toml, key, values[4] ? values[4] : "");
+        g_state.dirty = true;
+    }
+
+    for (int i = 0; i < display_msg_reader_field_count; i++) free(values[i]);
+    free(values);
+}
+
 static void action_display_settings(void)
 {
+    int tab_count = 0;
+    int selected = 0;
+    int tab_selections[16] = {0};
+    ThemeTab *tabs = theme_tabs_build(&tab_count);
+    int active_tab = theme_tabs_default_index(tabs, tab_count);
+
     ListItem items[4];
     memset(items, 0, sizeof(items));
     items[0].name = strdup("General Settings");
-    items[0].enabled = true;
     items[1].name = strdup("File Area Display");
-    items[1].enabled = true;
     items[2].name = strdup("Message Area Display");
-    items[2].enabled = true;
     items[3].name = strdup("Message Reader");
-    items[3].enabled = true;
+    for (int i = 0; i < 4; i++) items[i].enabled = true;
 
-    int selected = 0;
+    const char *fallback_tabs[] = { "Theme" };
+    const char **tab_labels = fallback_tabs;
+
+    if (tabs != NULL && tab_count > 1) {
+        tab_labels = calloc((size_t)tab_count, sizeof(char *));
+        if (tab_labels != NULL) {
+            for (int i = 0; i < tab_count; i++) {
+                tab_labels[i] = tabs[i].name ? tabs[i].name : "Theme";
+            }
+        } else {
+            tab_labels = fallback_tabs;
+            tab_count = 1;
+            active_tab = 0;
+        }
+    } else {
+        tab_count = 1;
+        active_tab = 0;
+    }
+
     for (;;) {
-        ListPickResult result = listpicker_show("Display Settings", items, 4, &selected);
+        int prev_tab = active_tab;
+        int prev_selected = selected;
+        ListPickResult result;
+
+        if (tab_count > 1 && tab_labels != NULL) {
+            result = listpicker_show_tabbed("Display Settings", items, 4, &selected, tab_labels, tab_count, &active_tab);
+        } else {
+            result = listpicker_show("Display Settings", items, 4, &selected);
+        }
+
+        if (result == LISTPICK_TAB_LEFT || result == LISTPICK_TAB_RIGHT) {
+            if (prev_tab >= 0 && prev_tab < 16) {
+                tab_selections[prev_tab] = prev_selected;
+            }
+            if (active_tab >= 0 && active_tab < 16) {
+                selected = tab_selections[active_tab];
+            } else {
+                selected = 0;
+            }
+            continue;
+        }
+
         if (result == LISTPICK_EXIT || result == LISTPICK_NONE) break;
         if (result == LISTPICK_EDIT) {
             switch (selected) {
-                case 0: action_display_general(); break;
-                case 1: action_display_file_areas(); break;
-                case 2: action_display_msg_areas(); break;
-                case 3: action_display_msg_reader(); break;
+                case 0: action_display_general_for_tab(tabs, tab_count, active_tab); break;
+                case 1: action_display_file_areas_for_tab(tabs, tab_count, active_tab); break;
+                case 2: action_display_msg_areas_for_tab(tabs, tab_count, active_tab); break;
+                case 3: action_display_msg_reader_for_tab(tabs, tab_count, active_tab); break;
                 default: break;
             }
         }
     }
 
     for (int i = 0; i < 4; i++) free(items[i].name);
+    if (tab_labels != fallback_tabs) free((void *)tab_labels);
+    if (tabs != NULL) theme_tabs_free(tabs, tab_count > 0 ? tab_count : 1);
 }
 
 static void action_edit_compress_cfg(void *unused)
@@ -6720,6 +6989,430 @@ static void action_lang_editor(void)
     action_browse_lang_strings(NULL);
 }
 
+/* ============================================================================
+ * Step 3: Theme-Tabbed Menu Grouping Helpers
+ * ============================================================================ */
+
+/**
+ * Parsed components of a menu file path.
+ */
+typedef struct {
+    char *logical_key;   /* Canonical menu key, e.g. "main" or "foo.bar" */
+    char *theme;         /* Theme short name if recognized, or "" */
+} MenuPathInfo;
+
+/**
+ * A single variant entry within a MenuGroup.
+ */
+typedef struct {
+    int   menu_idx;          /* Index into the raw menus[] array */
+    char *theme;             /* Theme short name for this variant (owned string) */
+} MenuVariant;
+
+/**
+ * Group of menu files that share the same logical menu key.
+ */
+typedef struct {
+    char          *logical_name;      /* Canonical menu key, e.g. "main" */
+    int            base_menu_idx;     /* Index into menus[] for base file, or -1 */
+    MenuVariant   *variants;          /* Dynamic array of per-theme variant entries */
+    int            variant_count;
+    int            variant_capacity;
+} MenuGroup;
+
+/**
+ * Parse a menu file path into its logical components.
+ *
+ * Applies the canonical filename rules:
+ *   - main.toml           -> logical_key="main",        theme=""
+ *   - main.maxng.toml     -> logical_key="main",        theme="maxng" (if "maxng" is a known theme)
+ *   - foo.bar.toml        -> logical_key="foo.bar",     theme="" (if "bar" is NOT a known theme)
+ *
+ * @param path        The menu file path (e.g. "config/menus/main.maxng.toml").
+ * @param tabs        Array of ThemeTab entries for theme validation (may include the implicit "All" tab at index 0).
+ * @param tab_count   Number of entries in tabs.
+ * @param out         Receives the parsed components. Caller must free out->logical_key and out->theme.
+ */
+static void menu_path_parse(const char *path, const ThemeTab *tabs, int tab_count, MenuPathInfo *out)
+{
+    out->logical_key = NULL;
+    out->theme = NULL;
+
+    /* Extract the basename from the path. */
+    const char *base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+
+    /* Work on a copy so we can mutate it. */
+    char *copy = strdup(base);
+    if (!copy) {
+        out->logical_key = strdup(base);
+        out->theme = strdup("");
+        return;
+    }
+
+    /* Strip the .toml suffix if present. */
+    size_t len = strlen(copy);
+    if (len > 5 && strcmp(copy + len - 5, ".toml") == 0) {
+        copy[len - 5] = '\0';
+        len -= 5;
+    }
+
+    /* Now copy is e.g. "main" or "main.maxng" or "foo.bar".
+     * Look for the last '.' to find a potential theme suffix. */
+    char *last_dot = strrchr(copy, '.');
+    if (last_dot && last_dot != copy) {
+        *last_dot = '\0';
+        const char *candidate_theme = last_dot + 1;
+
+        /* Check if candidate_theme matches any known theme short_name.
+         * Skip tab 0 (the implicit "All" tab) since it has short_name="". */
+        bool found = false;
+        for (int i = 1; i < tab_count; i++) {
+            if (tabs[i].short_name && strcmp(tabs[i].short_name, candidate_theme) == 0) {
+                found = true;
+                break;
+            }
+        }
+
+        if (found) {
+            out->logical_key = strdup(copy);
+            out->theme = strdup(candidate_theme);
+        } else {
+            /* Not a known theme — restore the dot and treat the whole thing as the logical key. */
+            *last_dot = '.';
+            out->logical_key = strdup(copy);
+            out->theme = strdup("");
+        }
+    } else {
+        /* No dotted segment — the whole basename is the logical key. */
+        out->logical_key = strdup(copy);
+        out->theme = strdup("");
+    }
+
+    free(copy);
+}
+
+/**
+ * Add a theme variant to a MenuGroup.
+ *
+ * @param group      The group to add to.
+ * @param menu_idx   Index into the raw menus[] array.
+ * @param theme      Theme short name for this variant (will be strdup'd).
+ */
+static void menu_group_add_variant(MenuGroup *group, int menu_idx, const char *theme)
+{
+    if (group->variant_count >= group->variant_capacity) {
+        int new_cap = group->variant_capacity == 0 ? 4 : group->variant_capacity * 2;
+        MenuVariant *new_arr = realloc(group->variants, (size_t)new_cap * sizeof(MenuVariant));
+        if (!new_arr) {
+            return;
+        }
+        group->variants = new_arr;
+        group->variant_capacity = new_cap;
+    }
+    group->variants[group->variant_count].menu_idx = menu_idx;
+    group->variants[group->variant_count].theme = theme ? strdup(theme) : NULL;
+    group->variant_count++;
+}
+
+/**
+ * Build logical menu groups from raw menu paths.
+ *
+ * Groups entries by logical menu key. Each group tracks the base file index
+ * (if present) and an array of variant file indexes.
+ *
+ * @param paths       Array of menu file path strings (from load_menus_toml).
+ * @param path_count  Number of entries in paths.
+ * @param tabs        Theme tab array for theme validation.
+ * @param tab_count   Number of theme tabs.
+ * @param out_count   Receives the number of groups created.
+ * @return            Dynamically allocated array of MenuGroup, or NULL on failure.
+ *                    Caller must free with menu_groups_free().
+ */
+static MenuGroup *menu_groups_build(const char **paths, int path_count,
+                                     const ThemeTab *tabs, int tab_count,
+                                     int *out_count)
+{
+    *out_count = 0;
+
+    MenuPathInfo *infos = calloc((size_t)path_count, sizeof(MenuPathInfo));
+    if (!infos) {
+        return NULL;
+    }
+
+    /* Parse all paths first. */
+    for (int i = 0; i < path_count; i++) {
+        menu_path_parse(paths[i], tabs, tab_count, &infos[i]);
+    }
+
+    /* Count unique logical keys. */
+    int group_count = 0;
+    for (int i = 0; i < path_count; i++) {
+        bool found = false;
+        for (int j = 0; j < i; j++) {
+            if (infos[i].logical_key && infos[j].logical_key &&
+                strcmp(infos[i].logical_key, infos[j].logical_key) == 0) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            group_count++;
+        }
+    }
+
+    MenuGroup *groups = calloc((size_t)group_count, sizeof(MenuGroup));
+    if (!groups) {
+        for (int i = 0; i < path_count; i++) {
+            free(infos[i].logical_key);
+            free(infos[i].theme);
+        }
+        free(infos);
+        return NULL;
+    }
+
+    /* Populate groups. */
+    int g = 0;
+    for (int i = 0; i < path_count; i++) {
+        /* Check if this logical key already has a group. */
+        int existing = -1;
+        for (int j = 0; j < g; j++) {
+            if (groups[j].logical_name && infos[i].logical_key &&
+                strcmp(groups[j].logical_name, infos[i].logical_key) == 0) {
+                existing = j;
+                break;
+            }
+        }
+
+        if (existing >= 0) {
+            /* Add to existing group. */
+            if (infos[i].theme && infos[i].theme[0] != '\0') {
+                /* This is a theme variant. */
+                menu_group_add_variant(&groups[existing], i, infos[i].theme);
+            } else {
+                /* This is the base file. */
+                groups[existing].base_menu_idx = i;
+            }
+        } else {
+            /* Create new group. */
+            groups[g].logical_name = infos[i].logical_key ? strdup(infos[i].logical_key) : NULL;
+            groups[g].base_menu_idx = -1;
+            groups[g].variants = NULL;
+            groups[g].variant_count = 0;
+            groups[g].variant_capacity = 0;
+
+            if (infos[i].theme && infos[i].theme[0] != '\0') {
+                menu_group_add_variant(&groups[g], i, infos[i].theme);
+            } else {
+                groups[g].base_menu_idx = i;
+            }
+            g++;
+        }
+    }
+
+    *out_count = g;
+
+    /* Clean up parsed infos (logical_key strings were strdup'd into groups). */
+    for (int i = 0; i < path_count; i++) {
+        free(infos[i].logical_key);
+        free(infos[i].theme);
+    }
+    free(infos);
+
+    return groups;
+}
+
+/**
+ * Resolve a MenuGroup for a specific theme tab.
+ *
+ * @param group       The menu group to resolve.
+ * @param tab         The active theme tab (index into the ThemeTab array).
+ *                    tab == 0 means the "All" tab.
+ * @param tabs        The full ThemeTab array.
+ * @param tab_count   Number of tabs.
+ * @return            The resolved menu index into the raw menus[] array, or -1 if no file applies.
+ */
+static int menu_group_resolve(const MenuGroup *group, int tab, const ThemeTab *tabs, int tab_count,
+                              bool *out_is_native)
+{
+    if (out_is_native) *out_is_native = true;
+
+    if (!group || !tabs || tab < 0 || tab >= tab_count) {
+        return -1;
+    }
+
+    /*
+     * Look for a variant matching this theme.
+     * If found, return it (native). Otherwise fall back to the base file (not native).
+     */
+    const char *wanted = tabs[tab].short_name;
+    if (wanted && wanted[0] != '\0') {
+        for (int v = 0; v < group->variant_count; v++) {
+            if (group->variants[v].theme && strcmp(group->variants[v].theme, wanted) == 0) {
+                if (out_is_native) *out_is_native = true;
+                return group->variants[v].menu_idx;
+            }
+        }
+    }
+
+    /*
+     * Fallback: use the base file if present.
+     *
+     * The theme whose registry index is 1 is the canonical "classic/base"
+     * theme, so the unthemed base file is native in that tab and inherited in
+     * all other tabs.
+     */
+    if (group->base_menu_idx >= 0) {
+        bool is_base_theme = false;
+        if (tabs && tab >= 0 && tab < tab_count) {
+            is_base_theme = (tabs[tab].index == 1);
+        }
+        if (out_is_native) *out_is_native = is_base_theme;
+        return group->base_menu_idx;
+    }
+
+    return -1;
+}
+
+/**
+ * Free an array of MenuGroup and their contents.
+ *
+ * @param groups     Pointer to the first element (may be NULL).
+ * @param count      Number of groups.
+ */
+static void menu_groups_free(MenuGroup *groups, int count)
+{
+    if (!groups) {
+        return;
+    }
+    for (int i = 0; i < count; i++) {
+        free(groups[i].logical_name);
+        for (int v = 0; v < groups[i].variant_count; v++) {
+            free(groups[i].variants[v].theme);
+        }
+        free(groups[i].variants);
+    }
+    free(groups);
+}
+
+/* ============================================================================
+ * End of Step 3 Helpers
+ * ============================================================================ */
+
+/**
+ * Materialize a filtered ListItem array for the active tab.
+ *
+ * Walks all MenuGroup entries and resolves each one for the given tab.
+ * For groups that resolve to a valid menu index, creates a ListItem.
+ *
+ * @param groups          Array of MenuGroup entries.
+ * @param group_count     Number of groups.
+ * @param menus           Array of MenuDefinition pointers (from load_menus_toml).
+ * @param tab             Active tab index (0 = All).
+ * @param tabs            ThemeTab array.
+ * @param tab_count       Number of theme tabs.
+ * @param out_count       Receives the number of items created.
+ * @param out_item_groups If non-NULL, receives an allocated array mapping each
+ *                        item index back to its MenuGroup index. Caller must free().
+ * @return                Dynamically allocated ListItem array, or NULL on failure.
+ *                        Caller must free with listitem_array_free().
+ */
+static ListItem *action_menus_build_items(const MenuGroup *groups, int group_count,
+                                           MenuDefinition **menus,
+                                           int tab, const ThemeTab *tabs, int tab_count,
+                                           int *out_count, int **out_item_groups)
+{
+    *out_count = 0;
+    if (out_item_groups) {
+        *out_item_groups = NULL;
+    }
+
+    /* First pass: count how many groups resolve to a valid menu. */
+    int visible = 0;
+    for (int i = 0; i < group_count; i++) {
+        int idx = menu_group_resolve(&groups[i], tab, tabs, tab_count, NULL);
+        if (idx >= 0) {
+            visible++;
+        }
+    }
+
+    if (visible == 0) {
+        return NULL;
+    }
+
+    ListItem *items = calloc((size_t)visible, sizeof(ListItem));
+    if (!items) {
+        return NULL;
+    }
+
+    int *item_groups = NULL;
+    if (out_item_groups) {
+        item_groups = calloc((size_t)visible, sizeof(int));
+        if (!item_groups) {
+            free(items);
+            return NULL;
+        }
+    }
+
+    int pos = 0;
+    for (int i = 0; i < group_count && pos < visible; i++) {
+        bool is_native = true;
+        int idx = menu_group_resolve(&groups[i], tab, tabs, tab_count, &is_native);
+        if (idx < 0) {
+            continue;
+        }
+
+        MenuDefinition *menu = menus[idx];
+        char display[256];
+        snprintf(display, sizeof(display), "%s - %s [%d option%s]",
+                 menu->name ? menu->name : "(unnamed)",
+                 menu->title ? menu->title : "(no title)",
+                 menu->option_count,
+                 menu->option_count == 1 ? "" : "s");
+
+        items[pos].name = strdup(display);
+        items[pos].extra = strdup(menu->name ? menu->name : "");
+        items[pos].enabled = is_native;
+        items[pos].data = menu;
+
+        if (item_groups) {
+            item_groups[pos] = i;
+        }
+        pos++;
+    }
+
+    *out_count = visible;
+    if (out_item_groups) {
+        *out_item_groups = item_groups;
+    }
+    return items;
+}
+
+/**
+ * Refresh a single ListItem's display text after an edit.
+ *
+ * @param item   The ListItem to refresh.
+ * @param menu   The MenuDefinition to read updated fields from.
+ */
+static void action_menus_refresh_item(ListItem *item, const MenuDefinition *menu)
+{
+    if (!item || !menu) {
+        return;
+    }
+    free(item->name);
+    free(item->extra);
+
+    char display[256];
+    snprintf(display, sizeof(display), "%s - %s [%d option%s]",
+             menu->name ? menu->name : "(unnamed)",
+             menu->title ? menu->title : "(no title)",
+             menu->option_count,
+             menu->option_count == 1 ? "" : "s");
+
+    item->name = strdup(display);
+    item->extra = strdup(menu->name ? menu->name : "");
+}
+
 static void action_menus_list(void)
 {
     const char *sys_path = current_sys_path();
@@ -6765,11 +7458,27 @@ static void action_menus_list(void)
         free(menu_prefixes);
         return;
     }
-    
-    /* Build list items */
-    ListItem *items = calloc(menu_count, sizeof(ListItem));
-    if (!items) {
-        free_menu_definitions(menus, menu_count);
+
+    /* Build theme tabs and grouped logical menus. */
+    int tab_count = 0;
+    ThemeTab *tabs = theme_tabs_build(&tab_count);
+    if (!tabs || tab_count == 0) {
+        free(menus);
+        for (int i = 0; i < menu_count; i++) {
+            free(menu_paths[i]);
+            free(menu_prefixes[i]);
+        }
+        free(menu_paths);
+        free(menu_prefixes);
+        dialog_message("Error", "Failed to build theme tabs");
+        return;
+    }
+
+    /* Build the const-correct paths array for menu_groups_build. */
+    const char **paths = calloc((size_t)menu_count, sizeof(const char *));
+    if (!paths) {
+        theme_tabs_free(tabs, tab_count);
+        free(menus);
         for (int i = 0; i < menu_count; i++) {
             free(menu_paths[i]);
             free(menu_prefixes[i]);
@@ -6779,64 +7488,232 @@ static void action_menus_list(void)
         dialog_message("Error", "Out of memory");
         return;
     }
-    
     for (int i = 0; i < menu_count; i++) {
-        MenuDefinition *menu = menus[i];
-        
-        /* Format: "MAIN - MAIN (%t mins) [12 options]" */
-        char display[256];
-        snprintf(display, sizeof(display), "%s - %s [%d option%s]",
-                 menu->name ? menu->name : "(unnamed)",
-                 menu->title ? menu->title : "(no title)",
-                 menu->option_count,
-                 menu->option_count == 1 ? "" : "s");
-        
-        items[i].name = strdup(display);
-        items[i].extra = strdup(menu->name ? menu->name : "");
-        items[i].enabled = true;
-        items[i].data = menu;
+        paths[i] = menu_paths[i];
     }
-    
-    /* Show picklist */
+
+    int group_count = 0;
+    MenuGroup *groups = menu_groups_build(paths, menu_count, tabs, tab_count, &group_count);
+    free(paths);
+
+    if (!groups || group_count == 0) {
+        theme_tabs_free(tabs, tab_count);
+        free(menus);
+        for (int i = 0; i < menu_count; i++) {
+            free(menu_paths[i]);
+            free(menu_prefixes[i]);
+        }
+        free(menu_paths);
+        free(menu_prefixes);
+        dialog_message("Menu Configuration", "No menus found in config/menus");
+        return;
+    }
+
+    /*
+     * Tab state: active_tab tracks which theme tab is showing.
+     * tab_selections tracks the selected row index per tab.
+     */
+    int active_tab = theme_tabs_default_index(tabs, tab_count);
+    int *tab_selections = calloc((size_t)tab_count, sizeof(int));
+    if (!tab_selections) {
+        menu_groups_free(groups, group_count);
+        theme_tabs_free(tabs, tab_count);
+        free(menus);
+        for (int i = 0; i < menu_count; i++) {
+            free(menu_paths[i]);
+            free(menu_prefixes[i]);
+        }
+        free(menu_paths);
+        free(menu_prefixes);
+        dialog_message("Error", "Out of memory");
+        return;
+    }
+
+    /* Build initial item list for the active tab. */
+    int item_count = 0;
+    int *item_groups = NULL;
+    ListItem *items = action_menus_build_items(groups, group_count, menus,
+                                                active_tab, tabs, tab_count, &item_count, &item_groups);
+
+    /* Empty-tab handling: if no items, create a placeholder row. */
+    bool has_placeholder = false;
+    if (!items || item_count == 0) {
+        items = calloc(1, sizeof(ListItem));
+        if (items) {
+            char tab_label[128];
+            snprintf(tab_label, sizeof(tab_label), "%s", tabs[active_tab].name ? tabs[active_tab].name : "Theme");
+            char msg[256];
+            snprintf(msg, sizeof(msg), "(no menus available for %s)", tab_label);
+            items[0].name = strdup(msg);
+            items[0].extra = strdup("");
+            items[0].enabled = false;
+            items[0].data = NULL;
+            item_count = 1;
+            has_placeholder = true;
+        }
+    }
+
+    /* Build tab label array for the tabbed picker. */
+    const char **tab_labels = calloc((size_t)tab_count, sizeof(char *));
+    if (!tab_labels) {
+        /* Fallback: no tabs shown, use plain picker. */
+        tab_labels = NULL;
+        tab_count = 0;
+    } else {
+        for (int i = 0; i < tab_count; i++) {
+            tab_labels[i] = tabs[i].name ? tabs[i].name : "Theme";
+        }
+    }
+
+    /* Show picklist with integrated tab bar */
     ListPickResult result;
-    int selected = 0;
-    
+    int selected = tab_selections[active_tab];
+    if (selected >= item_count) {
+        selected = item_count > 0 ? item_count - 1 : 0;
+    }
+
     bool menus_modified = false;
     do {
-        result = listpicker_show("Menu Configuration", items, menu_count, &selected);
-        
-        if (result == LISTPICK_EDIT && selected >= 0 && selected < menu_count) {
-            MenuDefinition *menu = menus[selected];
-            if (edit_menu_properties(sys_path, menus, menu_count, menu)) {
+        int prev_tab = active_tab;
+        int prev_selected = selected;
+
+        if (tab_labels && tab_count > 1) {
+            result = listpicker_show_tabbed("Menu Configuration", items, item_count, &selected,
+                                             tab_labels, tab_count, &active_tab);
+        } else {
+            result = listpicker_show("Menu Configuration", items, item_count, &selected);
+        }
+
+        if (result == LISTPICK_TAB_LEFT || result == LISTPICK_TAB_RIGHT) {
+            /* Save current selection for the old tab. */
+            if (prev_tab >= 0 && prev_tab < tab_count) {
+                tab_selections[prev_tab] = prev_selected;
+            }
+
+            /* Free old items and rebuild for the new tab. */
+            listitem_array_free(items, item_count);
+            free(item_groups);
+            item_groups = NULL;
+            items = action_menus_build_items(groups, group_count, menus,
+                                              active_tab, tabs, tab_count, &item_count, &item_groups);
+            has_placeholder = false;
+            if (!items || item_count == 0) {
+                items = calloc(1, sizeof(ListItem));
+                if (items) {
+                    char tab_label[128];
+                    snprintf(tab_label, sizeof(tab_label), "%s", tabs[active_tab].name ? tabs[active_tab].name : "Theme");
+                    char msg[256];
+                    snprintf(msg, sizeof(msg), "(no menus available for %s)", tab_label);
+                    items[0].name = strdup(msg);
+                    items[0].extra = strdup("");
+                    items[0].enabled = false;
+                    items[0].data = NULL;
+                    item_count = 1;
+                    has_placeholder = true;
+                }
+            }
+
+            /* Restore selection for the new tab. */
+            selected = tab_selections[active_tab];
+            if (selected >= item_count) {
+                selected = item_count > 0 ? item_count - 1 : 0;
+            }
+            continue;
+        }
+
+        if (result == LISTPICK_EDIT && selected >= 0 && selected < item_count) {
+            if (has_placeholder) {
+                /* Placeholder row — nothing to edit. */
+                continue;
+            }
+
+            MenuDefinition *menu = items[selected].data;
+
+            if (!items[selected].enabled) {
+                char msg[256];
+                snprintf(msg, sizeof(msg),
+                         "This menu does not exist for %s yet. Create a theme-specific variant now?",
+                         tabs[active_tab].name ? tabs[active_tab].name : "this theme");
+
+                if (dialog_confirm("Create Theme Variant", msg)) {
+                    int group_idx = item_groups ? item_groups[selected] : -1;
+                    if (group_idx >= 0 && group_idx < group_count && groups[group_idx].base_menu_idx >= 0) {
+                        char variant_path[MAX_PATH_LEN];
+                        char variant_prefix[128];
+                        const char *theme_sname = tabs[active_tab].short_name ? tabs[active_tab].short_name : "";
+                        MenuDefinition *base_menu = menus[groups[group_idx].base_menu_idx];
+
+                        snprintf(variant_path, sizeof(variant_path), "%s/config/menus/%s.%s.toml",
+                                 sys_path, groups[group_idx].logical_name, theme_sname);
+                        snprintf(variant_prefix, sizeof(variant_prefix), "menus.%s.%s",
+                                 groups[group_idx].logical_name, theme_sname);
+
+                        if (!save_menu_toml(g_maxcfg_toml, variant_path, variant_prefix, base_menu, err, sizeof(err))) {
+                            dialog_message("Create Variant Failed", err[0] ? err : "Unable to create theme variant.");
+                        } else {
+                            dialog_message("Variant Created",
+                                           "Theme-specific menu variant created. Re-open Menus to edit the new variant.");
+                        }
+                    }
+                }
+                continue;
+            }
+
+            if (menu && edit_menu_properties(sys_path, menus, menu_count, menu)) {
                 menus_modified = true;
             }
 
-            /* Refresh selected row display after edits */
-            free(items[selected].name);
-            free(items[selected].extra);
-            {
-                char display[256];
-                snprintf(display, sizeof(display), "%s - %s [%d option%s]",
-                         menu->name ? menu->name : "(unnamed)",
-                         menu->title ? menu->title : "(no title)",
-                         menu->option_count,
-                         menu->option_count == 1 ? "" : "s");
-                items[selected].name = strdup(display);
-                items[selected].extra = strdup(menu->name ? menu->name : "");
+            /* Refresh selected row display after edits. */
+            if (menu && items[selected].data == menu) {
+                action_menus_refresh_item(&items[selected], menu);
             }
         }
         else if (result == LISTPICK_INSERT) {
             /* TODO: Add new menu */
             dialog_message("Not Implemented", "Adding menus will be implemented next.");
         }
-        else if (result == LISTPICK_DELETE && selected >= 0 && selected < menu_count) {
+        else if (result == LISTPICK_DELETE && selected >= 0 && selected < item_count) {
             /* TODO: Delete menu */
             dialog_message("Not Implemented", "Deleting menus will be implemented next.");
         }
-        
+
     } while (result != LISTPICK_EXIT);
-    
-    /* Save TOML menus if any changes were made */
+
+    /* Save current selection for the final tab. */
+    tab_selections[active_tab] = selected;
+
+    /*
+     * Save / persistence bookkeeping.
+     *
+     * Three parallel arrays are maintained by load_menus_toml() and kept in
+     * sync throughout this function:
+     *
+     *   menus[]        — MenuDefinition* for each loaded TOML file.
+     *   menu_paths[]   — filesystem path to the TOML file each menu was loaded from.
+     *   menu_prefixes[] — the filename prefix (stem) used by save_menu_toml() to
+     *                     construct the output path.  This is the key piece that
+     *                     ensures a menu is written back to the exact same file it
+     *                     was loaded from, regardless of theme variant or base file.
+     *
+     * The tabbed UI (groups, tabs, variant chooser) is a presentation layer only.
+     * edit_menu_properties() mutates the MenuDefinition in-place; it does not
+     * change which file a menu belongs to.  When menus_modified is true, the loop
+     * below iterates every index i and calls:
+     *
+     *   save_menu_toml(g_maxcfg_toml, menu_paths[i], menu_prefixes[i], menus[i], ...)
+     *
+     * Because menu_paths[i] and menu_prefixes[i] are the original load-time values,
+     * each edited MenuDefinition is persisted back to its concrete source file.
+     * This holds for:
+     *   - Direct edits from a theme-specific tab (menu points to the variant's
+     *     MenuDefinition, which lives at the same index in menus[] as its path/prefix).
+     *   - Edits from the All tab's variant chooser (the chooser sets menu to
+     *     menus[grp->variants[v].menu_idx] or menus[grp->base_menu_idx], again
+     *     preserving the index-to-path/prefix correspondence).
+     *
+     * Grouping and tab state (MenuGroup, ThemeTab, item_groups[]) are never used
+     * during persistence — they exist solely to drive the listpicker display.
+     */
     if (menus_modified) {
         for (int i = 0; i < menu_count; i++) {
             if (menu_paths && menu_prefixes && menus && menus[i]) {
@@ -6847,14 +7724,14 @@ static void action_menus_list(void)
             }
         }
     }
-    
+
     /* Cleanup */
-    for (int i = 0; i < menu_count; i++) {
-        free(items[i].name);
-        free(items[i].extra);
-    }
-    free(items);
-    free_menu_definitions(menus, menu_count);
+    listitem_array_free(items, item_count);
+    free(item_groups);
+    free(tab_selections);
+    menu_groups_free(groups, group_count);
+    theme_tabs_free(tabs, tab_count);
+    free(menus);
     for (int i = 0; i < menu_count; i++) {
         free(menu_paths[i]);
         free(menu_prefixes[i]);
@@ -6862,9 +7739,12 @@ static void action_menus_list(void)
     free(menu_paths);
     free(menu_prefixes);
 
+    /* Free tab labels (not the ThemeTab array — that's owned by theme_tabs_free). */
+    free(tab_labels);
+
     /* Restore override-dirty state (see note at top of function). */
     g_state.dirty = dirty_before;
-    
+
     /* Redraw screen */
     touchwin(stdscr);
     wnoutrefresh(stdscr);

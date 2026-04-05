@@ -217,7 +217,9 @@ typedef enum {
     LISTPICK_DELETE,    /* User pressed DEL (toggle enable/disable) */
     LISTPICK_FILTER,    /* User pressed SPACE (filter/search) */
     LISTPICK_CLEAR,
-    LISTPICK_EXIT       /* User pressed ESC */
+    LISTPICK_EXIT,       /* User pressed ESC */
+    LISTPICK_TAB_LEFT,   /* User pressed LEFT arrow — switch tab left */
+    LISTPICK_TAB_RIGHT,  /* User pressed RIGHT arrow — switch tab right */
 } ListPickResult;
 
 /* List item structure */
@@ -238,6 +240,21 @@ typedef struct {
 ListPickResult listpicker_show(const char *title, ListItem *items, int item_count, int *selected);
 
 ListPickResult listpicker_show_ex(const char *title, ListItem *items, int item_count, int *selected, bool space_is_filter);
+
+/**
+ * Show a list picker with an integrated tab bar.
+ *
+ * @param title        Dialog title
+ * @param items        Array of list items
+ * @param item_count   Number of items
+ * @param selected     Pointer to selected index (updated on return)
+ * @param tabs         Array of tab labels (e.g., ["All", "Maximus Classic", ...])
+ * @param tab_count    Number of tabs
+ * @param active_tab   Pointer to active tab index (updated on tab switch)
+ * @return ListPickResult — LISTPICK_TAB_LEFT/RIGHT when user switches tabs
+ */
+ListPickResult listpicker_show_tabbed(const char *title, ListItem *items, int item_count, int *selected,
+                                       const char **tabs, int tab_count, int *active_tab);
 
 /* Helper functions for managing list items */
 ListItem *listitem_create(const char *name, const char *extra, void *data);

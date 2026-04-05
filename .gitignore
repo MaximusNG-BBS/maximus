@@ -95,6 +95,7 @@ __pycache__/
 .roo/
 .kilo/
 .kilocode/
+.codex/
 .claude/
 .cursor/
 .zed/

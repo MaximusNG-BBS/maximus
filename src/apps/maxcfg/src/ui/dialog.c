@@ -159,10 +159,15 @@ DialogResult dialog_save_prompt(void)
         }
     }
     
-    /* Redraw screen - preserve menu state */
+    /*
+     * Redraw the underlying screen and flush it immediately so the
+     * confirmation box does not remain visually orphaned after ESC/No.
+     */
     touchwin(stdscr);
+    clearok(stdscr, TRUE);
     wnoutrefresh(stdscr);
-    
+    doupdate();
+
     return result;
 }
 
@@ -405,10 +410,15 @@ bool dialog_confirm(const char *title, const char *message)
         }
     }
     
-    /* Redraw screen - preserve menu state */
+    /*
+     * Redraw the underlying screen and flush it immediately so the
+     * confirmation box does not remain visually orphaned after ESC/No.
+     */
     touchwin(stdscr);
+    clearok(stdscr, TRUE);
     wnoutrefresh(stdscr);
-    
+    doupdate();
+
     return result;
 }
 

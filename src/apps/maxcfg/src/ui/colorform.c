@@ -29,9 +29,13 @@
 #include <limits.h>
 #include <sys/wait.h>
 #include "maxcfg.h"
+#include "theme_tabs.h"
 #include "ui.h"
 
 extern char **environ;
+
+static MaxCfgThemeColors *g_themeform_theme = NULL;
+static char g_themeform_prefix[128] = "colors";
 
 /* Color field definition */
 typedef struct {
@@ -1012,13 +1016,14 @@ static bool theme_colors_save(void)
 {
     extern MaxCfgToml *g_maxcfg_toml;
     extern MaxCfgThemeColors g_theme_colors;
+    MaxCfgThemeColors *theme = g_themeform_theme ? g_themeform_theme : &g_theme_colors;
     if (!g_maxcfg_toml) return false;
 
     for (int i = 0; i < MCI_THEME_SLOT_COUNT; i++) {
         char path[128];
-        snprintf(path, sizeof(path), "colors.theme.colors.%s", g_theme_colors.slots[i].key);
+        snprintf(path, sizeof(path), "%s.theme.colors.%s", g_themeform_prefix, theme->slots[i].key);
         if (maxcfg_toml_override_set_string(g_maxcfg_toml, path,
-                                             g_theme_colors.slots[i].value) != MAXCFG_OK)
+                                             theme->slots[i].value) != MAXCFG_OK)
             return false;
     }
     return true;
@@ -1034,6 +1039,7 @@ static bool theme_colors_save(void)
 static bool themeform_edit(void)
 {
     extern MaxCfgThemeColors g_theme_colors;
+    MaxCfgThemeColors *theme = g_themeform_theme ? g_themeform_theme : &g_theme_colors;
     int selected = 0;
     int scroll_offset = 0;
     bool dirty = false;
@@ -1109,7 +1115,7 @@ static bool themeform_edit(void)
         /* --- Draw visible slots --- */
         for (int i = 0; i < max_visible && (scroll_offset + i) < field_count; i++) {
             int idx = scroll_offset + i;
-            MaxCfgThemeSlot *slot = &g_theme_colors.slots[idx];
+            MaxCfgThemeSlot *slot = &theme->slots[idx];
             int y = field_y + i;
 
             /* Label: "|xx  Description" */
@@ -1147,7 +1153,7 @@ static bool themeform_edit(void)
         /* Help text */
         attron(COLOR_PAIR(CP_MENU_BAR));
         mvprintw(help_y + 1, win_x + 2, "%-*.*s", win_w - 4, win_w - 4,
-                 g_theme_colors.slots[selected].desc);
+                 theme->slots[selected].desc);
         attroff(COLOR_PAIR(CP_MENU_BAR));
 
         draw_status_bar("ESC=Abort  F10=Save/Exit  F2/Enter=Pick Color");
@@ -1164,7 +1170,7 @@ static bool themeform_edit(void)
         case '\n': case '\r': case KEY_F(2): {
             /* Parse current value to seed the picker */
             int cur_fg = 7, cur_bg = 0;
-            const char *v = g_theme_colors.slots[selected].value;
+            const char *v = theme->slots[selected].value;
             /* Simple parse: first |NN sets fg, second sets bg */
             for (const char *s = v; *s; s++) {
                 if (s[0] == '|' && isdigit((unsigned char)s[1]) && isdigit((unsigned char)s[2])) {
@@ -1177,8 +1183,8 @@ static bool themeform_edit(void)
             int new_fg, new_bg;
             if (colorpicker_select_full(cur_fg, cur_bg, &new_fg, &new_bg)) {
                 MaxCfgNgColor c = { .fg = new_fg, .bg = new_bg, .blink = false };
-                maxcfg_ng_color_to_mci(&c, g_theme_colors.slots[selected].value,
-                                       sizeof(g_theme_colors.slots[selected].value));
+                maxcfg_ng_color_to_mci(&c, theme->slots[selected].value,
+                                       sizeof(theme->slots[selected].value));
                 dirty = true;
             }
             break;
@@ -1211,92 +1217,71 @@ static bool themeform_edit(void)
  */
 void action_default_colors(void)
 {
+    extern MaxCfgThemeColors g_theme_colors;
     colorslh_load_into_fields();
 
-    const char *categories[] = {
-        "Menu Colors",
-        "File Colors", 
-        "Message Colors",
-        "Reader Colors",
-        "Theme Colors"
-    };
-    int num_categories = 5;
-    int selected = 0;
-    int ch;
-    bool done = false;
-    
-    int width = 22;
-    int height = 9;
-    int x = (COLS - width) / 2;
-    int y = (LINES - height) / 2;
-    
-    while (!done) {
-        /* Draw border */
-        attron(COLOR_PAIR(CP_DIALOG_BORDER));
-        mvaddch(y, x, ACS_ULCORNER);
-        addch(ACS_HLINE);
-        addch(' ');
-        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
-        
-        attron(COLOR_PAIR(CP_MENU_BAR));
-        printw("Default Colors");
-        attroff(COLOR_PAIR(CP_MENU_BAR));
-        
-        attron(COLOR_PAIR(CP_DIALOG_BORDER));
-        addch(' ');
-        for (int i = 18; i < width - 1; i++) addch(ACS_HLINE);
-        addch(ACS_URCORNER);
-        
-        for (int i = 1; i < height - 1; i++) {
-            mvaddch(y + i, x, ACS_VLINE);
-            attron(COLOR_PAIR(CP_FORM_BG));
-            for (int j = 1; j < width - 1; j++) addch(' ');
-            attroff(COLOR_PAIR(CP_FORM_BG));
-            attron(COLOR_PAIR(CP_DIALOG_BORDER));
-            mvaddch(y + i, x + width - 1, ACS_VLINE);
-        }
-        
-        mvaddch(y + height - 1, x, ACS_LLCORNER);
-        for (int i = 1; i < width - 1; i++) addch(ACS_HLINE);
-        addch(ACS_LRCORNER);
-        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
-        
-        /* Draw options */
-        for (int i = 0; i < num_categories; i++) {
-            if (i == selected) {
-                attron(COLOR_PAIR(CP_DROPDOWN_HIGHLIGHT) | A_BOLD);
-            } else {
-                attron(COLOR_PAIR(CP_MENU_BAR));
-            }
-            mvprintw(y + 2 + i, x + 2, " %-16s ", categories[i]);
-            if (i == selected) {
-                attroff(COLOR_PAIR(CP_DROPDOWN_HIGHLIGHT) | A_BOLD);
-            } else {
-                attroff(COLOR_PAIR(CP_MENU_BAR));
-            }
-        }
-        
-        refresh();
-        ch = getch();
-        
-        switch (ch) {
-            case KEY_UP:
-                if (selected > 0) selected--;
-                break;
-            case KEY_DOWN:
-                if (selected < num_categories - 1) selected++;
-                break;
-            case '\n':
-            case '\r':
-                done = true;
-                break;
-            case 27:
-                return;  /* Cancel */
-        }
+    ListItem items[5];
+    memset(items, 0, sizeof(items));
+    items[0].name = strdup("Menu Colors");
+    items[1].name = strdup("File Colors");
+    items[2].name = strdup("Message Colors");
+    items[3].name = strdup("Reader Colors");
+    items[4].name = strdup("Theme Colors");
+    for (int i = 0; i < 5; i++) {
+        items[i].enabled = true;
     }
-    
-    /* Open selected category */
-    switch (selected) {
+
+    int selected = 0;
+    int tab_count = 0;
+    int tab_selections[16] = {0};
+    ThemeTab *tabs = theme_tabs_build(&tab_count);
+    int active_tab = theme_tabs_default_index(tabs, tab_count);
+    const char *fallback_tabs[] = { "Theme" };
+    const char **tab_labels = fallback_tabs;
+
+    if (tabs != NULL && tab_count > 1) {
+        tab_labels = calloc((size_t)tab_count, sizeof(char *));
+        if (tab_labels != NULL) {
+            for (int i = 0; i < tab_count; i++) {
+                tab_labels[i] = tabs[i].name ? tabs[i].name : "Theme";
+            }
+        } else {
+            tab_labels = fallback_tabs;
+            tab_count = 1;
+            active_tab = 0;
+        }
+    } else {
+        tab_count = 1;
+        active_tab = 0;
+    }
+
+    for (;;) {
+        int prev_tab = active_tab;
+        int prev_selected = selected;
+        ListPickResult result;
+
+        if (tab_count > 1 && tab_labels != NULL) {
+            result = listpicker_show_tabbed("Default Colors", items, 5, &selected, tab_labels, tab_count, &active_tab);
+        } else {
+            result = listpicker_show("Default Colors", items, 5, &selected);
+        }
+
+        if (result == LISTPICK_TAB_LEFT || result == LISTPICK_TAB_RIGHT) {
+            if (prev_tab >= 0 && prev_tab < 16) {
+                tab_selections[prev_tab] = prev_selected;
+            }
+            selected = (active_tab >= 0 && active_tab < 16) ? tab_selections[active_tab] : 0;
+            continue;
+        }
+
+        if (result == LISTPICK_EXIT || result == LISTPICK_NONE) {
+            break;
+        }
+        if (result != LISTPICK_EDIT) {
+            continue;
+        }
+
+        switch (selected) {
         case 0:
             if (colorform_edit("Menu Colors", menu_colors, NUM_MENU_COLORS)) {
                 if (!colorslh_write_from_fields()) {
@@ -1366,8 +1351,49 @@ void action_default_colors(void)
             }
             break;
         case 4:
-            themeform_edit();
+            if (active_tab > 0 && tabs != NULL && active_tab < tab_count &&
+                tabs[active_tab].short_name != NULL && tabs[active_tab].short_name[0] != '\0') {
+                MaxCfgThemeColors themed_theme;
+                char prefix[128];
+                char relative[MAX_PATH_LEN];
+
+                maxcfg_theme_init(&themed_theme);
+                snprintf(prefix, sizeof(prefix), "colors.%s", tabs[active_tab].short_name);
+                snprintf(relative, sizeof(relative), "config/general/colors.%s.toml", tabs[active_tab].short_name);
+
+                g_themeform_theme = &themed_theme;
+                snprintf(g_themeform_prefix, sizeof(g_themeform_prefix), "%s", prefix);
+
+                if (g_maxcfg_toml != NULL && g_maxcfg != NULL) {
+                    char full_path[MAX_PATH_LEN];
+                    if (maxcfg_join_path(g_maxcfg, relative, full_path, sizeof(full_path)) == MAXCFG_OK && access(full_path, F_OK) == 0) {
+                        (void)maxcfg_toml_load_file(g_maxcfg_toml, full_path, prefix);
+                    }
+                    (void)maxcfg_theme_load_from_toml(&themed_theme, g_maxcfg_toml, prefix);
+                }
+                themeform_edit();
+                g_themeform_theme = NULL;
+                snprintf(g_themeform_prefix, sizeof(g_themeform_prefix), "colors");
+            } else {
+                g_themeform_theme = &g_theme_colors;
+                snprintf(g_themeform_prefix, sizeof(g_themeform_prefix), "colors");
+                themeform_edit();
+                g_themeform_theme = NULL;
+            }
             break;
+        default:
+            break;
+        }
+    }
+
+    for (int i = 0; i < 5; i++) {
+        free(items[i].name);
+    }
+    if (tab_labels != fallback_tabs) {
+        free((void *)tab_labels);
+    }
+    if (tabs != NULL) {
+        theme_tabs_free(tabs, tab_count > 0 ? tab_count : 1);
     }
 }
 
