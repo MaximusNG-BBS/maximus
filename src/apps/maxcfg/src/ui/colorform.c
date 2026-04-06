@@ -1215,6 +1215,122 @@ static bool themeform_edit(void)
 /**
  * @brief Action handler for Default Colors — shows category picker then edits.
  */
+static bool color_theme_variant_is_native(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    char relative[MAX_PATH_LEN];
+    char full_path[MAX_PATH_LEN];
+
+    if (tabs == NULL || active_tab < 0 || active_tab >= tab_count) {
+        return true;
+    }
+
+    /* Theme index 1 is the canonical classic/base theme. */
+    if (tabs[active_tab].index == 1) {
+        return true;
+    }
+
+    if (g_maxcfg == NULL || tabs[active_tab].short_name == NULL || tabs[active_tab].short_name[0] == '\0') {
+        return false;
+    }
+
+    snprintf(relative, sizeof(relative), "config/general/colors.%s.toml", tabs[active_tab].short_name);
+    if (maxcfg_join_path(g_maxcfg, relative, full_path, sizeof(full_path)) != MAXCFG_OK) {
+        return false;
+    }
+
+    return access(full_path, F_OK) == 0;
+}
+
+static bool copy_file_bytes(const char *src_path, const char *dst_path)
+{
+    FILE *src = NULL;
+    FILE *dst = NULL;
+    char buf[4096];
+    size_t nread;
+    bool ok = false;
+
+    if (!src_path || !dst_path) {
+        return false;
+    }
+
+    src = fopen(src_path, "rb");
+    if (!src) {
+        return false;
+    }
+
+    dst = fopen(dst_path, "wb");
+    if (!dst) {
+        fclose(src);
+        return false;
+    }
+
+    while ((nread = fread(buf, 1, sizeof(buf), src)) > 0) {
+        if (fwrite(buf, 1, nread, dst) != nread) {
+            goto done;
+        }
+    }
+
+    if (ferror(src)) {
+        goto done;
+    }
+
+    ok = true;
+
+done:
+    fclose(src);
+    fclose(dst);
+    return ok;
+}
+
+static bool ensure_color_theme_variant_exists(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    char src_relative[MAX_PATH_LEN];
+    char dst_relative[MAX_PATH_LEN];
+    char src_path[MAX_PATH_LEN];
+    char dst_path[MAX_PATH_LEN];
+    char prefix[128];
+    char msg[256];
+
+    if (color_theme_variant_is_native(tabs, tab_count, active_tab)) {
+        return true;
+    }
+
+    if (tabs == NULL || active_tab < 0 || active_tab >= tab_count ||
+        tabs[active_tab].short_name == NULL || tabs[active_tab].short_name[0] == '\0') {
+        return false;
+    }
+
+    snprintf(msg, sizeof(msg),
+             "This color config does not exist for %s yet. Create a theme-specific file now?",
+             tabs[active_tab].name ? tabs[active_tab].name : "this theme");
+    if (!dialog_confirm("Create Theme Colors File", msg)) {
+        return false;
+    }
+
+    snprintf(src_relative, sizeof(src_relative), "config/general/colors.toml");
+    snprintf(dst_relative, sizeof(dst_relative), "config/general/colors.%s.toml", tabs[active_tab].short_name);
+    snprintf(prefix, sizeof(prefix), "colors.%s", tabs[active_tab].short_name);
+
+    if (g_maxcfg == NULL || g_maxcfg_toml == NULL ||
+        maxcfg_join_path(g_maxcfg, src_relative, src_path, sizeof(src_path)) != MAXCFG_OK ||
+        maxcfg_join_path(g_maxcfg, dst_relative, dst_path, sizeof(dst_path)) != MAXCFG_OK) {
+        dialog_message("Create Variant Failed", "Unable to resolve colors config paths.");
+        return false;
+    }
+
+    if (!copy_file_bytes(src_path, dst_path)) {
+        dialog_message("Create Variant Failed", "Unable to create theme-specific colors config.");
+        return false;
+    }
+
+    if (maxcfg_toml_load_file(g_maxcfg_toml, dst_path, prefix) != MAXCFG_OK) {
+        dialog_message("Create Variant Failed", "Theme-specific colors config was created but could not be loaded.");
+        return false;
+    }
+
+    return true;
+}
+
 void action_default_colors(void)
 {
     extern MaxCfgThemeColors g_theme_colors;
@@ -1259,6 +1375,11 @@ void action_default_colors(void)
         int prev_tab = active_tab;
         int prev_selected = selected;
         ListPickResult result;
+        bool is_native = color_theme_variant_is_native(tabs, tab_count, active_tab);
+
+        for (int i = 0; i < 5; i++) {
+            items[i].enabled = is_native;
+        }
 
         if (tab_count > 1 && tab_labels != NULL) {
             result = listpicker_show_tabbed("Default Colors", items, 5, &selected, tab_labels, tab_count, &active_tab);
@@ -1279,6 +1400,13 @@ void action_default_colors(void)
         }
         if (result != LISTPICK_EDIT) {
             continue;
+        }
+
+        if (!items[selected].enabled) {
+            if (!ensure_color_theme_variant_exists(tabs, tab_count, active_tab)) {
+                continue;
+            }
+            items[selected].enabled = true;
         }
 
         switch (selected) {

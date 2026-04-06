@@ -2615,6 +2615,8 @@ static void theme_rebuild_items(ListItem *items, int max_items, ThemeEntry *them
 {
     if (!items || !themes || max_items <= 0) return;
 
+    const char *default_theme = toml_get_string_or_empty("general.theme.general.default_theme");
+
     for (int i = 0; i < max_items; i++) {
         free(items[i].name);
         free(items[i].extra);
@@ -2624,13 +2626,27 @@ static void theme_rebuild_items(ListItem *items, int max_items, ThemeEntry *them
         items[i].data = NULL;
     }
     for (int i = 0; i < theme_count && i < max_items; i++) {
-        char label[96];
-        snprintf(label, sizeof(label), "%2d: %-20s %s",
-                 themes[i].index,
-                 themes[i].short_name ? themes[i].short_name : "",
-                 themes[i].name ? themes[i].name : "");
+        const char *short_name = themes[i].short_name ? themes[i].short_name : "";
+        const char *theme_name = themes[i].name ? themes[i].name : "";
+        const char *lang = (themes[i].lang && themes[i].lang[0]) ? themes[i].lang : NULL;
+        bool is_default_theme = (default_theme[0] != '\0' && strcmp(short_name, default_theme) == 0);
+
+        char label[128];
+        char extra[128];
+
+        snprintf(label, sizeof(label), "%-20s %s%s",
+                 short_name,
+                 theme_name,
+                 is_default_theme ? " [default]" : "");
+
+        if (lang) {
+            snprintf(extra, sizeof(extra), "lang: %s", lang);
+        } else {
+            snprintf(extra, sizeof(extra), "inherits default language");
+        }
+
         items[i].name = strdup(label);
-        items[i].extra = strdup((themes[i].lang && themes[i].lang[0]) ? themes[i].lang : "(default)");
+        items[i].extra = strdup(extra);
         items[i].enabled = true;
         items[i].data = (void *)(intptr_t)i;
     }
@@ -3055,6 +3071,47 @@ static bool load_theme_variant_toml(const char *relative_path, const char *prefi
     return maxcfg_toml_load_file(g_maxcfg_toml, full_path, prefix) == MAXCFG_OK;
 }
 
+static bool copy_file_bytes(const char *src_path, const char *dst_path)
+{
+    FILE *src = NULL;
+    FILE *dst = NULL;
+    char buf[4096];
+    size_t nread;
+    bool ok = false;
+
+    if (!src_path || !dst_path) {
+        return false;
+    }
+
+    src = fopen(src_path, "rb");
+    if (!src) {
+        return false;
+    }
+
+    dst = fopen(dst_path, "wb");
+    if (!dst) {
+        fclose(src);
+        return false;
+    }
+
+    while ((nread = fread(buf, 1, sizeof(buf), src)) > 0) {
+        if (fwrite(buf, 1, nread, dst) != nread) {
+            goto done;
+        }
+    }
+
+    if (ferror(src)) {
+        goto done;
+    }
+
+    ok = true;
+
+done:
+    fclose(src);
+    fclose(dst);
+    return ok;
+}
+
 static const char *display_prefix_for_tab(const ThemeTab *tabs, int tab_count, int active_tab)
 {
     static char prefix[128];
@@ -3092,6 +3149,81 @@ static void ensure_display_theme_loaded(const ThemeTab *tabs, int tab_count, int
     snprintf(relative, sizeof(relative), "config/general/display.%s.toml", tabs[active_tab].short_name);
     snprintf(prefix, sizeof(prefix), "general.display.%s", tabs[active_tab].short_name);
     (void)load_theme_variant_toml(relative, prefix);
+}
+
+static bool display_theme_variant_is_native(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    char relative[MAX_PATH_LEN];
+    char full_path[MAX_PATH_LEN];
+
+    if (tabs == NULL || active_tab < 0 || active_tab >= tab_count) {
+        return true;
+    }
+
+    /* Theme index 1 is the canonical classic/base theme. */
+    if (tabs[active_tab].index == 1) {
+        return true;
+    }
+
+    if (g_maxcfg == NULL || tabs[active_tab].short_name == NULL || tabs[active_tab].short_name[0] == '\0') {
+        return false;
+    }
+
+    snprintf(relative, sizeof(relative), "config/general/display.%s.toml", tabs[active_tab].short_name);
+    if (maxcfg_join_path(g_maxcfg, relative, full_path, sizeof(full_path)) != MAXCFG_OK) {
+        return false;
+    }
+
+    return path_exists(full_path);
+}
+
+static bool ensure_display_theme_variant_exists(const ThemeTab *tabs, int tab_count, int active_tab)
+{
+    char src_relative[MAX_PATH_LEN];
+    char dst_relative[MAX_PATH_LEN];
+    char src_path[MAX_PATH_LEN];
+    char dst_path[MAX_PATH_LEN];
+    char prefix[128];
+    char msg[256];
+
+    if (display_theme_variant_is_native(tabs, tab_count, active_tab)) {
+        return true;
+    }
+
+    if (tabs == NULL || active_tab < 0 || active_tab >= tab_count ||
+        tabs[active_tab].short_name == NULL || tabs[active_tab].short_name[0] == '\0') {
+        return false;
+    }
+
+    snprintf(msg, sizeof(msg),
+             "This display config does not exist for %s yet. Create a theme-specific file now?",
+             tabs[active_tab].name ? tabs[active_tab].name : "this theme");
+    if (!dialog_confirm("Create Theme Display File", msg)) {
+        return false;
+    }
+
+    snprintf(src_relative, sizeof(src_relative), "config/general/display.toml");
+    snprintf(dst_relative, sizeof(dst_relative), "config/general/display.%s.toml", tabs[active_tab].short_name);
+    snprintf(prefix, sizeof(prefix), "general.display.%s", tabs[active_tab].short_name);
+
+    if (g_maxcfg == NULL || g_maxcfg_toml == NULL ||
+        maxcfg_join_path(g_maxcfg, src_relative, src_path, sizeof(src_path)) != MAXCFG_OK ||
+        maxcfg_join_path(g_maxcfg, dst_relative, dst_path, sizeof(dst_path)) != MAXCFG_OK) {
+        dialog_message("Create Variant Failed", "Unable to resolve display config paths.");
+        return false;
+    }
+
+    if (!copy_file_bytes(src_path, dst_path)) {
+        dialog_message("Create Variant Failed", "Unable to create theme-specific display config.");
+        return false;
+    }
+
+    if (!load_theme_variant_toml(dst_relative, prefix)) {
+        dialog_message("Create Variant Failed", "Theme-specific display config was created but could not be loaded.");
+        return false;
+    }
+
+    return true;
 }
 
 static void action_display_general(void)
@@ -3598,6 +3730,11 @@ static void action_display_settings(void)
         int prev_tab = active_tab;
         int prev_selected = selected;
         ListPickResult result;
+        bool is_native = display_theme_variant_is_native(tabs, tab_count, active_tab);
+
+        for (int i = 0; i < 4; i++) {
+            items[i].enabled = is_native;
+        }
 
         if (tab_count > 1 && tab_labels != NULL) {
             result = listpicker_show_tabbed("Display Settings", items, 4, &selected, tab_labels, tab_count, &active_tab);
@@ -3619,6 +3756,13 @@ static void action_display_settings(void)
 
         if (result == LISTPICK_EXIT || result == LISTPICK_NONE) break;
         if (result == LISTPICK_EDIT) {
+            if (!items[selected].enabled) {
+                if (!ensure_display_theme_variant_exists(tabs, tab_count, active_tab)) {
+                    continue;
+                }
+                items[selected].enabled = true;
+            }
+
             switch (selected) {
                 case 0: action_display_general_for_tab(tabs, tab_count, active_tab); break;
                 case 1: action_display_file_areas_for_tab(tabs, tab_count, active_tab); break;
@@ -7749,3 +7893,4 @@ static void action_menus_list(void)
     touchwin(stdscr);
     wnoutrefresh(stdscr);
 }
+

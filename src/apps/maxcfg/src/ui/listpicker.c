@@ -628,11 +628,18 @@ static void draw_tabbed_list_picker(TabbedListState *state, int y, int x, int he
         }
     }
 
-    /* Help separator and two-line help text (inside dialog, above bottom border) */
+    /* Help separator and expanded multi-line help text (inside dialog, above bottom border) */
     int help_sep_y = content_start + state->visible_rows;
-    int help_y1 = help_sep_y + 1;
-    int help_y2 = help_sep_y + 2;
-    if (help_y2 < bottom_y) {
+    int help_lines = 5;
+    if (help_sep_y + help_lines < bottom_y) {
+        static const char *help_text[] = {
+            "This list shows all of the menus that resolve for the currently selected",
+            "theme. Bright items have a theme-specific variant, dim items are",
+            "inherited from the base classic theme until you create one.",
+            "Pressing Enter on a dim item will ask you to create a theme-specific",
+            "copy. Use LEFT and RIGHT arrows to change themes."
+        };
+
         mvaddch(help_sep_y, x, ACS_LTEE);
         addch(ACS_HLINE);
         addch(' ');
@@ -697,23 +704,33 @@ static void draw_tabbed_list_picker(TabbedListState *state, int y, int x, int he
         mvaddch(help_sep_y, x + width - 1, ACS_RTEE);
         attroff(COLOR_PAIR(CP_DIALOG_BORDER));
 
-        mvaddch(help_y1, x, ACS_VLINE);
-        attron(COLOR_PAIR(CP_MENU_BAR));
-        mvprintw(help_y1, x + 2, "%-*.*s", width - 4, width - 4,
-                 "This tab shows one concrete theme. Bright items already have a variant file.");
-        attroff(COLOR_PAIR(CP_MENU_BAR));
-        attron(COLOR_PAIR(CP_DIALOG_BORDER));
-        mvaddch(help_y1, x + width - 1, ACS_VLINE);
-        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+        for (int i = 0; i < help_lines; i++) {
+            int help_y = help_sep_y + 1 + i;
+            mvaddch(help_y, x, ACS_VLINE);
 
-        mvaddch(help_y2, x, ACS_VLINE);
-        attron(COLOR_PAIR(CP_MENU_BAR));
-        mvprintw(help_y2, x + 2, "%-*.*s", width - 4, width - 4,
-                 "If an item is dim, it is inherited. Press Enter to create a theme-specific copy.");
-        attroff(COLOR_PAIR(CP_MENU_BAR));
-        attron(COLOR_PAIR(CP_DIALOG_BORDER));
-        mvaddch(help_y2, x + width - 1, ACS_VLINE);
-        attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+            attron(COLOR_PAIR(CP_DIALOG_TEXT));
+            for (int j = 1; j < width - 1; j++) {
+                mvaddch(help_y, x + j, ' ');
+            }
+            attroff(COLOR_PAIR(CP_DIALOG_TEXT));
+
+            attron(COLOR_PAIR(CP_MENU_BAR));
+            mvprintw(help_y, x + 2, "%s", help_text[i]);
+            attroff(COLOR_PAIR(CP_MENU_BAR));
+
+            if (i == 4) {
+                int left_x = x + 2 + (int)strlen("copy. Use ");
+                int right_x = x + 2 + (int)strlen("copy. Use LEFT and ");
+                attron(COLOR_PAIR(CP_DIALOG_TITLE) | A_BOLD);
+                mvprintw(help_y, left_x, "LEFT");
+                mvprintw(help_y, right_x, "RIGHT");
+                attroff(COLOR_PAIR(CP_DIALOG_TITLE) | A_BOLD);
+            }
+
+            attron(COLOR_PAIR(CP_DIALOG_BORDER));
+            mvaddch(help_y, x + width - 1, ACS_VLINE);
+            attroff(COLOR_PAIR(CP_DIALOG_BORDER));
+        }
     }
 
     wnoutrefresh(stdscr);
@@ -737,8 +754,8 @@ ListPickResult listpicker_show_tabbed(const char *title, ListItem *items, int it
     int x = (max_cols - width) / 2;
     int y = (max_rows - height) / 2;
 
-    /* top border, tab row, separator, help separator, two help lines, bottom border */
-    int visible_rows = height - 7;
+    /* top border, tab row, separator, help separator, five help lines, bottom border */
+    int visible_rows = height - 10;
     if (visible_rows < 1) visible_rows = 1;
 
     /* Initialize state */
