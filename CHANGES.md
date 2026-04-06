@@ -24,7 +24,125 @@ Full details for each 4.0-era change are in the dated entries below.
 
 ---
 
-## Sat Apr 4 2026 - MaximusNG 4.0 [release prep]
+## Mon Apr 6 2026 - MaximusNG 4.0 [release prep]
+
+*Weather Include Drift Fix, Release Packaging Cleanup, and macOS Build Path Polish*
+
+**MEX header staging, release script cleanup, and macOS build path hardening**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### Fixed: MEX Include Drift
+- Moved `weather.mh` from `resources/scripts/` into the canonical include location at `resources/scripts/include/weather.mh`.
+- Updated `resources/scripts/weather.mex` to use `#include "include/weather.mh"` instead of a sibling include.
+- Staged `weather.mh` into `resources/install_tree/scripts/include/weather.mh` so the release tree has the correct header.
+- Extended `scripts/copy_install_tree.sh` to refresh MEX sources and include headers from `resources/scripts/` and `resources/scripts/include/` into the install prefix, preventing stale checked-in headers from drifting out of sync.
+- Updated `scripts/make-release.sh` to copy staged include headers from the built tree into the release under `scripts/include/`, instead of pulling `.mh`/`.lh` files ad hoc from raw source.
+- Extended `Makefile` reconfig to also copy headers from `resources/scripts/include/` into the installed `scripts/include/` layout.
+
+### Fixed: macOS Build Path
+- Updated `scripts/build-macos.sh` to use `make buildclean` instead of `make clean` before each architecture build, ensuring a clean staged deployment root.
+
+### Removed: Root-Level Clutter
+- Removed `Screenshot 2026-03-07 152200.png`, `max_startup.log`, `install_tree.tar.gz`, and `vars_local.mk~` from the repository root.
+- Updated `.gitignore` to cover AI tooling session artifacts (`.kilocodemodes`, `.kilocode/`, `.codex/`, etc.), local toolchains, and release tarballs.
+
+---
+
+## Sat Apr 5 2026 - MaximusNG 4.0 [development]
+
+*maxcfg Theme Editor Tabs, Field Metadata, and Picker Alignment*
+
+**Theme-tabbed maxcfg editors, field metadata plumbing, and cross-picker behavior alignment**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: maxcfg Theme-Tabbed Editors
+- Added theme-tabbed UI for maxcfg: colors, display, and menus editors now show tabs per theme variant.
+- Picker navigation now flows correctly between theme tabs and sub-editors.
+
+### New: maxcfg Field Metadata Plumbing
+- Added field metadata wiring for maxcfg editors, enabling richer per-field configuration hints.
+
+### Fixed: maxcfg Picker Behavior
+- Aligned theme-variant picker behavior across menus, display, and colors editors for consistent cross-picker navigation.
+
+---
+
+## Sat Apr 4 2026 - MaximusNG 4.0 [development]
+
+*Smuggler Door Integration and Release Staging*
+
+**Door32 Smuggler integration, release staging content, and MEX PRM NG config wiring**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### New: Smuggler Door Integration
+- Added Smuggler door content and runtime assets to the staged resource set for deployment.
+- Door32 dropfile output now writes the expected numeric ANSI capability flag instead of string literals.
+- Door32 child launches now clear `FD_CLOEXEC` on the preserved session descriptor so exec-chained doors keep their live socket handle.
+
+### Improved: MEX PRM NG Config Wiring
+- Fixed MEX PRM NG config wiring for oneliner and blackjack flows.
+- Synced games menu assets across canonical config and install tree mirrors.
+
+### Improved: Release Staging
+- Removed redundant `maxtel_install` calls from platform build/release wrappers now that `make install` already handles MAXTEL deployment.
+- `buildclean` now removes staged libraries, root-level launcher/log artifacts, and loose generated `.bbs` files from `build/`.
+- Install/release doc packaging now carries forward `maxtel.md`, `maxtel.txt`, `maxcfg-cli-usage.md`, `maximus-ngconfig-docs.md`, `squish.doc`, and `max_mast` docs.
+- Added `data/mex/smuggler-saves` to staged install/release layouts.
+- Expanded `maxui.mh` with screen region, window, overlay, box, and begin/end-update helpers needed by richer MEX UI flows.
+- Added live-edit form mode constants and option metadata support for form fields.
+- Removed checked-in generated `mex_tab.c`/`mex_tab.h` parser artifacts from the source tree.
+- Refreshed games menu copy (`q quit to main`) in both canonical config and install tree mirrors.
+
+---
+
+## Sun Mar 22 2026 - MaximusNG 4.0 [development]
+
+*BUG Fixes, MEX Script Refactors, Theme Menus, and TOML Config Updates*
+
+**BUG-004 through BUG-009, headmsg-ng/footmsg-ng refactor, maxng theme menus, and TOML config reorganization**  
+Maintainer: Kevin Morgan (Limping Ninja) - https://github.com/LimpingNinja
+
+### Fixed: BUG-004 — Terminal Detection Provenance
+- `fix(BUG-004)`: Trust session termcap earlier and log terminal detection provenance for cleaner startup diagnostics.
+
+### Fixed: BUG-005 — File Menu Jump Target
+- `fix(BUG-005)`: Correct file-menu jump target and harden bad-menu fallback path.
+
+### Fixed: BUG-006 — Non-Lightbar Message Area Listing
+- `BUG-006`: Fix empty divisions, name display, and input handling for non-lightbar msg area listings.
+
+### Fixed: BUG-008 — Logging Defaults and maxtel Formatting
+- `BUG-008`: Fix logging defaults and maxtel output formatting.
+
+### Fixed: BUG-009 — Live-Edit Mode for UI Form Runner
+- `BUG-009`: Add live-edit mode to UI form runner for real-time field validation feedback.
+
+### Fixed: NG Reader Lastread Pointer
+- `fix`: NG reader lastread pointer now always updates to the current message instead of lagging.
+
+### Fixed: New User Real-Name Default for Alias Mode
+- Fixed new user real-name defaulting behavior when alias mode is active.
+
+### New: headmsg-ng and footmsg-ng MEX Scripts
+- Refactored message menu header/footer into dedicated `headmsg-ng.mex` and `footmsg-ng.mex` MEX scripts for cleaner per-theme override support.
+
+### New: maxng Theme Menus
+- Added `menus.main.maxng` and related theme-specific menu TOMLs for automatic theme-based menu swapping.
+- Updated `sync-toml.sh` bidirectional workflow to handle theme-specific menu files correctly.
+
+### Improved: TOML Config Reorganization
+- Moved format keys from `display_files.toml` into `display.toml` for cleaner config hierarchy.
+- Updated language and configuration TOML files with enriched parameter metadata.
+- Renamed logo assets for NG theme (`logo.maxng.ans`, etc.).
+- `sync-toml.sh`: skip `english.toml` on reverse sync, fix `sys_path` on copy.
+
+### Improved: Release Notes and Parser Artifacts
+- Refreshed release notes and removed checked-in parser artifacts (`mex_tab.c`/`mex_tab.h`).
+- Added `AGENTS.md` to `.gitignore`.
+
+---
+
+## Thu Mar 19 2026 - MaximusNG 4.0 [development]
 
 *Release Packaging, Door32 Follow-Through, and MEX/UI Runtime Cleanup*
 

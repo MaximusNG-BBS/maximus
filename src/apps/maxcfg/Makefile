@@ -11,16 +11,30 @@ include $(SRC)/vars.mk
 CFLAGS += -Wall -Wextra -g -I./include $(INCLUDES)
 CFLAGS += -I$(SRC)/src/libs/libmaxdb/include -I$(SRC)/src/libs/sqlite
 
-# Enable wide-character ncurses APIs for Unicode rendering.
-CFLAGS += -DHAVE_WIDE_CURSES
-
-# Detect macOS vs Linux for ncurses path
+# Enable wide-character curses only when the selected toolchain provides it.
+# Wrapper scripts export MAXCFG_NCURSES_PREFIX/MAXCFG_NCURSES_WIDE so the same
+# Makefile works for both native arm64 and Rosetta x86_64 builds.
 UNAME_S := $(shell uname -s)
 ifeq ($(UNAME_S),Darwin)
-    CFLAGS += -I/opt/homebrew/opt/ncurses/include
-    LDFLAGS += -L/opt/homebrew/opt/ncurses/lib
+  ifneq ($(MAXCFG_NCURSES_PREFIX),)
+    CFLAGS += -I$(MAXCFG_NCURSES_PREFIX)/include
+    ifneq ($(wildcard $(MAXCFG_NCURSES_PREFIX)/include/ncursesw/curses.h),)
+      CFLAGS += -I$(MAXCFG_NCURSES_PREFIX)/include/ncursesw
+    endif
+    LDFLAGS += -L$(MAXCFG_NCURSES_PREFIX)/lib
+  endif
+
+  ifeq ($(MAXCFG_NCURSES_WIDE),1)
+    CFLAGS += -DHAVE_WIDE_CURSES
+    NCURSES_LIBS := -lncursesw -lpanelw -lmenuw -lformw
+  else
+    NCURSES_LIBS := -lncurses
+  endif
+else
+  CFLAGS += -DHAVE_WIDE_CURSES
+  NCURSES_LIBS := -lncursesw
 endif
-LDFLAGS += -lncursesw
+
 LDFLAGS += -lmaxcfg
 LDFLAGS += -L$(SRC)/src/libs/libmaxdb -lmaxdb -L$(SRC)/src/libs/sqlite -lsqlite3
 LDFLAGS += -lmax
@@ -78,7 +92,7 @@ dirs:
 	@mkdir -p $(OBJDIR)/ui $(OBJDIR)/config
 
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $@ $(LDFLAGS)
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS) $(NCURSES_LIBS)
 
 $(OBJDIR)/%.o: $(SRCDIR)/%.c
 	@mkdir -p $(dir $@)

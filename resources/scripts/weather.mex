@@ -15,7 +15,7 @@
 #include <json.mh>
 #include <socket.mh>
 #include <maxui.mh>
-#include "weather.mh"
+#include "include/weather.mh"
 
 #define API_KEY     "a0c6623e22d041c28f9171351262202"
 

@@ -89,7 +89,7 @@ mkdirs:
 all:	mkdirs clean squish_install max_install sqafix_install
 
 clean: buildclean
-	$(foreach DIR, $(DIRS) configuration-tests, $(MAKE) SRC=$(SRC) -C $(DIR) -k $@; )
+	$(foreach DIR, $(DIRS), $(MAKE) SRC=$(SRC) -C $(DIR) -k $@; )
 	-rm depend.mk.bak depend.mk
 	-rm */depend.mk.bak */depend.mk
 
@@ -206,6 +206,7 @@ reconfig:
 	@echo " - Syncing MEX sources and includes"
 	@cp -f resources/scripts/*.mex $(PREFIX)/scripts/ 2>/dev/null || true
 	@cp -f resources/scripts/*.mh resources/scripts/*.lh $(PREFIX)/scripts/include/ 2>/dev/null || true
+	@cp -f resources/scripts/include/*.mh resources/scripts/include/*.lh $(PREFIX)/scripts/include/ 2>/dev/null || true
 	@for dir in resources/scripts/*/; do \
 		[ -d "$$dir" ] || continue; \
 		subdir=$$(basename "$$dir"); \

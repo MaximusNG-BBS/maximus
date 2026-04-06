@@ -66,14 +66,11 @@ src/libs/btree/trackexp
 # MEX compiled output
 *.vm
 
-# Editor/IDE
+# Editor / backup cruft
 *.swp
 *.swo
 *~
 .!*
-.idea/
-.vscode/
-*.DS_Store
 
 # Static site cache
 docs/wiki/.jekyll-cache/
@@ -90,23 +87,16 @@ trk*
 __pycache__/
 .env
 
-# Extensions
-.windsurf/
-.roo/
-.kilo/
-.kilocode/
-.codex/
-.claude/
-.cursor/
-.zed/
-
-# AI agent/project steering
-kilo.json
-CLAUDE.md
-GEMINI.md
-CURSOR.md
-CODEX.md
-agents.md
-
-# Local agent steering
+# Ignore dotfiles / dotfolders by default
+.*
 AGENTS.md
+
+# Keep tracked GitHub workflows and config
+!.github/
+!.github/**
+
+# Local cross-compile deps
+toolchains/
+
+# Release tarballs
+release/*.tar.gz

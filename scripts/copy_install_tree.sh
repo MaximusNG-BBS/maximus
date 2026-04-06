@@ -64,6 +64,24 @@ else
   fi
 fi
 
+# Refresh MEX sources/includes from the authoritative source tree so stale
+# checked-in install_tree copies cannot drift ahead or behind runtime content.
+[ -d "${PREFIX}/scripts" ] || mkdir -p "${PREFIX}/scripts"
+[ -d "${PREFIX}/scripts/include" ] || mkdir -p "${PREFIX}/scripts/include"
+
+cp -f resources/scripts/*.mex "${PREFIX}/scripts/" 2>/dev/null || true
+cp -f resources/scripts/*.mh resources/scripts/*.lh "${PREFIX}/scripts/include/" 2>/dev/null || true
+cp -f resources/scripts/include/*.mh resources/scripts/include/*.lh "${PREFIX}/scripts/include/" 2>/dev/null || true
+
+for dir in resources/scripts/*/; do
+  [ -d "$dir" ] || continue
+  subdir=$(basename "$dir")
+  [ "$subdir" = "include" ] && continue
+  mkdir -p "${PREFIX}/scripts/${subdir}"
+  cp -f "$dir"*.mex "${PREFIX}/scripts/${subdir}/" 2>/dev/null || true
+  cp -f "$dir"*.mh "$dir"*.lh "${PREFIX}/scripts/include/" 2>/dev/null || true
+done
+
 if [ -f "${PREFIX}/runbbs.sh" ] && [ "$FORCE" = "0" ]; then
   echo "This is not a fresh install -- not copying runbbs.sh.."
 else

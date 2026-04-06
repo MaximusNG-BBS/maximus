@@ -26,6 +26,50 @@ log_info() { echo -e "${GREEN}[INFO]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
+setup_ncurses_env() {
+    local target_arch="$1"
+    local sdk_path=""
+    local local_x86_prefix="$PROJECT_ROOT/toolchains/ncurses-x86_64"
+
+    unset MAXCFG_NCURSES_PREFIX MAXCFG_NCURSES_WIDE EXTRA_INCLUDES EXTRA_LOADLIBES
+
+    if [ "$target_arch" = "x86_64" ]; then
+        if [ -f "$local_x86_prefix/lib/libncursesw.dylib" ]; then
+            log_info "Using local x86_64 ncurses toolchain: $local_x86_prefix"
+            export MAXCFG_NCURSES_PREFIX="$local_x86_prefix"
+            export MAXCFG_NCURSES_WIDE=1
+            export EXTRA_INCLUDES="-I$local_x86_prefix/include -I$local_x86_prefix/include/ncursesw -DHAVE_WIDE_CURSES"
+        else
+            sdk_path="$(xcrun --show-sdk-path 2>/dev/null)"
+            if [ -n "$sdk_path" ] && [ -f "$sdk_path/usr/lib/libncurses.tbd" ]; then
+                log_warn "Falling back to macOS SDK system ncurses for x86_64 (no wide-char support)"
+                export MAXCFG_NCURSES_WIDE=0
+                export EXTRA_INCLUDES="-isysroot $sdk_path"
+            else
+                log_error "No x86_64-compatible curses toolchain found. Build local ncurses into $local_x86_prefix first."
+                exit 1
+            fi
+        fi
+    else
+        if [ -f /opt/homebrew/opt/ncurses/lib/libncursesw.dylib ]; then
+            log_info "Using native Homebrew ncurses for arm64 build"
+            export MAXCFG_NCURSES_PREFIX="/opt/homebrew/opt/ncurses"
+            export MAXCFG_NCURSES_WIDE=1
+            export EXTRA_INCLUDES="-I/opt/homebrew/opt/ncurses/include -I/opt/homebrew/opt/ncurses/include/ncursesw -DHAVE_WIDE_CURSES"
+        fi
+    fi
+
+    # Prevent pkg-config and similar discovery from dragging arm64 Homebrew
+    # dependencies into x86_64 link steps.
+    if [ "$target_arch" = "x86_64" ]; then
+        export PKG_CONFIG_PATH=""
+        export PKG_CONFIG_LIBDIR=""
+        export CPATH=""
+        export LIBRARY_PATH=""
+        export DYLD_LIBRARY_PATH=""
+    fi
+}
+
 # Check we're on macOS
 if [ "$(uname -s)" != "Darwin" ]; then
     log_error "This script must be run on macOS"
@@ -114,7 +158,11 @@ if [ "$CROSS_COMPILE" = true ] && [ "$ARCH" = "x86_64" ]; then
     export CFLAGS="-arch x86_64"
     export CXXFLAGS="-arch x86_64"
     export LDFLAGS="-arch x86_64"
+elif [ "$ARCH" = "arm64" ] || [ "$CROSS_COMPILE" = false ]; then
+    :
 fi
+
+setup_ncurses_env "$ARCH"
 
 # Run configure to generate vars.mk for this platform
 log_info "Running configure with PREFIX=$PROJECT_ROOT/build..."
@@ -125,8 +173,8 @@ else
 fi
 
 # Clean previous build
-log_info "Cleaning previous build..."
-make clean 2>/dev/null || true
+log_info "Cleaning previous build with make buildclean..."
+make buildclean 2>/dev/null || true
 
 # Remove old binaries that might be wrong architecture
 log_info "Removing old binaries from build directory..."

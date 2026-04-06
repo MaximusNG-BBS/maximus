@@ -202,7 +202,11 @@ create_release_package() {
     
     # Copy compiled MEX files (.vm)
     log_info "Copying compiled MEX files..."
+    mkdir -p "$release_path/scripts/include"
+    cp -f "${BUILD_DIR}/scripts/"*.mex "$release_path/scripts/" 2>/dev/null || true
     cp -f "${BUILD_DIR}/scripts/"*.vm "$release_path/scripts/" 2>/dev/null || true
+    cp -f "${BUILD_DIR}/scripts/include/"*.mh "$release_path/scripts/include/" 2>/dev/null || true
+    cp -f "${BUILD_DIR}/scripts/include/"*.lh "$release_path/scripts/include/" 2>/dev/null || true
     
     # Copy subdirectory .vm files (learn/, etc.)
     for subdir in "${BUILD_DIR}/scripts"/*/; do
